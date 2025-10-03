@@ -1,0 +1,104 @@
+--// Modern Mobile-Friendly Noclip with Safe Toggle \\--
+
+-- Remove old UI if exists
+if game.CoreGui:FindFirstChild("NoclipUI") then
+    game.CoreGui:FindFirstChild("NoclipUI"):Destroy()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- State
+_G.NoclipEnabled = _G.NoclipEnabled or false
+local noclipConnection
+
+-- Function: Apply noclip
+local function enableNoclip()
+    if noclipConnection then noclipConnection:Disconnect() end
+    noclipConnection = RunService.Stepped:Connect(function()
+        if _G.NoclipEnabled and player.Character then
+            for _, v in pairs(player.Character:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- Function: Disable noclip
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NoclipUI"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 140, 0, 50)
+Frame.Position = UDim2.new(0.35, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+-- Rounded corner
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Frame
+
+-- Shadow
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 255, 127)
+UIStroke.Thickness = 2
+UIStroke.Parent = Frame
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -10, 1, -10)
+ToggleButton.Position = UDim2.new(0, 5, 0, 5)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextScaled = true
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = _G.NoclipEnabled and "Noclip: ON" or "Noclip: OFF"
+ToggleButton.Parent = Frame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 10)
+BtnCorner.Parent = ToggleButton
+
+-- Toggle
+local function toggleNoclip()
+    _G.NoclipEnabled = not _G.NoclipEnabled
+    ToggleButton.Text = _G.NoclipEnabled and "Noclip: ON" or "Noclip: OFF"
+
+    if _G.NoclipEnabled then
+        enableNoclip()
+    else
+        disableNoclip()
+    end
+end
+
+ToggleButton.MouseButton1Click:Connect(toggleNoclip)
+
+-- Auto enable if already ON
+if _G.NoclipEnabled then
+    enableNoclip()
+end
+
+-- Re-apply on character respawn
+player.CharacterAdded:Connect(function()
+    if _G.NoclipEnabled then
+        task.wait(1)
+        enableNoclip()
+    end
+end)
