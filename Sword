@@ -1,0 +1,274 @@
+--[[ 
+    WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+
+--// Services & Settings \\--
+local player = game:GetService("Players").LocalPlayer
+local uis = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+
+--// Load MacLib \\--
+local MacLib = loadstring(game:HttpGet("https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"))()
+
+--// Create Window \\--
+local Window = MacLib:Window({
+    Title = "West V3",
+    Subtitle = "Universal script",
+    Size = UDim2.fromOffset(868, 650),
+    DragStyle = 1,
+    DisabledWindowControls = {},
+    ShowUserInfo = true,
+    Keybind = Enum.KeyCode.RightControl,
+    AcrylicBlur = true,
+})
+
+--// Create TabGroup and Tab \\--
+local TabGroup = Window:TabGroup()
+local MainTab = TabGroup:Tab({
+    Name = "Main",
+    Image = "rbxassetid://7072711508"
+})
+
+--// Create Sections \\--
+local LeftSection1 = MainTab:Section({ Side = "Left" })
+local LeftSection2 = MainTab:Section({ Side = "Left" })
+local RightSection = MainTab:Section({ Side = "Right" })
+
+--// State \\--
+local function humanoid()
+    return player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+end
+
+local walkEnabled = false
+local jumpEnabled = false
+local killAuraEnabled = false
+local infJumpEnabled = false
+local noclipEnabled = false
+local espEnabled = false
+local walkSpeedValue = 16
+local jumpPowerValue = 50
+local killAuraRange = 15
+
+--// Reapply stats on spawn \\--
+player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid")
+    if walkEnabled then char.Humanoid.WalkSpeed = walkSpeedValue end
+    if jumpEnabled then char.Humanoid.JumpPower = jumpPowerValue end
+end)
+
+--// Kill Aura Toggle \\--
+LeftSection1:Toggle({
+    Name = "Kill Aura",
+    Default = false,
+    Callback = function(state)
+        killAuraEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "Kill Aura" })
+    end,
+})
+
+--// ESP Toggle \\--
+LeftSection1:Toggle({
+    Name = "ESP",
+    Default = false,
+    Callback = function(state)
+        espEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "ESP" })
+    end,
+})
+
+--// TP to All Sword Givers Button \\--
+LeftSection2:Button({
+    Name = "TP to All Swords",
+    Callback = function()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local originalPos = hrp.Position
+        for _, giver in ipairs(workspace.Map.Sword:GetDescendants()) do
+            if giver:IsA("BasePart") then
+                hrp.CFrame = giver.CFrame + Vector3.new(0, 3, 0)
+                task.wait(0.2)
+            end
+        end
+        hrp.CFrame = CFrame.new(originalPos)
+        Window:Notify({ Title = "West X Notify", Description = "Teleported to all sword givers and returned." })
+    end,
+})
+
+--// Sliders \\--
+RightSection:Slider({
+    Name = "Walkspeed",
+    Default = walkSpeedValue,
+    Minimum = 16,
+    Maximum = 150,
+    DisplayMethod = "Percent",
+    Callback = function(Value)
+        walkSpeedValue = Value
+    end,
+})
+
+RightSection:Slider({
+    Name = "Jumppower",
+    Default = jumpPowerValue,
+    Minimum = 50,
+    Maximum = 150,
+    DisplayMethod = "Percent",
+    Callback = function(Value)
+        jumpPowerValue = Value
+    end,
+})
+
+RightSection:Slider({
+    Name = "Kill Aura Range",
+    Default = killAuraRange,
+    Minimum = 5,
+    Maximum = 50,
+    DisplayMethod = "Number",
+    Callback = function(Value)
+        killAuraRange = Value
+    end,
+})
+
+--// Toggles \\--
+RightSection:Toggle({
+    Name = "Walkspeed",
+    Default = false,
+    Callback = function(state)
+        walkEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "Walkspeed" })
+    end,
+})
+
+RightSection:Toggle({
+    Name = "Jumppower",
+    Default = false,
+    Callback = function(state)
+        jumpEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "Jumppower" })
+    end,
+})
+
+RightSection:Toggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(state)
+        infJumpEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "Infinite Jump" })
+    end,
+})
+
+RightSection:Toggle({
+    Name = "Noclip",
+    Default = false,
+    Callback = function(state)
+        noclipEnabled = state
+        Window:Notify({ Title = "West X Notify", Description = (state and "Enabled " or "Disabled ") .. "Noclip" })
+    end,
+})
+
+--// Infinite Jump Logic \\--
+uis.JumpRequest:Connect(function()
+    if infJumpEnabled and humanoid() then
+        humanoid():ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+--// Anti-Idle \\--
+player.Idled:Connect(function()
+    local vu = game:GetService("VirtualUser")
+    vu:Button2Down(Vector2.new())
+    task.wait(1)
+    vu:Button2Up(Vector2.new())
+end)
+
+--// Anti-Lag \\--
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+        obj:Destroy()
+    elseif obj:IsA("BasePart") then
+        obj.Material = Enum.Material.SmoothPlastic
+        obj.Reflectance = 0
+    end
+end
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+--// ESP Drawing \\--
+local drawings = {}
+runService.RenderStepped:Connect(function()
+    for _, v in pairs(drawings) do
+        v.Name:Remove()
+        v.HP:Remove()
+    end
+    table.clear(drawings)
+
+    if espEnabled then
+        for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") then
+                local hrp = plr.Character.HumanoidRootPart
+                local hum = plr.Character.Humanoid
+                local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local nameTag = Drawing.new("Text")
+                    nameTag.Text = plr.Name
+                    nameTag.Size = 14
+                    nameTag.Center = true
+                    nameTag.Outline = true
+                    nameTag.Color = Color3.new(1, 1, 1)
+                    nameTag.Position = Vector2.new(pos.X, pos.Y - 20)
+                    nameTag.Visible = true
+
+                    local hpTag = Drawing.new("Text")
+                    hpTag.Text = "HP: " .. math.floor(hum.Health)
+                    hpTag.Size = 14
+                    hpTag.Center = true
+                    hpTag.Outline = true
+                    hpTag.Color = Color3.new(0, 1, 0)
+                    hpTag.Position = Vector2.new(pos.X, pos.Y)
+                    hpTag.Visible = true
+
+                    drawings[#drawings + 1] = { Name = nameTag, HP = hpTag }
+                end
+            end
+        end
+    end
+end)
+
+--// Main Loop \\--
+runService.RenderStepped:Connect(function()
+    local h = humanoid()
+    if h then
+        if walkEnabled then h.WalkSpeed = walkSpeedValue end
+        if jumpEnabled then h.JumpPower = jumpPowerValue end
+    end
+
+    if killAuraEnabled then
+        local players = game.Players:GetPlayers()
+        for i = 2, #players do
+            local v = players[i].Character
+            if v and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") 
+               and player:DistanceFromCharacter(v.HumanoidRootPart.Position) <= killAuraRange 
+            then
+                local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("Handle") then
+                    tool:Activate()
+                    for _, part in next, v:GetChildren() do
+                        if part:IsA("BasePart") then
+                            firetouchinterest(tool.Handle, part, 0)
+                            firetouchinterest(tool.Handle, part, 1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+--// Noclip Loop (fixed) \\--
+runService.Stepped:Connect(function()
+    if noclipEnabled and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
