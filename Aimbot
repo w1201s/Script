@@ -1,0 +1,271 @@
+--// Wind UI Load (ถูกต้อง)
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+--// Window
+local Window = WindUI:CreateWindow({
+    Title = "Venus v0.1 (Aimbot)",
+    Icon = "crosshair",
+    Author = "by w1201s",
+    Size = UDim2.fromOffset(520, 420),
+})
+
+--// Tabs
+local AimbotTab = Window:Tab({
+    Title = "Aimbot",
+    Icon = "target",
+})
+
+local ESPTab = Window:Tab({
+    Title = "ESP",
+    Icon = "eye",
+})
+
+--// Settings
+local Settings = {
+    Aimbot = false,
+    TeamCheck = true,
+    WallCheck = true,
+
+    FOV = 120,
+    ShowFOV = true,
+    RGBFOV = false,
+
+    Smoothness = 0, -- 0 = instant
+
+    ESP = false,
+    ESPName = false,
+}
+
+--// FOV Circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Filled = false
+FOVCircle.Thickness = 2
+FOVCircle.Radius = Settings.FOV
+FOVCircle.Color = Color3.fromRGB(255,255,255)
+FOVCircle.Visible = true
+
+--// ================= AIMBOT UI =================
+AimbotTab:Toggle({
+    Title = "Enable Aimbot",
+    Value = false,
+    Callback = function(v) Settings.Aimbot = v end
+})
+
+AimbotTab:Toggle({
+    Title = "Team Check",
+    Value = true,
+    Callback = function(v) Settings.TeamCheck = v end
+})
+
+AimbotTab:Toggle({
+    Title = "Wall Check",
+    Value = true,
+    Callback = function(v) Settings.WallCheck = v end
+})
+
+AimbotTab:Slider({
+    Title = "FOV Radius",
+    Step = 1,
+    Value = {
+        Min = 50,
+        Max = 400,
+        Default = 120,
+    },
+    Callback = function(v)
+        Settings.FOV = v
+        FOVCircle.Radius = v
+    end
+})
+
+AimbotTab:Slider({
+    Title = "Smoothness (0 = Instant)",
+    Step = 0.1,
+    Value = {
+        Min = 0,
+        Max = 10,
+        Default = 0,
+    },
+    Callback = function(v)
+        Settings.Smoothness = v
+    end
+})
+
+AimbotTab:Toggle({
+    Title = "FOV Visible",
+    Value = true,
+    Callback = function(v) Settings.ShowFOV = v end
+})
+
+AimbotTab:Toggle({
+    Title = "RGB FOV",
+    Value = false,
+    Callback = function(v) Settings.RGBFOV = v end
+})
+
+--// ================= ESP UI =================
+ESPTab:Toggle({
+    Title = "ESP Highlight",
+    Value = false,
+    Callback = function(v) Settings.ESP = v end
+})
+
+ESPTab:Toggle({
+    Title = "ESP Name",
+    Value = false,
+    Callback = function(v) Settings.ESPName = v end
+})
+
+--// ================= FUNCTIONS =================
+local function IsAlive(plr)
+    local char = plr.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0
+end
+
+local function WallCheck(part)
+    if not Settings.WallCheck then return true end
+
+    local origin = Camera.CFrame.Position
+    local direction = part.Position - origin
+
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = { LocalPlayer.Character }
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+
+    local result = workspace:Raycast(origin, direction, params)
+    return result and result.Instance:IsDescendantOf(part.Parent)
+end
+
+local function GetClosestPlayer()
+    local closest
+    local shortest = Settings.FOV
+
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer
+        and plr.Character
+        and plr.Character:FindFirstChild("Head")
+        and IsAlive(plr) then
+
+            if Settings.TeamCheck and plr.Team == LocalPlayer.Team then
+                continue
+            end
+
+            local pos, onScreen = Camera:WorldToViewportPoint(plr.Character.Head.Position)
+            if not onScreen then continue end
+
+            local dist = (
+                Vector2.new(pos.X, pos.Y) -
+                Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            ).Magnitude
+
+            if dist < shortest and WallCheck(plr.Character.Head) then
+                shortest = dist
+                closest = plr
+            end
+        end
+    end
+
+    return closest
+end
+
+--// ================= ESP SYSTEM =================
+local ESPs = {}
+local Names = {}
+
+local function ClearESP(plr)
+    if ESPs[plr] then ESPs[plr]:Destroy() ESPs[plr] = nil end
+    if Names[plr] then Names[plr]:Destroy() Names[plr] = nil end
+end
+
+local function UpdateESP(plr)
+    if not plr.Character then return end
+
+    if Settings.ESP and IsAlive(plr) then
+        if not ESPs[plr] then
+            local h = Instance.new("Highlight")
+            h.FillColor = Color3.fromRGB(255,0,0)
+            h.OutlineColor = Color3.new(1,1,1)
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            h.Parent = plr.Character
+            ESPs[plr] = h
+        end
+    else
+        ClearESP(plr)
+    end
+
+    if Settings.ESPName and plr.Character:FindFirstChild("Head") then
+        if not Names[plr] then
+            local bb = Instance.new("BillboardGui")
+            bb.Size = UDim2.fromOffset(100,20)
+            bb.StudsOffset = Vector3.new(0,2.5,0)
+            bb.AlwaysOnTop = true
+            bb.Parent = plr.Character.Head
+
+            local tl = Instance.new("TextLabel", bb)
+            tl.Size = UDim2.fromScale(1,1)
+            tl.BackgroundTransparency = 1
+            tl.Text = plr.Name
+            tl.TextScaled = true
+            tl.TextColor3 = Color3.new(1,1,1)
+            tl.TextStrokeTransparency = 0
+
+            Names[plr] = bb
+        end
+    else
+        if Names[plr] then Names[plr]:Destroy() Names[plr] = nil end
+    end
+end
+
+--// ================= MAIN LOOP =================
+RunService.RenderStepped:Connect(function()
+    -- FOV Center (Mobile)
+    FOVCircle.Position = Vector2.new(
+        Camera.ViewportSize.X / 2,
+        Camera.ViewportSize.Y / 2
+    )
+
+    -- FOV Visible / Invisible
+    FOVCircle.Visible = Settings.ShowFOV
+
+    -- RGB FOV
+    if Settings.RGBFOV then
+        FOVCircle.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+    else
+        FOVCircle.Color = Color3.fromRGB(255,255,255)
+    end
+
+    -- ESP Update
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            UpdateESP(plr)
+        end
+    end
+
+    -- AIMBOT
+    if Settings.Aimbot then
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local aimCF = CFrame.new(
+                Camera.CFrame.Position,
+                target.Character.Head.Position
+            )
+
+            if Settings.Smoothness == 0 then
+                Camera.CFrame = aimCF
+            else
+                Camera.CFrame = Camera.CFrame:Lerp(
+                    aimCF,
+                    math.clamp(1 / Settings.Smoothness, 0, 1)
+                )
+            end
+        end
+    end
+end)
