@@ -85,7 +85,7 @@ local Window = WindUI:CreateWindow({
                 Type = "junkiedev",
                 ServiceId = "Aimbot key",
                 ApiKey = "4c3dcb1b-40b3-49e6-8c41-2c69914e0f4b",
-                Provider = "Aimbot,
+                Provider = "Aimbot",
             }    
         }
     }
