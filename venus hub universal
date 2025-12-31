@@ -1,4 +1,4 @@
-local Games = loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Project%20universal"))()
+local Games = loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Venus%20Game%20list"))()
 
 local URL = Games[game.GameId]
 
