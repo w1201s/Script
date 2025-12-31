@@ -1,5 +1,5 @@
 local Games = {
-  [994732206] = "https://raw.githubusercontent.com/AhmadV99/Script-Games/main/Blox%20Fruit.lua", -- Blox Fruit
+  [1502601752] = "https://github.com/w1201s/Script/blob/main/rabbit%20simulator%202%20oldest%20game%20in%20the%20book%20btw", --Rabbit simulator
 }
 
 return Games
