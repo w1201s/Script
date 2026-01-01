@@ -1,1 +1,2 @@
 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal"))()
