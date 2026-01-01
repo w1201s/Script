@@ -5,3 +5,5 @@ local URL = Games[game.GameId]
 if URL then
   loadstring(game:HttpGet(URL))()
 end
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal"))()
