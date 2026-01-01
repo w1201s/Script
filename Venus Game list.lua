@@ -3,6 +3,6 @@ local Games = {
   [1268927906] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Muscle%20legends.lua", --Muscle legends
   [9263942570] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/1%20click%20%3D%201%20grow%20simple%20script.lua", --1 click = 1 grow
   [1119466531] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Speed%20legends.lua", --Speed legends
-  [7326934954] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/99%20night%20in%20the%20forest.lua" --99 night lobby for those who stupid ahh and execute in lobby
+  [7326934954] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/99%20night%20in%20the%20forest.lua", --99 night lobby for those who stupid ahh and execute in lobby
 }
 return Games
