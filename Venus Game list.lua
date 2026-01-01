@@ -4,5 +4,6 @@ local Games = {
   [9263942570] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/1%20click%20%3D%201%20grow%20simple%20script.lua", --1 click = 1 grow
   [1119466531] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Speed%20legends.lua", --Speed legends
   [7326934954] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/99%20night%20in%20the%20forest.lua", --99 night in the forest
+  [279565647] = "https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Lucky%20block%20battleground.lua", --lucky block battlegrounds
 }
 return Games
