@@ -13,59 +13,17 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local FarmTab = Window:CreateTab({
-    Title = "Auto Farm",
-    Icon = "leaf"
-})
 
 
+getgenv().AutoFarm = false
+getgenv().BringMobs = false
+getgenv().BringDistance = 250
+getgenv().FarmType = "Above"
+getgenv().AutoSetSpawn = false
+getgenv().ByPassTP = false
 
---------------------------------------------------
--- AUTO FARM TOGGLE
---------------------------------------------------
-FarmTab:Toggle({
-    Title = "Auto Farm",
-    Desc = "Auto fly to monster and attack",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoFarm = v
-    end
-})
-
---------------------------------------------------
--- WEAPON DROPDOWN (ONLY COMBAT)
---------------------------------------------------
-FarmTab:Dropdown({
-    Title = "Select Weapon",
-    Values = { "Combat" },
-    Default = "Combat",
-    Callback = function(v)
-        getgenv().SelectWeapon = v
-    end
-})
-
---------------------------------------------------
--- EQUIP WEAPON
---------------------------------------------------
-FarmTab:Toggle({
-    Title = "Equip Selected Weapon",
-    Default = false,
-    Callback = function(v)
-        getgenv().EquipWeapon = v
-    end
-})
-
---------------------------------------------------
--- FAST ATTACK
---------------------------------------------------
-FarmTab:Toggle({
-    Title = "Fast Attack",
-    Desc = "Enable / Disable Fast Attack",
-    Default = false,
-    Callback = function(v)
-        getgenv().FastAttack = v
-    end
-})
+local DisFarm = 20
+local Farm_Mode = CFrame.new()
 
 
 local Players = game:GetService("Players")
@@ -78,6 +36,35 @@ Player.Idled:Connect(function()
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
+
+local FarmTab = Window:CreateTab({Title="Farm",Icon="swords"})
+local SettingTab = Window:CreateTab({Title="Settings",Icon="settings"})
+
+FarmTab:Toggle({
+    Title = "Auto Farm",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoFarm = v
+    end
+})
+
+FarmTab:Dropdown({
+    Title = "Farm Mode",
+    Default = "Above",
+    Options = {"Above","Beside"},
+    Callback = function(v)
+        getgenv().FarmType = v
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Bring Mob",
+    Default = false,
+    Callback = function(v)
+        getgenv().BringMobs = v
+    end
+})
+
 
 
 --// World Check
@@ -918,6 +905,82 @@ elseif Third_Sea then
     }
 end
 
+--// Player Body Velocity
+spawn(function()
+    while wait() do
+        pcall(function()
+            if AutoSTartRaids or TeleporttoFruitDealer or _G.TeleportFruit or 
+TeleporttoKitsune or CollectAzureAmber or AutoTrain or AutoKillHuman or 
+AutoPirateCastle or TweenToPlayer or AutoSail or AutoFarmTerrorShark or 
+AutoFarmFish or AutoFarmSeaBeast or AutoFarmGhostBoats or LevelFarmNoQuest or 
+LevelFarmQuest or Farm_Bone or Farm_Ectoplasm or Nearest_Farm or 
+SelectMonster_Quest_Farm or SelectMonster_NoQuest_Farm or Auto_Farm_Material or 
+AutoFarmBossNoQuest or AutoFarmBossQuest or GunMastery_Farm or DevilMastery_Farm or
+AutoKenV2 or AutoFarmKen or AutoNextIsland or BossRaid or _G.Teleport_to_Player or 
+_G.Clip or _G.Auto_Kill_Player_Melee or _G.Auto_Kill_Player_Gun or TeleporttoMirage
+or TeleporttoGear or _G.Auto_Teleport_Fruit or AutoSecondWorld or AutoThirdWorld or
+AutoDeathStep or AutoSuperhuman or AutoSharkman or AutoElectricClaw or 
+AutoDragonTalon or AutoGodhuman or AutoSaber or AutoRengoku or AutoBuddySword or 
+AutoPole or AutoYama or AutoCavander or AutoTushita or Auto_Cursed_Dual_Katana or 
+Auto_Quest_Yama_1 or Auto_Quest_Yama_2 or Auto_Quest_Yama_3 or Auto_Quest_Tushita_1
+or Auto_Quest_Tushita_2 or Auto_Quest_Tushita_3 or AutoEliteHunter or 
+AutoCakePrince or _G.AutoDoughKing or AutoDarkDagger or AutoHallowSycthe or 
+AutoCitizen or AutoEvoRace or AutoBartilo or AutoFactory or _G.SwanGlasses or 
+RipIndra or AutoRainbowHaki or AutoTorch or AutoSoulGuitar or AutoTryLuck or 
+AutoPray or AutoAdvanceDungeon or AutoMusketeer or Auto_Serpent_Bow then
+                if not 
+game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
+                    local Noclip = Instance.new("BodyVelocity")
+                    Noclip.Name = "BodyClip"
+                    Noclip.Parent = 
+game:GetService("Players").LocalPlayer.Character.HumanoidRootPart
+                    Noclip.MaxForce = Vector3.new(100000,100000,100000)
+                    Noclip.Velocity = Vector3.new(0,0,0)
+                end
+            else
+                if 
+game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
+game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip"):Destroy()
+                end
+            end
+        end)
+    end
+end)--// Farming Clip Tween
+spawn(function()
+    pcall(function()
+        game:GetService("RunService").Stepped:Connect(function()
+            if AutoSTartRaids or TeleporttoFruitDealer or _G.TeleportFruit or 
+TeleporttoKitsune or CollectAzureAmber or AutoTrain or AutoKillHuman or 
+AutoPirateCastle or TweenToPlayer or AutoSail or AutoFarmTerrorShark or 
+AutoFarmFish or AutoFarmSeaBeast or AutoFarmGhostBoats or LevelFarmNoQuest or 
+LevelFarmQuest or Farm_Bone or Farm_Ectoplasm or Nearest_Farm or 
+SelectMonster_Quest_Farm or SelectMonster_NoQuest_Farm or Auto_Farm_Material or 
+AutoFarmBossNoQuest or AutoFarmBossQuest or GunMastery_Farm or DevilMastery_Farm or
+AutoKenV2 or AutoFarmKen or AutoNextIsland or BossRaid or _G.Teleport_to_Player or 
+_G.Clip or _G.Auto_Kill_Player_Melee or _G.Auto_Kill_Player_Gun or TeleporttoMirage
+or TeleporttoGear or _G.Auto_Teleport_Fruit or AutoSecondWorld or AutoThirdWorld or
+AutoDeathStep or AutoSuperhuman or AutoSharkman or AutoElectricClaw or 
+AutoDragonTalon or AutoGodhuman or AutoSaber or AutoRengoku or AutoBuddySword or 
+AutoPole or AutoYama or AutoCavander or AutoTushita or Auto_Cursed_Dual_Katana or 
+Auto_Quest_Yama_1 or Auto_Quest_Yama_2 or Auto_Quest_Yama_3 or Auto_Quest_Tushita_1
+or Auto_Quest_Tushita_2 or Auto_Quest_Tushita_3 or AutoEliteHunter or 
+AutoCakePrince or _G.AutoDoughKing or AutoDarkDagger or AutoHallowSycthe or 
+AutoCitizen or AutoEvoRace or AutoBartilo or AutoFactory or _G.SwanGlasses or 
+RipIndra or AutoRainbowHaki or AutoTorch or AutoSoulGuitar or AutoTryLuck or 
+AutoPray or AutoAdvanceDungeon or AutoMusketeer or Auto_Serpent_Bow then
+                for _,v in 
+pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then
+                        v.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end)
+end)
+
+--fastattack
+
 task.spawn(function()
     while task.wait() do
         if getgenv().FastAttack then
@@ -928,11 +991,8 @@ task.spawn(function()
     end
 end)
 
-getgenv().AutoFarm = false
-getgenv().FastAttack = false
-getgenv().SelectWeapon = "Combat"
-getgenv().EquipWeapon = false
 
+--farm lv
 
 task.spawn(function()
     while task.wait() do
@@ -966,6 +1026,94 @@ task.spawn(function()
                 else
                     Tween(CFrameMon)
                 end
+            end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if getgenv().FarmType == "Above" then
+            Farm_Mode = CFrame.new(0, DisFarm, 0)
+                * CFrame.Angles(math.rad(-90), 0, 0)
+        elseif getgenv().FarmType == "Beside" then
+            Farm_Mode = CFrame.new(0, 2, DisFarm)
+        end
+    end
+end)
+
+local BringMobs = true
+
+spawn(function()
+    while task.wait() do
+        if BringMobs and (LevelFarmQuest or LevelFarmNoQuest) then
+            pcall(function()
+                BringMonster(Level_Farm_Name, Level_Farm_CFrame)
+            end)
+        elseif BringMobs and Farm_Bone then
+            pcall(function()
+                BringMonster(Bone_Farm_Name, Bone_Farm_CFrame)
+            end)
+        elseif BringMobs and Farm_Ectoplasm then
+            pcall(function()
+                BringMonster(Ecto_Farm_Name, Ecto_Farm_CFrame)
+            end)
+        elseif BringMobs and Nearest_Farm then
+            pcall(function()
+                BringMonster(Nearest_Farm_Name, Nearest_Farm_CFrame)
+            end)
+        elseif BringMobs and (SelectMonster_Quest_Farm or 
+SelectMonster_NoQuest_Farm) then
+            pcall(function()
+                BringMonster(SelectMonster_Farm_Name, SelectMonster_Farm_CFrame)
+            end)
+        elseif BringMobs and Auto_Farm_Material then
+            pcall(function()
+                BringMonster(Material_Farm_Name, Material_Farm_CFrame)
+            end)
+        elseif BringMobs and (GunMastery_Farm or DevilMastery_Farm) then
+            pcall(function()
+                BringMonster(Mastery_Farm_Name, Mastery_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoRengoku then
+            pcall(function()
+                BringMonster(Rengoku_Farm_Name, Rengoku_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoCakePrince then
+            pcall(function()
+                BringMonster(CakePrince_Farm_Name, CakePrince_Farm_CFrame)
+            end)
+        elseif BringMobs and _G.AutoDoughKing then
+            pcall(function()
+                BringMonster(DoughKing_Farm_Name, DoughKing_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoCitizen then
+            pcall(function()
+                BringMonster(Citizen_Farm_Name, Citizen_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoEvoRace then
+            pcall(function()
+                BringMonster(EvoV2_Farm_Name, EvoV2_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoBartilo then
+            pcall(function()
+                BringMonster(Bartilo_Farm_Name, Bartilo_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoSoulGuitar then
+            pcall(function()
+                BringMonster(SoulGuitar_Farm_Name, SoulGuitar_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoMusketeer then
+            pcall(function()
+                BringMonster(Musketere_Farm_Name, Musketere_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoTrain then
+            pcall(function()
+                BringMonster(Ancient_Farm_Name, Ancient_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoPirateCastle then
+            pcall(function()
+                BringMonster(PirateCastle_Name, PirateCastle_CFrame)
             end)
         end
     end
