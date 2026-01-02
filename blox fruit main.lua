@@ -1,4 +1,4 @@
--- Load Wind UIhj
+-- Load Wind UI
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 ))()
@@ -86,6 +86,34 @@ Tabs.Home:Toggle({
         getgenv().AntiAFK = state
     end
 })
+
+Tabs.MainFarm:Toggle({
+    Title = "Level Farm Quest",
+    Value = getgenv().LevelFarmQuest,
+    Callback = function(Value)
+        getgenv().LevelFarmQuest = Value
+        _G.SelectMonster = nil
+        if type(CancelTween) == "function" then
+            CancelTween(getgenv().LevelFarmQuest)
+        end
+    end
+})
+
+-- =========================
+-- TOGGLE LEVEL FARM NO QUEST
+-- =========================
+Tabs.MainFarm:Toggle({
+    Title = "Level Farm No Quest",
+    Value = getgenv().LevelFarmNoQuest,
+    Callback = function(Value)
+        getgenv().LevelFarmNoQuest = Value
+        _G.SelectMonster = nil
+        if type(CancelTween) == "function" then
+            CancelTween(getgenv().LevelFarmNoQuest)
+        end
+    end
+})
+
 
 -- =========================
 -- ANTI AFK LOOP
@@ -2371,33 +2399,6 @@ local RunService = game:GetService("RunService")
 -- =========================
 -- TOGGLE LEVEL FARM QUEST
 -- =========================
-MainFarm:Toggle({
-    Title = "Level Farm Quest",
-    Value = getgenv().LevelFarmQuest,
-    Callback = function(state)
-        getgenv().LevelFarmQuest = state
-        _G.SelectMonster = nil
-        if type(CancelTween) == "function" then
-            CancelTween(getgenv().LevelFarmQuest)
-        end
-    end
-})
-
--- =========================
--- TOGGLE LEVEL FARM NO QUEST
--- =========================
-MainFarm:Toggle({
-    Title = "Level Farm No Quest",
-    Value = getgenv().LevelFarmNoQuest,
-    Callback = function(state)
-        getgenv().LevelFarmNoQuest = state
-        _G.SelectMonster = nil
-        if type(CancelTween) == "function" then
-            CancelTween(getgenv().LevelFarmNoQuest)
-        end
-    end
-})
-
 -- =========================
 -- AUTO LEVEL FARM LOOP
 -- =========================
