@@ -1,103 +1,211 @@
-
--- Load WindUI
+-- Load Wind UI
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 ))()
 
+-- Create Window
 local Window = WindUI:CreateWindow({
-    Title = "Farm Core",
-    Icon = "swords",
-    Author = "WindUI",
-    Folder = "FarmCore",
-    Size = UDim2.fromOffset(500, 400),
+    Title = "Tuấn Anh IOS",
+    Icon = "door-open",
+    Author = "Wind UI",
+    Folder = "TuanAnhIOS",
+    Size = UDim2.fromOffset(560, 420),
+    Transparent = true,
     Theme = "Dark"
 })
 
-local FarmTab = Window:Tab({
-    Title = "Tab Title",
-    Icon = "bird", -- optional
-    Locked = false,
-})
+-- Tabs
+local Tabs = {
+    Home = Window:Tab({ Title = "Home", Icon = "house" }),
+    Settings = Window:Tab({ Title = "Settings", Icon = "settings" }),
+    MainFarm = Window:Tab({ Title = "Main Farm", Icon = "swords" }),
+    SubFarm = Window:Tab({ Title = "Subs Farm", Icon = "layers" }),
+    Quest = Window:Tab({ Title = "Quest", Icon = "list" }),
+    Sea = Window:Tab({ Title = "Sea Event", Icon = "waves" }),
+    RaceV4 = Window:Tab({ Title = "Race V4", Icon = "zap" }),
+    Raids = Window:Tab({ Title = "Raids", Icon = "bomb" }),
+    PVP = Window:Tab({ Title = "PVP", Icon = "crosshair" }),
+    Teleport = Window:Tab({ Title = "Teleport & Status", Icon = "map" }),
+    Shop = Window:Tab({ Title = "Shop", Icon = "shopping-cart" }),
+    Misc = Window:Tab({ Title = "Misc", Icon = "boxes" })
+}
 
-FarmTab:Toggle({
-    Name = "Level Farm Quest",
-    Default = LevelFarmQuest,
-    Callback = function(Value)
-        LevelFarmQuest = Value
-        _G.SelectMonster = nil
-        CancelTween(LevelFarmQuest)
+-- =========================
+-- VARIABLES
+-- =========================
+getgenv().WalkSpeedValue = 26
+getgenv().JumpValue = 50
+getgenv().AntiAFK = true
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+-- =========================
+-- HOME TAB
+-- =========================
+
+Tabs.Home:Input({
+    Title = "Speed Hack",
+    Placeholder = "Enter WalkSpeed",
+    Default = tostring(getgenv().WalkSpeedValue),
+    Callback = function(value)
+        local speed = tonumber(value)
+        if speed then
+            getgenv().WalkSpeedValue = speed
+            local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = speed
+                hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                    hum.WalkSpeed = getgenv().WalkSpeedValue
+                end)
+            end
+        end
     end
 })
 
-spawn(function()
-    while task.wait() do
-        if LevelFarmQuest then
+Tabs.Home:Input({
+    Title = "Jump Hack",
+    Placeholder = "Enter JumpPower",
+    Default = tostring(getgenv().JumpValue),
+    Callback = function(value)
+        local jump = tonumber(value)
+        if jump then
+            getgenv().JumpValue = jump
+            local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.JumpPower = jump
+            end
+        end
+    end
+})
+
+Tabs.Home:Toggle({
+    Title = "Anti AFK",
+    Value = getgenv().AntiAFK,
+    Callback = function(state)
+        getgenv().AntiAFK = state
+    end
+})
+
+-- =========================
+-- ANTI AFK LOOP
+-- =========================
+task.spawn(function()
+    local vu = game:GetService("VirtualUser")
+    Player.Idled:Connect(function()
+        if getgenv().AntiAFK then
+            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end
+    end)
+end)
+
+getgenv().AntiKickClient = true
+
+Tabs.Home:Toggle({
+    Title = "Anti Kick Client",
+    Value = getgenv().AntiKickClient,
+    Callback = function(state)
+        getgenv().AntiKickClient = state
+    end
+})
+
+task.spawn(function()
+    while task.wait(2) do
+        if getgenv().AntiKickClient then
             pcall(function()
-                CheckLevel()
-
-                local QuestGui = game.Players.LocalPlayer.PlayerGui.Main.Quest
-                local QuestTitle = QuestGui.Container.QuestTitle.Title.Text
-
-                -- ไม่มีเควส / เควสไม่ตรง
-                if not string.find(QuestTitle, NameMon) or QuestGui.Visible == false then
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
-
-                    if ByPassTP then
-                        BTP(CFrameQ)
-                    else
-                        Tween(CFrameQ)
-                    end
-
-                    if (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 5 then
-                        task.wait(1)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
-                            "StartQuest",
-                            NameQuest,
-                            QuestLv
-                        )
-                    end
-
-                -- มีเควสแล้ว
-                else
-                    if game.Workspace.Enemies:FindFirstChild(Ms) then
-                        for _,v in pairs(game.Workspace.Enemies:GetChildren()) do
-                            if v.Name == Ms
-                            and v:FindFirstChild("Humanoid")
-                            and v:FindFirstChild("HumanoidRootPart")
-                            and v.Humanoid.Health > 0 then
-
-                                repeat
-                                    game:GetService("RunService").Heartbeat:Wait()
-
-                                    EquipTool(SelectWeapon)
-                                    Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
-
-                                    v.HumanoidRootPart.CanCollide = false
-                                    v.HumanoidRootPart.Size = Vector3.new(60,60,60)
-                                    v.HumanoidRootPart.Transparency = 1
-
-                                    Level_Farm_Name = v.Name
-                                    Level_Farm_CFrame = v.HumanoidRootPart.CFrame
-
-                                    AutoClick()
-                                until not LevelFarmQuest
-                                   or not v.Parent
-                                   or v.Humanoid.Health <= 0
-                                   or QuestGui.Visible == false
-                            end
-                        end
-                    else
-                        Tween(CFrameMon)
-                    end
-                end
+                loadstring(game:HttpGet(
+                    "https://gitlab.com/Sky2836/BT/-/raw/main/antikickclient"
+                ))()
             end)
         end
     end
 end)
 
+Tabs.Home:Button({
+    Title = "Antilag - FPS",
+    Callback = function()
+        local g = game
+        local w = g.Workspace
+        local l = g.Lighting
+        local t = w.Terrain
 
+        -- Terrain
+        t.WaterWaveSize = 0
+        t.WaterWaveSpeed = 0
+        t.WaterReflectance = 0
+        t.WaterTransparency = 0
 
+        -- Lighting
+        l.GlobalShadows = false
+        l.FogEnd = 9e9
+        l.Brightness = 0
 
+        pcall(function()
+            settings().Rendering.QualityLevel = "Level01"
+        end)
+
+        -- Remove lag objects
+        for _, v in pairs(g:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.Plastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") then
+                v.BlastPressure = 1
+                v.BlastRadius = 1
+            elseif v:IsA("Fire") or v:IsA("SpotLight")
+            or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v.Enabled = false
+            elseif v:IsA("MeshPart") then
+                v.Material = Enum.Material.Plastic
+                v.Reflectance = 0
+                v.TextureID = ""
+            end
+        end
+
+        -- Disable effects
+        for _, e in pairs(l:GetChildren()) do
+            if e:IsA("BlurEffect")
+            or e:IsA("SunRaysEffect")
+            or e:IsA("ColorCorrectionEffect")
+            or e:IsA("BloomEffect")
+            or e:IsA("DepthOfFieldEffect") then
+                e.Enabled = false
+            end
+        end
+    end
+})
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/AnhTuanDzai-Hub/FastAttackLoL/refs/heads/main/FastAttack.lua"))()----------------------------------------------------//------------------------------------------------------// PATH 
+wait(1)
+loadstring(game:HttpGet('https://raw.githubusercontent.com/S4nZz/bt_project/main/script'))()
+if 
+game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam") 
+then
+    repeat wait()
+        if 
+        game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("Main").ChooseTeam.Visible == true then
+            if _G.Team == "Pirate" then
+                for i, v in pairs(getconnections(game:GetService("Players").LocalPlayer.PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Activated)) do                 
+                    v.Function()
+                end
+            elseif _G.Team == "Marine" then
+                for i, v in pairs(getconnections(game:GetService("Players").LocalPlayer.PlayerGui.Main.ChooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Activated)) do                 
+                    v.Function()
+                end
+            else
+                for i, v in pairs(getconnections(game:GetService("Players").LocalPlayer.PlayerGui.Main.ChooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Activated)) do                 
+                    v.Function()
+                end
+            end
+        end
+    until game.Players.LocalPlayer.Team ~= nil and game:IsLoaded()
+end
 
 --// World Check
 First_Sea = false
@@ -937,7 +1045,390 @@ elseif Third_Sea then
     }
 end
 
---// Player Body Velocity
+--// Check Boss Quest
+function CheckBossQuest()
+    if First_Sea then
+        if SelectBoss == "The Gorilla King" then
+            BossMon = "The Gorilla King [Lv. 25] [Boss]"
+            NameBoss = 'The Gorrila King'
+            NameQuestBoss = "JungleQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$2,000\n7,000 Exp."
+            CFrameQBoss = CFrame.new(-1601.6553955078, 36.85213470459, 153.38809204102)
+            CFrameBoss = CFrame.new(-1088.75977, 8.13463783, -488.559906, 0.707134247, 0, 0.707079291, 0, 1, 0, -0.707079291, 0, -0.707134247)
+        elseif SelectBoss == "Bobby" then
+            BossMon = "Bobby [Lv. 55] [Boss]"
+            NameBoss = 'Bobby'
+            NameQuestBoss = "BuggyQuest1"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$8,000\n35,000 Exp."
+            CFrameQBoss = CFrame.new(-1140.1761474609, 4.752049446106, 3827.4057617188)
+            CFrameBoss = CFrame.new(-1087.3760986328, 46.949409484863, 4040.1462402344)
+        elseif SelectBoss == "The Saw" then
+            BossMon = "The Saw [Lv. 100] [Boss]"
+            NameBoss = 'The Saw'
+            CFrameBoss = CFrame.new(-784.89715576172, 72.427383422852, 1603.5822753906)
+        elseif SelectBoss == "Yeti" then
+            BossMon = "Yeti [Lv. 110] [Boss]"
+            NameBoss = 'Yeti'
+            NameQuestBoss = "SnowQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$10,000\n180,000 Exp."
+            CFrameQBoss = CFrame.new(1386.8073730469, 87.272789001465, 1298.3576660156)
+            CFrameBoss = CFrame.new(1218.7956542969, 138.01184082031, 1488.0262451172)
+        elseif SelectBoss == "Mob Leader" then
+            BossMon = "Mob Leader [Lv. 120] [Boss]"
+            NameBoss = 'Mob Leader'
+            CFrameBoss = CFrame.new(-2844.7307128906, 7.4180502891541, 5356.6723632813)
+        elseif SelectBoss == "Vice Admiral" then
+            BossMon = "Vice Admiral [Lv. 130] [Boss]"
+            NameBoss = 'Vice Admiral'
+            NameQuestBoss = "MarineQuest2"
+            QuestLvBoss = 2
+            RewardBoss = "Reward:\n$10,000\n180,000 Exp."
+            CFrameQBoss = CFrame.new(-5036.2465820313, 28.677835464478, 4324.56640625)
+            CFrameBoss = CFrame.new(-5006.5454101563, 88.032081604004, 4353.162109375)
+        elseif SelectBoss == "Saber Expert" then
+            NameBoss = 'Saber Expert'
+            BossMon = "Saber Expert [Lv. 200] [Boss]"
+            CFrameBoss = CFrame.new(-1458.89502, 29.8870335, -50.633564)
+        elseif SelectBoss == "Warden" then
+            BossMon = "Warden [Lv. 220] [Boss]"
+            NameBoss = 'Warden'
+            NameQuestBoss = "ImpelQuest"
+            QuestLvBoss = 1
+            RewardBoss = "Reward:\n$6,000\n850,000 Exp."
+            CFrameBoss = CFrame.new(5278.04932, 2.15167475, 944.101929, 0.220546961, -4.49946401e-06, 0.975376427, -1.95412576e-05, 1, 9.03162072e-06, 0.975376427, -2.10519756e-05, 0.220546961)
+            CFrameQBoss= CFrame.new(5191.86133, 2.84020686, 686.438721, 0.731384635, 0, 0.681965172, 0, 1, 0, -0.681965172, 0, -0.731384635)
+        elseif SelectBoss == "Chief Warden" then
+            BossMon = "Chief Warden [Lv. 230] [Boss]"
+            NameBoss = 'Chief Warden'
+            NameQuestBoss = "ImpelQuest"
+            QuestLvBoss = 2
+            RewardBoss = "Reward:\n$10,000\n1,000,000 Exp."
+            CFrameBoss = CFrame.new(5206.92578, 0.997753382, 814.976746, 0.342041343, -0.00062915677, 0.939684749, 0.00191645394, 0.999998152, -2.80422337e05, -0.939682961, 0.00181045406, 0.342041939)
+            CFrameQBoss = CFrame.new(5191.86133, 2.84020686, 686.438721, 0.731384635, 0, 0.681965172, 0, 1, 0, -0.681965172, 0, -0.731384635)
+        elseif SelectBoss == "Swan" then
+            BossMon = "Swan [Lv. 240] [Boss]"
+            NameBoss = 'Swan'
+            NameQuestBoss = "ImpelQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$15,000\n1,600,000 Exp."
+            CFrameBoss = CFrame.new(5325.09619, 7.03906584, 719.570679, 0.309060812, 0, 0.951042235, 0, 1, 0, -0.951042235, 0, -0.309060812)
+            CFrameQBoss = CFrame.new(5191.86133, 2.84020686, 686.438721, 0.731384635, 0, 0.681965172, 0, 1, 0, -0.681965172, 0, -0.731384635)
+        elseif SelectBoss == "Magma Admiral" then
+            BossMon = "Magma Admiral [Lv. 350] [Boss]"
+            NameBoss = 'Magma Admiral'
+            NameQuestBoss = "MagmaQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$15,000\n2,800,000 Exp."
+            CFrameQBoss = CFrame.new(-5314.6220703125, 12.262420654297, 8517.279296875)
+            CFrameBoss = CFrame.new(-5765.8969726563, 82.92064666748, 8718.3046875)
+        elseif SelectBoss == "Fishman Lord" then
+            BossMon = "Fishman Lord [Lv. 425] [Boss]"
+            NameBoss = 'Fishman Lord'
+            NameQuestBoss = "FishmanQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$15,000\n4,000,000 Exp."
+            CFrameQBoss = CFrame.new(61122.65234375, 18.497442245483, 1569.3997802734)
+            CFrameBoss = CFrame.new(61260.15234375, 30.950881958008, 1193.4329833984)
+        elseif SelectBoss == "Wysper" then
+            BossMon = "Wysper [Lv. 500] [Boss]"
+            NameBoss = 'Wysper'
+            NameQuestBoss = "SkyExp1Quest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$15,000\n4,800,000 Exp."
+            CFrameQBoss = CFrame.new(-7861.947265625, 5545.517578125, 379.85974121094)
+            CFrameBoss = CFrame.new(-7866.1333007813, 5576.4311523438, 546.74816894531)
+        elseif SelectBoss == "Thunder God" then
+            BossMon = "Thunder God [Lv. 575] [Boss]"
+            NameBoss = 'Thunder God'
+            NameQuestBoss = "SkyExp2Quest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$20,000\n5,800,000 Exp."
+            CFrameQBoss = CFrame.new(-7903.3828125, 5635.9897460938, 1410.923828125)
+            CFrameBoss = CFrame.new(-7994.984375, 5761.025390625, -2088.6479492188)
+        elseif SelectBoss == "Cyborg" then
+            BossMon = "Cyborg [Lv. 675] [Boss]"
+            NameBoss = 'Cyborg'
+            NameQuestBoss = "FountainQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$20,000\n7,500,000 Exp."
+            CFrameQBoss = CFrame.new(5258.2788085938, 38.526931762695, 4050.044921875)
+            CFrameBoss = CFrame.new(6094.0249023438, 73.770050048828, 3825.7348632813)
+        elseif SelectBoss == "Ice Admiral" then
+            BossMon = "Ice Admiral [Lv. 700] [Boss]"
+            NameBoss = 'Ice Admiral'
+            CFrameBoss = CFrame.new(1266.08948, 26.1757946, -1399.57678, 0.573599219, 0, -0.81913656, 0, 1, 0, 0.81913656, 0, -0.573599219)
+        elseif SelectBoss == "Greybeard" then
+            BossMon = "Greybeard [Lv. 750] [Raid Boss]"
+            NameBoss = 'Greybeard'
+            CFrameBoss = CFrame.new(-5081.3452148438, 85.221641540527, 4257.3588867188)
+        end
+    end
+    if Second_Sea then
+        if SelectBoss == "Diamond" then
+            BossMon = "Diamond [Lv. 750] [Boss]"
+            NameBoss = 'Diamond'
+            NameQuestBoss = "Area1Quest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$25,000\n9,000,000 Exp."
+            CFrameQBoss = CFrame.new(-427.5666809082, 73.313781738281, 1835.4208984375)
+            CFrameBoss = CFrame.new(-1576.7166748047, 198.59265136719, 13.724286079407)
+        elseif SelectBoss == "Jeremy" then
+            BossMon = "Jeremy [Lv. 850] [Boss]"
+            NameBoss = 'Jeremy'
+            NameQuestBoss = "Area2Quest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$25,000\n11,500,000 Exp."
+            CFrameQBoss = CFrame.new(636.79943847656, 73.413787841797, 918.00415039063)
+            CFrameBoss = CFrame.new(2006.9261474609, 448.95666503906, 853.98284912109)
+        elseif SelectBoss == "Fajita" then
+            BossMon = "Fajita [Lv. 925] [Boss]"
+            NameBoss = 'Fajita'
+            NameQuestBoss = "MarineQuest3"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$25,000\n15,000,000 Exp."
+            CFrameQBoss = CFrame.new(-2441.986328125, 73.359344482422, 3217.5324707031)
+            CFrameBoss = CFrame.new(-2172.7399902344, 103.32216644287, 4015.025390625)
+        elseif SelectBoss == "Don Swan" then
+            BossMon = "Don Swan [Lv. 1000] [Boss]"
+            NameBoss = 'Don Swan'
+            CFrameBoss = CFrame.new(2286.2004394531, 15.177839279175, 863.8388671875)
+        elseif SelectBoss == "Smoke Admiral" then
+            BossMon = "Smoke Admiral [Lv. 1150] [Boss]"
+            NameBoss = 'Smoke Admiral'
+            NameQuestBoss = "IceSideQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$20,000\n25,000,000 Exp."
+            CFrameQBoss = CFrame.new(-5429.0473632813, 15.977565765381, 5297.9614257813)
+            CFrameBoss = CFrame.new(-5275.1987304688, 20.757257461548, 5260.6669921875)
+        elseif SelectBoss == "Awakened Ice Admiral" then
+            BossMon = "Awakened Ice Admiral [Lv. 1400] [Boss]"
+            NameBoss = 'Awakened Ice Admiral'
+            NameQuestBoss = "FrostQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$20,000\n36,000,000 Exp."
+            CFrameQBoss = CFrame.new(5668.9780273438, 28.519989013672, 6483.3520507813)
+            CFrameBoss = CFrame.new(6403.5439453125, 340.29766845703, 6894.5595703125)
+        elseif SelectBoss == "Tide Keeper" then
+            BossMon = "Tide Keeper [Lv. 1475] [Boss]"
+            NameBoss = 'Tide Keeper'
+            NameQuestBoss = "ForgottenQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$12,500\n38,000,000 Exp."
+            CFrameQBoss = CFrame.new(-3053.9814453125, 237.18954467773, 10145.0390625)
+            CFrameBoss = CFrame.new(-3795.6423339844, 105.88877105713, 11421.307617188)
+        elseif SelectBoss == "Darkbeard" then
+            BossMon = "Darkbeard [Lv. 1000] [Raid Boss]"
+            NameBoss = 'Darkbeard'
+            CFrameMon = CFrame.new(3677.08203125, 62.751937866211, 3144.8332519531)
+        elseif SelectBoss == "Cursed Captain" then
+            BossMon = "Cursed Captain [Lv. 1325] [Raid Boss]"
+            NameBoss = 'Cursed Captain'
+            CFrameBoss = CFrame.new(916.928589, 181.092773, 33422)
+        elseif SelectBoss == "Order" then
+            BossMon = "Order [Lv. 1250] [Raid Boss]"
+            NameBoss = 'Order'
+            CFrameBoss = CFrame.new(-6217.2021484375, 28.047645568848, 5053.1357421875)
+        end
+    end
+    if Third_Sea then
+        if SelectBoss == "Stone" then
+            BossMon = "Stone [Lv. 1550] [Boss]"
+            NameBoss = 'Stone'
+            NameQuestBoss = "PiratePortQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$25,000\n40,000,000 Exp."
+            CFrameQBoss = CFrame.new(-289.76705932617, 43.819011688232, 5579.9384765625)
+            CFrameBoss = CFrame.new(-1027.6512451172, 92.404174804688, 6578.8530273438)
+        elseif SelectBoss == "Island Empress" then
+            BossMon = "Island Empress [Lv. 1675] [Boss]"
+            NameBoss = 'Island Empress'
+            NameQuestBoss = "AmazonQuest2"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$30,000\n52,000,000 Exp."
+            CFrameQBoss = CFrame.new(5445.9541015625, 601.62945556641, 751.43792724609)
+            CFrameBoss = CFrame.new(5543.86328125, 668.97399902344, 199.0341796875)
+        elseif SelectBoss == "Kilo Admiral" then
+            BossMon = "Kilo Admiral [Lv. 1750] [Boss]"
+            NameBoss = 'Kilo Admiral'
+            NameQuestBoss = "MarineTreeIsland"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$35,000\n56,000,000 Exp."
+            CFrameQBoss = CFrame.new(2179.3010253906, 28.731239318848, 6739.9741210938)
+            CFrameBoss = CFrame.new(2764.2233886719, 432.46154785156, 7144.4580078125)
+        elseif SelectBoss == "Captain Elephant" then
+            BossMon = "Captain Elephant [Lv. 1875] [Boss]"
+            NameBoss = 'Captain Elephant'
+            NameQuestBoss = "DeepForestIsland"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$40,000\n67,000,000 Exp."
+            CFrameQBoss = CFrame.new(-13232.682617188, 332.40396118164, 7626.01171875)
+            CFrameBoss = CFrame.new(-13376.7578125, 433.28689575195, 8071.392578125)
+        elseif SelectBoss == "Beautiful Pirate" then
+            BossMon = "Beautiful Pirate [Lv. 1950] [Boss]"
+            NameBoss = 'Beautiful Pirate'
+            NameQuestBoss = "DeepForestIsland2"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$50,000\n70,000,000 Exp."
+            CFrameQBoss = CFrame.new(-12682.096679688, 390.88653564453, 9902.1240234375)
+            CFrameBoss = CFrame.new(5283.609375, 22.56223487854, -110.78285217285)
+        elseif SelectBoss == "Cake Queen" then
+            BossMon = "Cake Queen [Lv. 2175] [Boss]"
+            NameBoss = 'Cake Queen'
+            NameQuestBoss = "IceCreamIslandQuest"
+            QuestLvBoss = 3
+            RewardBoss = "Reward:\n$30,000\n112,500,000 Exp."
+            CFrameQBoss = CFrame.new(-819.376709, 64.9259796, -10967.2832, 0.766061664, 0, 0.642767608, 0, 1, 0, -0.642767608, 0, -0.766061664)
+            CFrameBoss = CFrame.new(-678.648804, 381.353943, -11114.2012, 0.908641815, 0.00149294338, 0.41757378, 0.00837114919, 0.999857843, 0.0146408929, 0.417492568, 0.0167988986, -0.90852499)
+        elseif SelectBoss == "Longma" then
+            BossMon = "Longma [Lv. 2000] [Boss]"
+            NameBoss = 'Longma'
+            CFrameBoss = CFrame.new(-10238.875976563, 389.7912902832, 9549.7939453125)
+        elseif SelectBoss == "Soul Reaper" then
+            BossMon = "Soul Reaper [Lv. 2100] [Raid Boss]"
+            NameBoss = 'Soul Reaper'
+            CFrameBoss = CFrame.new(-9524.7890625, 315.80429077148, 6655.7192382813)
+        elseif SelectBoss == "rip_indra True Form" then
+            BossMon = "rip_indra True Form [Lv. 5000] [Raid Boss]"
+            NameBoss = 'rip_indra True Form'
+            CFrameBoss = CFrame.new(-5415.3920898438, 505.74133300781, 2814.0166015625)
+        end
+    end
+end
+
+--// Bypass
+_G.SafeFarm = true
+spawn(function()
+    while wait() do
+        if _G.SafeFarm then
+            for i, v in 
+pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                if v:IsA("LocalScript") then
+                    if
+                        v.Name == "General" or v.Name == "Shiftlock" or v.Name == 
+"FallDamage" or v.Name == "4444" or
+                        v.Name == "CamBob" or
+                        v.Name == "JumpCD" or
+                        v.Name == "Looking" or
+                        v.Name == "Run"
+                    then
+                        v:Destroy()
+                    end
+                end
+            end
+            for i, v in 
+pairs(game:GetService("Players").LocalPlayer.PlayerScripts:GetDescendants()) do
+                if v:IsA("LocalScript") then
+                    if
+v.Name == "Codes" or
+                        v.Name == "RobloxMotor6DBugFix" or v.Name == "Clans" or 
+                        v.Name == "CustomForceField" or
+                        v.Name == "MenuBloodSp" or
+                        v.Name == "PlayerList"
+                    then
+                        v:Destroy()
+                    end
+                end
+            end
+        else
+            game.Players.LocalPlayer:Kick("Please don't turn off safe farm if you don't want to get banned")
+        end
+    end
+end)
+
+function EquipTool(Tool)
+    pcall(function()
+game.Players.LocalPlayer.Character.Humanoid:EquipTool(game.Players.LocalPlayer.Backpack[Tool])
+    end)
+end
+
+--// TWEEN PLAYER
+function Tween(P1)
+    local Distance = (P1.Position - 
+game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    if Distance > 1 then
+        Speed = 350
+    end
+game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Play()
+end--// TP ISLAND
+function TP2(P1)
+    local Distance = (P1.Position - 
+game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    if Distance > 1 then
+        Speed = 350
+    end
+game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Play()
+    if _G.StopTween2 then
+game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Cancel()
+    end
+    _G.Clip2 = true
+    wait(Distance/Speed)
+    _G.Clip2 = false
+end--// CANCEL TWEEN
+function CancelTween(target)
+    if not target then
+        _G.StopTween = true
+        wait(.1)
+Tween(game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame)
+        wait(.1)
+        _G.StopTween = false
+    end
+end--// Bypass Teleport
+function BTP(Tarpos)
+    if (Tarpos.Position - 
+game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 2000 then
+        game.Players.LocalPlayer.Character.Head:Destroy()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tarpos
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetSpawnPoint")
+        wait(1)
+game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Tarpos
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetSpawnPoint")
+        wait(7)
+    elseif (Tarpos.Position - 
+game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 2000 then
+        Tween(Tarpos)
+    end
+end
+
+--// AUTO CLICK
+function AutoClick()
+    -- game:GetService('VirtualUser'):CaptureController()
+   -- game:GetService('VirtualUser'):Button1Down(Vector2.new(1280, 672))
+end
+function AutoClick2()
+    game:GetService('VirtualUser'):CaptureController()
+    game:GetService('VirtualUser'):Button1Down(Vector2.new(1280, 672))
+end
+task.spawn(function()
+    while wait() do
+        local CameraShakerR = require(game.ReplicatedStorage.Util.CameraShaker)
+        CameraShakerR:Stop()
+    end
+end)--// Setting \-
+local range = 1000--// Variable \-
+local player = game:GetService("Players").LocalPlayer--// Script \-
+game:GetService("RunService").RenderStepped:Connect(function()
+    local p = game.Players:GetPlayers()
+    for i = 2, #p do local v = p[i].Character
+        if v and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and 
+v:FindFirstChild("HumanoidRootPart") and 
+player:DistanceFromCharacter(v.HumanoidRootPart.Position) <= range then
+            local tool = player.Character and 
+player.Character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("Handle") then
+                tool:Activate()
+                for i,v in next, v:GetChildren() do
+                    if v:IsA("BasePart") then
+                        firetouchinterest(tool.Handle,v,0)
+                        firetouchinterest(tool.Handle,v,1)
+                    end
+                end
+            end
+        end
+    end
+end)--// Player Body Velocity
 spawn(function()
     while wait() do
         pcall(function()
@@ -1011,39 +1502,1066 @@ pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
     end)
 end)
 
---farm lv
+--// SETTING ELFT
+local Setting_Left = Tab.Tab_Setting:addSection()
+local Main_Setting = Setting_Left:addMenu('#Main Setting')
+local WeaponList = {"Melee","Blox Fruit","Sword","Gun"}
+SelectWeaponFarm = "Melee"
+Main_Setting:addDropdown("Select Weapon", SelectWeaponFarm, 
+WeaponList,function(weaponfunc)
+    SelectWeaponFarm = weaponfunc
+end)
+task.spawn(function()
+    while wait() do
+        pcall(function()
+            if SelectWeaponFarm == "Melee" then
+                for i ,v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                    if v.ToolTip == "Melee" then
+                        if 
+game.Players.LocalPlayer.Backpack:FindFirstChild(tostring(v.Name)) then
+                            SelectWeapon = v.Name
+                        end
+                    end
+                end
+            elseif SelectWeaponFarm == "Sword" then
+                for i ,v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                    if v.ToolTip == "Sword" then
+                        if 
+game.Players.LocalPlayer.Backpack:FindFirstChild(tostring(v.Name)) then
+                            SelectWeapon = v.Name
+                        end
+                    end
+                end
+            elseif SelectWeaponFarm == "Blox Fruit" then
+                for i ,v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                    if v.ToolTip == "Blox Fruit" then
+                        if 
+game.Players.LocalPlayer.Backpack:FindFirstChild(tostring(v.Name)) then
+                        end
+                            SelectWeapon = v.Name
+                    end
+                end
+            elseif SelectWeaponFarm == "Gun" then
+                for i ,v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                    if v.ToolTip == "Gun" then
+                        if 
+game.Players.LocalPlayer.Backpack:FindFirstChild(tostring(v.Name)) then
+                            SelectWeapon = v.Name
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ตัวแปรเริ่มต้น
+getgenv().AutoFarmType = "Above"
+local DisFarm = 10 -- ตัวอย่างระยะ farm
+
+-- Dropdown ใน Wind UI
+Tabs.MainFarm:Dropdown({
+    Title = "Select Farm Type",
+    Desc = "Choose AutoFarm orientation",
+    Values = { "Above", "Beside" },
+    Value = getgenv().AutoFarmType,
+    Callback = function(option)
+        getgenv().AutoFarmType = option
+        print("AutoFarm Type selected: " .. option)
+    end
+})
+
+-- Loop อัปเดต Farm_Mode ตาม AutoFarmType
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().AutoFarmType == "Above" then
+            _G.Farm_Mode = CFrame.new(0, DisFarm, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+        elseif getgenv().AutoFarmType == "Beside" then
+            _G.Farm_Mode = CFrame.new(0, 2, DisFarm) * CFrame.Angles(math.rad(0), 0, 0)
+        end
+    end
+end)
+
+-- =========================
+-- VARIABLES
+-- =========================
+getgenv().DisFarm = 30
+getgenv().FastAttack = false
+getgenv().RaidAura = false
+getgenv().SelectWeaponFarm = "Tool" -- ชื่อ Tool ที่ใช้ farm
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RepStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- =========================
+-- WIND UI ELEMENTS
+-- =========================
+
+-- Distance Farm
+Tabs.MainFarm:Input({
+    Title = "Distance Farm",
+    Placeholder = tostring(getgenv().DisFarm),
+    Value = tostring(getgenv().DisFarm),
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            getgenv().DisFarm = num
+        end
+    end
+})
+
+-- Fast Attack Toggle
+Tabs.MainFarm:Toggle({
+    Title = "Fast Attack",
+    Value = getgenv().FastAttack,
+    Callback = function(state)
+        getgenv().FastAttack = state
+        if state then
+            pcall(function()
+                loadstring(game:HttpGet(
+                    "https://raw.githubusercontent.com/AnhTuanDzai-Hub/FastAttackLoL/refs/heads/main/FastAttack.lua"
+                ))()
+            end)
+        end
+    end
+})
+
+-- =========================
+-- HOOK NAMECALL สำหรับ DragonHitPosition
+-- =========================
+task.spawn(function()
+    local mt = getrawmetatable(game)
+    local old = mt.__namecall
+    setreadonly(mt,false)
+    mt.__namecall = newcclosure(function(...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        if tostring(method) == "FireServer" and tostring(args[1]) == "RemoteEvent" then
+            if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
+                if getgenv().FastAttack then
+                    if typeof(args[2]) == "Vector3" then
+                        args[2] = _G.DragonHitPosition
+                    else
+                        args[2] = CFrame.new(_G.DragonHitPosition)
+                    end
+                    return old(unpack(args))
+                end
+            end
+        end
+
+        return old(...)
+    end)
+end)
+
+-- =========================
+-- GET HEADS NEAR PLAYER
+-- =========================
+function getHeadPosition()
+    local returnTable = {}
+    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            local dist = (v.Head.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if dist < 70 then
+                table.insert(returnTable, v.HumanoidRootPart)
+            end
+        end
+    end
+    return returnTable
+end
+
+-- =========================
+-- FAST SHOOT GUN
+-- =========================
+function FastShoot()
+    local ShootGunEvent = RepStorage.Modules.Net["RE/ShootGunEvent"]
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            local dist = (enemy.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            local toolEquiped = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if dist < 50 and toolEquiped and toolEquiped.ToolTip == "Gun" and getgenv().RaidAura == false then
+                LocalPlayer.Character[getgenv().SelectWeaponFarm].RemoteFunctionShoot:InvokeServer(enemy.HumanoidRootPart.Position, enemy.HumanoidRootPart)
+                ShootGunEvent:FireServer(enemy.HumanoidRootPart.Position, {[1] = enemy.HumanoidRootPart})
+            end
+        end
+    end
+end
+
+-- =========================
+-- FAST M1 / DRAGON ATTACK
+-- =========================
+function FastM1()
+    local heads = getHeadPosition()
+    for i = 1, #heads do
+        task.spawn(function()
+            if LocalPlayer.Character:FindFirstChild("Dragon-Dragon") then
+                LocalPlayer.Character["Dragon-Dragon"].LeftClickRemote:FireServer(heads[i], 1)
+                LocalPlayer.Character["Dragon-Dragon"].RemoteEvent:FireServer(false)
+                sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+            end
+        end)
+    end
+end
+
+-- =========================
+-- AUTO FARM LOOP
+-- =========================
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().FastAttack then
+            FastShoot()
+            FastM1()
+        end
+    end
+end)
+
+
+-- =========================
+-- VARIABLES
+-- =========================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RepStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+getgenv().FastAttack = true     -- Melee / Sword
+getgenv().FastShot = false      -- Gun
+getgenv().RaidAura = false      -- ป้องกันการใช้ Raid Aura
+getgenv().SelectWeaponFarm = "Tool"
+
+-- =========================
+-- HELPER FUNCTIONS
+-- =========================
+
+-- GET HEADS NEAR PLAYER
+function getHead()
+    local heads = {}
+    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            if (v.Head.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 70 then
+                table.insert(heads, v.HumanoidRootPart)
+            end
+        end
+    end
+    return heads
+end
+
+-- FAST ATTACK (Melee / Sword)
+function FastAttacked()
+    local heads = getHead()
+    local RegisterAttack = RepStorage.Modules.Net["RE/RegisterAttack"]
+    local RegisterHit = RepStorage.Modules.Net["RE/RegisterHit"]
+
+    for i = 1, #heads do
+        pcall(function()
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool and (tool.ToolTip == "Melee" or tool.ToolTip == "Sword") and getgenv().RaidAura == false then
+                RegisterAttack:FireServer(0.0000001)
+                RegisterHit:FireServer(heads[i], {})
+                sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+            end
+        end)
+    end
+end
+
+-- FAST SHOOT (Gun)
+function FastShooted()
+    local ShootGunEvent = RepStorage.Modules.Net["RE/ShootGunEvent"]
+
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            local dist = (enemy.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if dist < 50 and tool and tool.ToolTip == "Gun" and getgenv().RaidAura == false then
+                LocalPlayer.Character[getgenv().SelectWeaponFarm].RemoteFunctionShoot:InvokeServer(enemy.HumanoidRootPart.Position, enemy.HumanoidRootPart)
+                ShootGunEvent:FireServer(enemy.HumanoidRootPart.Position, {[1] = enemy.HumanoidRootPart})
+            end
+        end
+    end
+end
+
+-- =========================
+-- WIND UI TOGGLES
+-- =========================
+
+-- Fast Attack (Melee / Sword)
+Tabs.Combat:Toggle({
+    Title = "Fast Attack (Melee/Sword)",
+    Value = getgenv().FastAttack,
+    Callback = function(state)
+        getgenv().FastAttack = state
+    end
+})
 
 task.spawn(function()
-    while task.wait() do
-        if getgenv().AutoFarm then
+    local CameraShaker = require(RepStorage.Util.CameraShaker)
+    while task.wait(0.1) do
+        if getgenv().FastAttack then
             pcall(function()
-                CheckLevel() -- มึงมีอยู่แล้ว
-                if game.Workspace.Enemies:FindFirstChild(Ms) then
-                    for _,v in pairs(game.Workspace.Enemies:GetChildren()) do
-                        if v.Name == Ms
-                        and v:FindFirstChild("HumanoidRootPart")
-                        and v:FindFirstChild("Humanoid")
-                        and v.Humanoid.Health > 0 then
+                repeat
+                    FastAttacked()
+                    CameraShaker:Stop()
+                until not getgenv().FastAttack
+            end)
+        end
+    end
+end)
 
-                            repeat
-                                task.wait()
-                                if getgenv().EquipWeapon then
-                                    EquipTool(getgenv().SelectWeapon)
+-- Fast Attack (Gun)
+Tabs.Combat:Toggle({
+    Title = "Fast Attack (Gun)",
+    Value = getgenv().FastShot,
+    Callback = function(state)
+        getgenv().FastShot = state
+    end
+})
+
+task.spawn(function()
+    local CameraShaker = require(RepStorage.Util.CameraShaker)
+    while task.wait(0.1) do
+        if getgenv().FastShot then
+            pcall(function()
+                repeat
+                    FastShooted()
+                    CameraShaker:Stop()
+                until not getgenv().FastShot
+            end)
+        end
+    end
+end)
+
+function AttackToPlayers()
+    local plr = game:GetService("Players").LocalPlayer
+    local RegisterAttack = 
+game:GetService("ReplicatedStorage").Modules.Net["RE/RegisterAttack"]
+    local RegisterHit = 
+game:GetService("ReplicatedStorage").Modules.Net["RE/RegisterHit"]
+    for i,v in pairs(game.Players:GetChildren()) do
+        if v.Character:FindFirstChild("Humanoid") and 
+v.Character:FindFirstChild("Humanoid").Health > 0 then
+            if (v.Character.HumanoidRootPart.Position - 
+plr.Character.HumanoidRootPart.Position).Magnitude < 50 then
+                local toolEquiped = plr.Character:FindFirstChildOfClass("Tool")
+                if toolEquiped.ToolTip == "Melee" or toolEquiped.ToolTip == "Sword"
+then
+                    RegisterAttack:FireServer(0.1)
+                    RegisterHit:FireServer(v.Character.Head, {})
+                end
+            end
+        end
+    end
+end
+Main_Setting:addToggle('Attack Melee Player', AttackToPlayersNow, function(Value)
+    AttackToPlayersNow = Value
+end)
+spawn(function()
+    while task.wait() do
+        if AttackToPlayersNow then
+            local CameraShakerR = require(game.ReplicatedStorage.Util.CameraShaker)
+            CameraShakerR:Stop()
+            pcall(function()
+                repeat task.wait()
+                    AttackToPlayers()
+                until not AttackToPlayersNow
+            end)
+        end
+    end
+end)
+local AttackList = {"0.100 (Risk)", "0.165", "0.175 (Default)", "0.185", "0.200", 
+"0.300", "0.500", "0.700 (Slow)"}
+FastAttackSelected = "0.175 (Default)"
+Main_Setting:addDropdown("Fast Attack Delay", FastAttackSelected, AttackList, 
+function(Value)
+    FastAttackSelected = Value
+end)
+spawn(function()
+    while task.wait() do
+        if FastAttackSelected == "0.100 (Risk)" then
+            FastAttackDelay = 0.1
+        elseif FastAttackSelected == "0.165" then
+            FastAttackDelay = 0.165
+        elseif FastAttackSelected == "0.175 (Default)" then
+            FastAttackDelay = 0.175
+        elseif FastAttackSelected == "0.185" then
+            FastAttackDelay = 0.185
+        elseif FastAttackSelected == "0.200" then
+            FastAttackDelay = 0.2
+        elseif FastAttackSelected == "0.300" then
+            FastAttackDelay = 0.3
+        elseif FastAttackSelected == "0.500" then
+            FastAttackDelay = 0.5
+        elseif FastAttackSelected == "0.700 (Slow)" then
+            FastAttackDelay = 0.7
+        end
+    end
+end)
+
+
+local CombatFramework = 
+require(game:GetService('Players').LocalPlayer.PlayerScripts.CombatFramework)
+function GetCurrentBlade()
+    local GetFastAttack = debug.getupvalues(CombatFramework)[2]
+    local activeController = GetFastAttack.activeController
+    local blades = activeController.blades[1]
+    if not blades then return end
+    while blades.Parent ~= game.Players.LocalPlayer.Character do blades = 
+blades.Parent end
+    return blades
+end
+function AttackNoCD()
+    local plr = game:GetService("Players").LocalPlayer
+    local GetFastAttack = debug.getupvalues(CombatFramework)[2]
+    local activeController = GetFastAttack.activeController
+    for i = 1, 1 do
+        local getBladeHits = 
+require(game.ReplicatedStorage.CombatFramework.RigLib).getBladeHits(plr.Character,
+{plr.Character.HumanoidRootPart},60)
+        local cac = {}
+        local hash = {}
+        for k, v in pairs(getBladeHits) do
+            if v.Parent:FindFirstChild("HumanoidRootPart") and not hash[v.Parent] 
+then
+                table.insert(cac, v.Parent.HumanoidRootPart)
+                hash[v.Parent] = true
+            end
+        end
+        getBladeHits = cac
+        if #getBladeHits > 0 then
+            local u8 = debug.getupvalue(activeController.attack, 5)
+            local u9 = debug.getupvalue(activeController.attack, 6)
+            local u7 = debug.getupvalue(activeController.attack, 4)
+            local u10 = debug.getupvalue(activeController.attack, 7)
+            local u12 = (u8 * 798405 + u7 * 727595) % u9
+            local u13 = u7 * 798405
+                (function()
+                    u12 = (u12 * u9 + u13) % 1099511627776
+                    u8 = math.floor(u12 / u9)
+                    u7 = u12 - u8 * u9
+                end)()
+            u10 = u10 + 1
+            debug.setupvalue(activeController.attack, 5, u8)
+            debug.setupvalue(activeController.attack, 6, u9)
+            debug.setupvalue(activeController.attack, 4, u7)
+            debug.setupvalue(activeController.attack, 7, u10)
+            pcall(function()
+                if plr.Character:FindFirstChildOfClass("Tool") and 
+activeController.blades and activeController.blades[1] then
+                    activeController.animator.anims.basic[1]:Play(0.01,0.01,0.01)
+game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponChange",tostring(GetCurrentBlade()))
+game.ReplicatedStorage.Remotes.Validator:FireServer(math.floor(u12 / 1099511627776 
+* 16777215), u10)
+game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("hit", 
+getBladeHits, i, "")
+                end
+            end)
+        end
+    end
+end
+
+-- =========================
+-- VARIABLES
+-- =========================
+getgenv().FastAttackDelay = 0.1   -- ปรับ delay ของ Fast Attack 1
+getgenv().FastAttack1 = false      -- Toggle Fast Attack 1 (Selected Delay)
+getgenv().MobileFastAttack = false -- Toggle Fast Attack 2 (Without Selected Delay)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RepStorage = game:GetService("ReplicatedStorage")
+
+-- =========================
+-- FAST ATTACK 1 (Selected Delay)
+-- =========================
+Tabs.Combat:Toggle({
+    Title = "Fast Attack 1 (Selected Delay)",
+    Value = getgenv().FastAttack1,
+    Callback = function(state)
+        getgenv().FastAttack1 = state
+    end
+})
+
+task.spawn(function()
+    local CameraShaker = require(RepStorage.Util.CameraShaker)
+    while task.wait(0.1) do
+        if getgenv().FastAttack1 then
+            CameraShaker:Stop()
+            pcall(function()
+                repeat
+                    task.wait(getgenv().FastAttackDelay)
+                    if type(AttackNoCD) == "function" then
+                        AttackNoCD()
+                    end
+                until not getgenv().FastAttack1
+            end)
+        end
+    end
+end)
+
+-- =========================
+-- FAST ATTACK 2 (Mobile / Without Selected Delay)
+-- =========================
+Tabs.Combat:Toggle({
+    Title = "Fast Attack 2 (Mobile / No Delay)",
+    Value = getgenv().MobileFastAttack,
+    Callback = function(state)
+        getgenv().MobileFastAttack = state
+    end
+})
+
+task.spawn(function()
+    local CameraShaker = require(RepStorage.Util.CameraShaker)
+    while task.wait(0.1) do
+        if getgenv().MobileFastAttack then
+            CameraShaker:Stop()
+            pcall(function()
+                local CombatFrameworkLib = getupvalues(
+                    require(LocalPlayer.PlayerScripts.PlayerModule.ControlModule)
+                )
+                local CmrFwLib = CombatFrameworkLib[2]
+                local activeController = CmrFwLib.activeController
+
+                -- Reset cooldowns / attack values
+                activeController.timeToNextAttack = 0
+                activeController.attacking = false
+                activeController.blocking = false
+                activeController.timeToNextBlock = 0
+                activeController.increment = 0
+                activeController.hitboxMagnitude = 100
+                activeController.focusStart = 0
+                activeController.humanoid.AutoRotate = 0
+
+                -- รีเซ็ตอนิเมชั่น
+                activeController.animator.anims.basic[1]:Play(0.01,0.01,0.01)
+            end)
+        end
+    end
+end)
+
+-- =========================
+-- VARIABLES
+-- =========================
+getgenv().BringMobs = true
+getgenv().BringFrec = 250 -- ระยะดึงมอน default
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+
+-- =========================
+-- WIND UI ELEMENTS
+-- =========================
+
+-- Bring Mobs Distance
+Tabs.MainFarm:Input({
+    Title = "Bring Mobs Distance",
+    Placeholder = tostring(getgenv().BringFrec),
+    Value = tostring(getgenv().BringFrec),
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            getgenv().BringFrec = num
+        end
+    end
+})
+
+-- Toggle Bring Mobs
+Tabs.MainFarm:Toggle({
+    Title = "Bring Mobs",
+    Value = getgenv().BringMobs,
+    Callback = function(state)
+        getgenv().BringMobs = state
+    end
+})
+
+-- =========================
+-- FUNCTION TO BRING MONSTERS
+-- =========================
+function BringMonster(TargetName, TargetCFrame)
+    local sethiddenproperty = sethiddenproperty or function(...) return ... end
+    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v.Name == TargetName then
+            if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                local dist = (v.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if dist < tonumber(getgenv().BringFrec) then
+                    v.HumanoidRootPart.CFrame = TargetCFrame
+                    v.HumanoidRootPart.CanCollide = false
+                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                    v.HumanoidRootPart.Transparency = 1
+                    v.Humanoid:ChangeState(11)
+                    v.Humanoid:ChangeState(14)
+                    if v.Humanoid:FindFirstChild("Animator") then
+                        v.Humanoid.Animator:Destroy()
+                    end
+                end
+            end
+        end
+    end
+    pcall(sethiddenproperty, LocalPlayer, "SimulationRadius", math.huge)
+end
+
+-- =========================
+-- AUTO BRING MOBS LOOP
+-- =========================
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().BringMobs then
+            -- ตัวอย่าง: ดึงมอนทั้งหมดชื่อ "Dragon" มาที่ตัวเรา
+            local targetCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+            BringMonster("Dragon", targetCFrame)
+        end
+    end
+end)
+
+
+spawn(function()
+    while task.wait() do
+        if BringMobs and (LevelFarmQuest or LevelFarmNoQuest) then
+            pcall(function()
+                BringMonster(Level_Farm_Name, Level_Farm_CFrame)
+            end)
+        elseif BringMobs and Farm_Bone then
+            pcall(function()
+                BringMonster(Bone_Farm_Name, Bone_Farm_CFrame)
+            end)
+        elseif BringMobs and Farm_Ectoplasm then
+            pcall(function()
+                BringMonster(Ecto_Farm_Name, Ecto_Farm_CFrame)
+            end)
+        elseif BringMobs and Nearest_Farm then
+            pcall(function()
+                BringMonster(Nearest_Farm_Name, Nearest_Farm_CFrame)
+            end)
+        elseif BringMobs and (SelectMonster_Quest_Farm or 
+SelectMonster_NoQuest_Farm) then
+            pcall(function()
+                BringMonster(SelectMonster_Farm_Name, SelectMonster_Farm_CFrame)
+            end)
+        elseif BringMobs and Auto_Farm_Material then
+            pcall(function()
+                BringMonster(Material_Farm_Name, Material_Farm_CFrame)
+            end)
+        elseif BringMobs and (GunMastery_Farm or DevilMastery_Farm) then
+            pcall(function()
+                BringMonster(Mastery_Farm_Name, Mastery_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoRengoku then
+            pcall(function()
+                BringMonster(Rengoku_Farm_Name, Rengoku_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoCakePrince then
+            pcall(function()
+                BringMonster(CakePrince_Farm_Name, CakePrince_Farm_CFrame)
+            end)
+        elseif BringMobs and _G.AutoDoughKing then
+            pcall(function()
+                BringMonster(DoughKing_Farm_Name, DoughKing_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoCitizen then
+            pcall(function()
+                BringMonster(Citizen_Farm_Name, Citizen_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoEvoRace then
+            pcall(function()
+                BringMonster(EvoV2_Farm_Name, EvoV2_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoBartilo then
+            pcall(function()
+                BringMonster(Bartilo_Farm_Name, Bartilo_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoSoulGuitar then
+            pcall(function()
+                BringMonster(SoulGuitar_Farm_Name, SoulGuitar_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoMusketeer then
+            pcall(function()
+                BringMonster(Musketere_Farm_Name, Musketere_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoTrain then
+            pcall(function()
+                BringMonster(Ancient_Farm_Name, Ancient_Farm_CFrame)
+            end)
+        elseif BringMobs and AutoPirateCastle then
+            pcall(function()
+                BringMonster(PirateCastle_Name, PirateCastle_CFrame)
+            end)
+        end
+    end
+end)
+Main_Setting:addToggle("Bypass Teleport", ByPassTP, function(Value)
+    ByPassTP = Value
+end)
+local AutoSetSpawn = true
+Main_Setting:addToggle('Set Spawn Point', AutoSetSpawn, function(Value)
+    AutoSetSpawn = Value
+end)
+spawn(function()
+    while wait() do
+        if AutoSetSpawn then
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetSpawnPoint")
+        end
+    end
+end)
+
+
+
+local Setting_Right = Tab.Tab_Setting:addSection()
+local Skill_Setting = Setting_Right:addMenu('#Skill Mastery')
+Skill_Setting:addToggle('Use Skill Z', _G.SkillZ, function(Value)
+    _G.SkillZ = Value
+end)
+Skill_Setting:addToggle('Use Skill X', _G.SkillX, function(Value)
+    _G.SkillX = Value
+end)
+Skill_Setting:addToggle('Use Skill C', _G.SkillC, function(Value)
+    _G.SkillC = Value
+end)
+Skill_Setting:addToggle('Use Skill V', _G.SkillV, function(Value)
+    _G.SkillV = Value
+end)
+Skill_Setting:addToggle('Use Skill F', _G.SkillF, function(Value)
+    _G.SkillF = Value
+end)----------------------------------------------------//---------------------------------------------------
+local Ability_Settings = Setting_Right:addMenu('#Ability Settings')
+local BusoHaki = true
+Ability_Settings:addToggle("Buso Haki", BusoHaki, function(Value)
+    BusoHaki = Value
+end)
+spawn(function()
+    while wait() do
+        if BusoHaki then
+            if not game.Players.LocalPlayer.Character:FindFirstChild("HasBuso") 
+then
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
+            end
+        end
+    end
+end)
+Ability_Settings:addToggle("Ken Haki", KenHaki, function(Value)
+    KenHaki = Value
+end)
+
+    while wait() do
+        if KenHaki then
+            if not game.Players.LocalPlayer.Character:FindFirstChild("Highlight") 
+then
+ 
+                game:service('VirtualInputManager'):SendKeyEvent(true, "K", false,
+game)                
+                wait(.1)
+                game:service('VirtualInputManager'):SendKeyEvent(false, "K", false,
+game)                
+        end
+    end
+end
+
+-- =========================
+-- MISC SETTINGS
+-- =========================
+getgenv().DeleteAudioEffect = false
+getgenv().HideNotification = false
+
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RepStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- =========================
+-- DISABLE AUDIO EFFECT
+-- =========================
+Tabs.Misc:Toggle({
+    Title = "Disable Audio Effect",
+    Value = getgenv().DeleteAudioEffect,
+    Callback = function(state)
+        getgenv().DeleteAudioEffect = state
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().DeleteAudioEffect then
+            for _, v in pairs(Workspace["_WorldOrigin"]:GetChildren()) do
+                if v.Name == "Sounds" then
+                    for _, soundPart in pairs(v:GetChildren()) do
+                        if soundPart:IsA("Part") then
+                            soundPart:Destroy()
+                        end
+                    end
+                end
+                if v.Name == "CurvedRing" or v.Name == "SlashHit" or v.Name == "SwordSlash" or v.Name == "SlashTail" then
+                    v:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- =========================
+-- HIDE NOTIFICATIONS
+-- =========================
+Tabs.Misc:Toggle({
+    Title = "Hide Notification",
+    Value = getgenv().HideNotification,
+    Callback = function(state)
+        getgenv().HideNotification = state
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().HideNotification then
+            local notifs = LocalPlayer.PlayerGui:FindFirstChild("Notifications")
+            if notifs then
+                for _, v in pairs(notifs:GetChildren()) do
+                    v:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- =========================
+-- DESTROY EFFECT ANIMATION BUTTON
+-- =========================
+Tabs.Misc:Button({
+    Title = "Destroy Effect Animation",
+    Callback = function()
+        -- ลบ Assets
+        if RepStorage:FindFirstChild("Assets") then
+            if RepStorage.Assets:FindFirstChild("Models") then
+                RepStorage.Assets.Models:Destroy()
+            end
+            if RepStorage.Assets:FindFirstChild("GUI") then
+                RepStorage.Assets.GUI:Destroy()
+            end
+            if RepStorage.Assets:FindFirstChild("SlashHit") then
+                RepStorage.Assets.SlashHit:Destroy()
+            end
+        end
+        -- ลบ Effect Container
+        if RepStorage:FindFirstChild("Effect") and RepStorage.Effect:FindFirstChild("Container") then
+            local container = RepStorage.Effect.Container
+            if container:FindFirstChild("Death") then
+                for _, v in pairs(container.Death:GetChildren()) do
+                    v:Destroy()
+                end
+            end
+            if container:FindFirstChild("Respawn") then
+                for _, v in pairs(container.Respawn:GetChildren()) do
+                    v:Destroy()
+                end
+            end
+        end
+    end
+})
+
+
+-- =========================
+-- LEVEL FARM
+-- =========================
+getgenv().LevelFarmQuest = false
+getgenv().LevelFarmNoQuest = false
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RepStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+-- =========================
+-- TOGGLE LEVEL FARM QUEST
+-- =========================
+Tabs.MainFarm:Toggle({
+    Title = "Level Farm Quest",
+    Value = getgenv().LevelFarmQuest,
+    Callback = function(state)
+        getgenv().LevelFarmQuest = state
+        _G.SelectMonster = nil
+        if type(CancelTween) == "function" then
+            CancelTween(getgenv().LevelFarmQuest)
+        end
+    end
+})
+
+-- =========================
+-- TOGGLE LEVEL FARM NO QUEST
+-- =========================
+Tabs.MainFarm:Toggle({
+    Title = "Level Farm No Quest",
+    Value = getgenv().LevelFarmNoQuest,
+    Callback = function(state)
+        getgenv().LevelFarmNoQuest = state
+        _G.SelectMonster = nil
+        if type(CancelTween) == "function" then
+            CancelTween(getgenv().LevelFarmNoQuest)
+        end
+    end
+})
+
+-- =========================
+-- AUTO LEVEL FARM LOOP
+-- =========================
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().LevelFarmQuest then
+            pcall(function()
+                -- ตรวจสอบ Quest
+                if type(CheckLevel) == "function" then
+                    CheckLevel()
+                end
+
+                local QuestGui = LocalPlayer.PlayerGui:WaitForChild("Main"):WaitForChild("Quest")
+                local QuestTitle = QuestGui.Container:WaitForChild("QuestTitle").Title.Text
+
+                -- ถ้า Quest ไม่ตรง หรือ GUI ไม่เปิด
+                if not string.find(QuestTitle, NameMon) or not QuestGui.Visible then
+                    RepStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
+                    if ByPassTP then
+                        BTP(CFrameQ)
+                    else
+                        Tween(CFrameQ)
+                    end
+                    if (CFrameQ.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 5 then
+                        wait(1)
+                        RepStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
+                    end
+                else
+                    -- ถ้ามีมอนอยู่ใน Workspace
+                    if Workspace.Enemies:FindFirstChild(Ms) then
+                        for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                            if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                                if v.Name == Ms then
+                                    repeat
+                                        RunService.Heartbeat:Wait()
+                                        EquipTool(SelectWeapon)
+                                        Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+                                        v.HumanoidRootPart.CanCollide = false
+                                        v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                                        v.HumanoidRootPart.Transparency = 1
+                                        Level_Farm_Name = v.Name
+                                        Level_Farm_CFrame = v.HumanoidRootPart.CFrame
+                                        if type(AutoClick) == "function" then
+                                            AutoClick()
+                                        end
+                                    until not getgenv().LevelFarmQuest or not v.Parent or v.Humanoid.Health <= 0 or not Workspace.Enemies:FindFirstChild(v.Name) or not QuestGui.Visible
                                 end
+                            end
+                        end
+                    else
+                        Tween(CFrameMon)
+                    end
+                end
+            end)
+        end
+    end
+end)
 
+-- =========================
+-- LEVEL FARM QUEST LOOP
+-- =========================
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().LevelFarmQuest then
+            pcall(function()
+                -- ตรวจสอบ Level / Quest
+                if type(CheckLevel) == "function" then
+                    CheckLevel()
+                end
+
+                local questGui = LocalPlayer.PlayerGui:WaitForChild("Main"):WaitForChild("Quest")
+                local questTitle = questGui.Container.QuestTitle.Title.Text
+
+                -- ถ้า Quest ไม่ตรง หรือ GUI ไม่เปิด
+                if not string.find(questTitle, NameMon) or not questGui.Visible then
+                    RepStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
+                    if ByPassTP then
+                        BTP(CFrameQ)
+                    else
+                        Tween(CFrameQ)
+                    end
+                    if (CFrameQ.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 5 then
+                        wait(1)
+                        RepStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
+                    end
+                else
+                    -- ถ้ามอนอยู่
+                    if Workspace.Enemies:FindFirstChild(Ms) then
+                        for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                            if v.Name == Ms and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                                repeat
+                                    game:GetService("RunService").Heartbeat:Wait()
+                                    -- Equip Tool
+                                    EquipTool(SelectWeapon)
+                                    -- Tween + Farm_Mode
+                                    Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+                                    -- ปรับขนาด / โปร่งใส / ปิดการชน
+                                    v.HumanoidRootPart.CanCollide = false
+                                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                                    v.HumanoidRootPart.Transparency = 1
+                                    -- เก็บชื่อและตำแหน่ง
+                                    Level_Farm_Name = v.Name
+                                    Level_Farm_CFrame = v.HumanoidRootPart.CFrame
+                                    -- AutoClick
+                                    if type(AutoClick) == "function" then
+                                        AutoClick()
+                                    end
+                                until not getgenv().LevelFarmQuest or not v.Parent or v.Humanoid.Health <= 0 or not Workspace.Enemies:FindFirstChild(v.Name) or not questGui.Visible
+                            end
+                        end
+                    else
+                        -- ถ้าไม่มีมอน ให้เดินไปตำแหน่งมอน
+                        Tween(CFrameMon)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+
+-- =========================
+-- LEVEL FARM NO QUEST LOOP
+-- =========================
+task.spawn(function()
+    while task.wait(0.1) do
+        if getgenv().LevelFarmNoQuest then
+            pcall(function()
+                -- ตรวจสอบ Level / Monster
+                if type(CheckLevel) == "function" then
+                    CheckLevel()
+                end
+
+                local enemies = Workspace:FindFirstChild("Enemies")
+                if enemies and enemies:FindFirstChild(Ms) then
+                    for _, v in pairs(enemies:GetChildren()) do
+                        if v.Name == Ms and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                            repeat
+                                game:GetService("RunService").Heartbeat:Wait()
+                                -- Equip tool
+                                EquipTool(SelectWeapon)
+                                -- Tween ไปตำแหน่งมอน + Farm_Mode
                                 Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+                                -- ปรับขนาด / ความโปร่งใส / ปิดการชน
                                 v.HumanoidRootPart.CanCollide = false
                                 v.HumanoidRootPart.Size = Vector3.new(60,60,60)
                                 v.HumanoidRootPart.Transparency = 1
-
-                                AutoClick()
-                            until not getgenv().AutoFarm
-                               or not v.Parent
-                               or v.Humanoid.Health <= 0
+                                -- เก็บชื่อและตำแหน่งล่าสุด
+                                Level_Farm_Name = v.Name
+                                Level_Farm_CFrame = v.HumanoidRootPart.CFrame
+                                -- AutoClick / AutoFarm
+                                if type(AutoClick) == "function" then
+                                    AutoClick()
+                                end
+                            until not getgenv().LevelFarmNoQuest or not v.Parent or v.Humanoid.Health <= 0 or not enemies:FindFirstChild(v.Name)
                         end
                     end
                 else
-                    Tween(CFrameMon)
+                    -- ถ้าไม่มีมอน ให้เดินไปพิกัดมอน
+                    if ByPassTP then
+                        BTP(CFrameMon)
+                    else
+                        Tween(CFrameMon)
+                    end
                 end
             end)
         end
