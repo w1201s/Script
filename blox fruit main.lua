@@ -37,8 +37,11 @@ Player.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
-local FarmTab = Window:CreateTab({Title="Farm",Icon="swords"})
-local SettingTab = Window:CreateTab({Title="Settings",Icon="settings"})
+local FarmTab = Window:Tab({
+    Title = "Tab Title",
+    Icon = "bird", -- optional
+    Locked = false,
+})
 
 FarmTab:Toggle({
     Title = "Auto Farm",
