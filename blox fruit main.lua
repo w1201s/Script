@@ -2371,7 +2371,7 @@ local RunService = game:GetService("RunService")
 -- =========================
 -- TOGGLE LEVEL FARM QUEST
 -- =========================
-Tabs.MainFarm:Toggle({
+MainFarm:Toggle({
     Title = "Level Farm Quest",
     Value = getgenv().LevelFarmQuest,
     Callback = function(state)
@@ -2386,7 +2386,7 @@ Tabs.MainFarm:Toggle({
 -- =========================
 -- TOGGLE LEVEL FARM NO QUEST
 -- =========================
-Tabs.MainFarm:Toggle({
+MainFarm:Toggle({
     Title = "Level Farm No Quest",
     Value = getgenv().LevelFarmNoQuest,
     Callback = function(state)
