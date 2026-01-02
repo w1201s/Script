@@ -5,7 +5,7 @@ local WindUI = loadstring(game:HttpGet(
 
 -- Create Window
 local Window = WindUI:CreateWindow({
-    Title = "Tuấn Anh IOS",
+    Title = "Tuấn Anh IOSAndoird",
     Icon = "door-open",
     Author = "Wind UI",
     Folder = "TuanAnhIOS",
