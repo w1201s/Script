@@ -52,10 +52,9 @@ FarmTab:Toggle({
 })
 
 FarmTab:Dropdown({
-    Title = "Farm Mode",
-    Default = "Above",
-    Options = {"Above","Beside"},
-    Callback = function(v)
+    Title = "Dropdown",
+    Values = {"Above","Beside"},
+    Value = "Above",
         getgenv().FarmType = v
     end
 })
