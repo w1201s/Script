@@ -13,30 +13,6 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-
-
-getgenv().AutoFarm = false
-getgenv().BringMobs = false
-getgenv().BringDistance = 250
-getgenv().FarmType = "Above"
-getgenv().AutoSetSpawn = false
-getgenv().ByPassTP = false
-
-local DisFarm = 20
-local Farm_Mode = CFrame.new()
-
-
-local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
-
-local Player = Players.LocalPlayer
-
-Player.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-end)
-
 local FarmTab = Window:Tab({
     Title = "Tab Title",
     Icon = "bird", -- optional
@@ -44,28 +20,82 @@ local FarmTab = Window:Tab({
 })
 
 FarmTab:Toggle({
-    Title = "Auto Farm",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoFarm = v
+    Name = "Level Farm Quest",
+    Default = LevelFarmQuest,
+    Callback = function(Value)
+        LevelFarmQuest = Value
+        _G.SelectMonster = nil
+        CancelTween(LevelFarmQuest)
     end
 })
 
-FarmTab:Dropdown({
-    Title = "Dropdown",
-    Values = {"Above","Beside"},
-    Value = "Above",
-        getgenv().FarmType = v
-    end
-})
+spawn(function()
+    while task.wait() do
+        if LevelFarmQuest then
+            pcall(function()
+                CheckLevel()
 
-FarmTab:Toggle({
-    Title = "Bring Mob",
-    Default = false,
-    Callback = function(v)
-        getgenv().BringMobs = v
+                local QuestGui = game.Players.LocalPlayer.PlayerGui.Main.Quest
+                local QuestTitle = QuestGui.Container.QuestTitle.Title.Text
+
+                -- ไม่มีเควส / เควสไม่ตรง
+                if not string.find(QuestTitle, NameMon) or QuestGui.Visible == false then
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
+
+                    if ByPassTP then
+                        BTP(CFrameQ)
+                    else
+                        Tween(CFrameQ)
+                    end
+
+                    if (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 5 then
+                        task.wait(1)
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                            "StartQuest",
+                            NameQuest,
+                            QuestLv
+                        )
+                    end
+
+                -- มีเควสแล้ว
+                else
+                    if game.Workspace.Enemies:FindFirstChild(Ms) then
+                        for _,v in pairs(game.Workspace.Enemies:GetChildren()) do
+                            if v.Name == Ms
+                            and v:FindFirstChild("Humanoid")
+                            and v:FindFirstChild("HumanoidRootPart")
+                            and v.Humanoid.Health > 0 then
+
+                                repeat
+                                    game:GetService("RunService").Heartbeat:Wait()
+
+                                    EquipTool(SelectWeapon)
+                                    Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+
+                                    v.HumanoidRootPart.CanCollide = false
+                                    v.HumanoidRootPart.Size = Vector3.new(60,60,60)
+                                    v.HumanoidRootPart.Transparency = 1
+
+                                    Level_Farm_Name = v.Name
+                                    Level_Farm_CFrame = v.HumanoidRootPart.CFrame
+
+                                    AutoClick()
+                                until not LevelFarmQuest
+                                   or not v.Parent
+                                   or v.Humanoid.Health <= 0
+                                   or QuestGui.Visible == false
+                            end
+                        end
+                    else
+                        Tween(CFrameMon)
+                    end
+                end
+            end)
+        end
     end
-})
+end)
+
+
 
 
 
@@ -981,19 +1011,6 @@ pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
     end)
 end)
 
---fastattack
-
-task.spawn(function()
-    while task.wait() do
-        if getgenv().FastAttack then
-            pcall(function()
-                AttackModule:ProcessAll()
-            end)
-        end
-    end
-end)
-
-
 --farm lv
 
 task.spawn(function()
@@ -1028,94 +1045,6 @@ task.spawn(function()
                 else
                     Tween(CFrameMon)
                 end
-            end)
-        end
-    end
-end)
-
-task.spawn(function()
-    while task.wait() do
-        if getgenv().FarmType == "Above" then
-            Farm_Mode = CFrame.new(0, DisFarm, 0)
-                * CFrame.Angles(math.rad(-90), 0, 0)
-        elseif getgenv().FarmType == "Beside" then
-            Farm_Mode = CFrame.new(0, 2, DisFarm)
-        end
-    end
-end)
-
-local BringMobs = true
-
-spawn(function()
-    while task.wait() do
-        if BringMobs and (LevelFarmQuest or LevelFarmNoQuest) then
-            pcall(function()
-                BringMonster(Level_Farm_Name, Level_Farm_CFrame)
-            end)
-        elseif BringMobs and Farm_Bone then
-            pcall(function()
-                BringMonster(Bone_Farm_Name, Bone_Farm_CFrame)
-            end)
-        elseif BringMobs and Farm_Ectoplasm then
-            pcall(function()
-                BringMonster(Ecto_Farm_Name, Ecto_Farm_CFrame)
-            end)
-        elseif BringMobs and Nearest_Farm then
-            pcall(function()
-                BringMonster(Nearest_Farm_Name, Nearest_Farm_CFrame)
-            end)
-        elseif BringMobs and (SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm) then
-            pcall(function()
-                BringMonster(SelectMonster_Farm_Name, SelectMonster_Farm_CFrame)
-            end)
-        elseif BringMobs and Auto_Farm_Material then
-            pcall(function()
-                BringMonster(Material_Farm_Name, Material_Farm_CFrame)
-            end)
-        elseif BringMobs and (GunMastery_Farm or DevilMastery_Farm) then
-            pcall(function()
-                BringMonster(Mastery_Farm_Name, Mastery_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoRengoku then
-            pcall(function()
-                BringMonster(Rengoku_Farm_Name, Rengoku_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoCakePrince then
-            pcall(function()
-                BringMonster(CakePrince_Farm_Name, CakePrince_Farm_CFrame)
-            end)
-        elseif BringMobs and _G.AutoDoughKing then
-            pcall(function()
-                BringMonster(DoughKing_Farm_Name, DoughKing_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoCitizen then
-            pcall(function()
-                BringMonster(Citizen_Farm_Name, Citizen_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoEvoRace then
-            pcall(function()
-                BringMonster(EvoV2_Farm_Name, EvoV2_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoBartilo then
-            pcall(function()
-                BringMonster(Bartilo_Farm_Name, Bartilo_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoSoulGuitar then
-            pcall(function()
-                BringMonster(SoulGuitar_Farm_Name, SoulGuitar_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoMusketeer then
-            pcall(function()
-                BringMonster(Musketere_Farm_Name, Musketere_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoTrain then
-            pcall(function()
-                BringMonster(Ancient_Farm_Name, Ancient_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoPirateCastle then
-            pcall(function()
-                BringMonster(PirateCastle_Name, PirateCastle_CFrame)
             end)
         end
     end
