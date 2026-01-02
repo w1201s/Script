@@ -1,7 +1,4 @@
 
-
-
-
 -- Load WindUI
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
@@ -20,59 +17,6 @@ local FarmTab = Window:CreateTab({
     Title = "Auto Farm",
     Icon = "leaf"
 })
-
-task.spawn(function()
-    while task.wait() do
-        if getgenv().FastAttack then
-            pcall(function()
-                AttackModule:ProcessAll()
-            end)
-        end
-    end
-end)
-
-getgenv().AutoFarm = false
-getgenv().FastAttack = false
-getgenv().SelectWeapon = "Combat"
-getgenv().EquipWeapon = false
-
-
-task.spawn(function()
-    while task.wait() do
-        if getgenv().AutoFarm then
-            pcall(function()
-                CheckLevel() -- มึงมีอยู่แล้ว
-                if game.Workspace.Enemies:FindFirstChild(Ms) then
-                    for _,v in pairs(game.Workspace.Enemies:GetChildren()) do
-                        if v.Name == Ms
-                        and v:FindFirstChild("HumanoidRootPart")
-                        and v:FindFirstChild("Humanoid")
-                        and v.Humanoid.Health > 0 then
-
-                            repeat
-                                task.wait()
-                                if getgenv().EquipWeapon then
-                                    EquipTool(getgenv().SelectWeapon)
-                                end
-
-                                Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
-                                v.HumanoidRootPart.CanCollide = false
-                                v.HumanoidRootPart.Size = Vector3.new(60,60,60)
-                                v.HumanoidRootPart.Transparency = 1
-
-                                AutoClick()
-                            until not getgenv().AutoFarm
-                               or not v.Parent
-                               or v.Humanoid.Health <= 0
-                        end
-                    end
-                else
-                    Tween(CFrameMon)
-                end
-            end)
-        end
-    end
-end)
 
 
 
@@ -973,3 +917,56 @@ elseif Third_Sea then
         "Isle Outlaw [Lv. 2450]", "Island Boy [2475]", "Sun-kissed Warrior [Lv. 2500]", "Isle Champion [Lv. 2525]", "Serpent Hunter [Lv. 2550]", "Skull Slayer [Lv.2575]"
     }
 end
+
+task.spawn(function()
+    while task.wait() do
+        if getgenv().FastAttack then
+            pcall(function()
+                AttackModule:ProcessAll()
+            end)
+        end
+    end
+end)
+
+getgenv().AutoFarm = false
+getgenv().FastAttack = false
+getgenv().SelectWeapon = "Combat"
+getgenv().EquipWeapon = false
+
+
+task.spawn(function()
+    while task.wait() do
+        if getgenv().AutoFarm then
+            pcall(function()
+                CheckLevel() -- มึงมีอยู่แล้ว
+                if game.Workspace.Enemies:FindFirstChild(Ms) then
+                    for _,v in pairs(game.Workspace.Enemies:GetChildren()) do
+                        if v.Name == Ms
+                        and v:FindFirstChild("HumanoidRootPart")
+                        and v:FindFirstChild("Humanoid")
+                        and v.Humanoid.Health > 0 then
+
+                            repeat
+                                task.wait()
+                                if getgenv().EquipWeapon then
+                                    EquipTool(getgenv().SelectWeapon)
+                                end
+
+                                Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+                                v.HumanoidRootPart.CanCollide = false
+                                v.HumanoidRootPart.Size = Vector3.new(60,60,60)
+                                v.HumanoidRootPart.Transparency = 1
+
+                                AutoClick()
+                            until not getgenv().AutoFarm
+                               or not v.Parent
+                               or v.Humanoid.Health <= 0
+                        end
+                    end
+                else
+                    Tween(CFrameMon)
+                end
+            end)
+        end
+    end
+end)
