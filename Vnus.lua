@@ -3,12 +3,98 @@ local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 
+function load()
+print("Plz rate this 0/10")
+warn("made by w1201s with heart")    
+end
+
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+--dont change anything until you know what you do
+WindUI.Services.junkiedev = {
+    Name = "Junkie Development",
+    Icon = "bug-off",
+    Args = { "ServiceId", "ApiKey", "Provider" },
+    New = function(ServiceId, ApiKey, Provider)
+        JunkieProtected.API_KEY = ApiKey
+        JunkieProtected.PROVIDER = Provider
+        JunkieProtected.SERVICE_ID = ServiceId
+
+        local function ValidateKey(key)
+            if not key or key == "" then
+                print("❌ No key provided!")
+                game.Players.LocalPlayer:Kick("No key provided. Please get a key.")
+                return false
+            end
+
+            local keylessCheck = JunkieProtected.IsKeylessMode()
+            if keylessCheck and keylessCheck.keyless_mode then
+                print("Keyless mode enabled - Starting script...")
+                return true
+            end
+
+            local result = JunkieProtected.ValidateKey({ Key = key })
+            if result == "valid" then
+                print("Key is valid! Starting script...")
+                load()
+                
+                if _G.JD_IsPremium then
+                    print("🌟 Premium user detected!")
+                else
+                    print("📝 Standard user")
+                end
+                
+                return true
+            else
+                local keyLink = JunkieProtected.GetKeyLink()
+                print("❌ Invalid key!")
+                game.Players.LocalPlayer:Kick("Invalid key. Get one from: " .. keyLink)
+                return false
+            end
+        end
+
+        local function copyLink()
+            local link = JunkieProtected.GetKeyLink()
+            print("Get your key: " .. link)
+            if setclipboard then
+                setclipboard(link)
+            end
+        end
+
+        return {
+            Verify = ValidateKey,
+            Copy = copyLink
+        }
+    end
+}
+
+--//CONTIUNE HERE!!
 
 local Window = WindUI:CreateWindow({
-    Title = "Venus test",
-    Icon = "house", -- lucide icon. optional
-    Author = "by w1201s", -- optional
+    Title = "Venus v0.5(Universal)",
+    Icon = "door-open",
+    Author = "by w1201s",
+    Folder = "Venus",
+    Size = UDim2.fromOffset(580, 460),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+    KeySystem = {                                                               
+        Note = "Do the keysystem now Btw i add universal so you can play in different map but now much game support sad",                     
+        API = {                                                       
+            { 
+                Type = "junkiedev",
+                ServiceId = "Venus",
+                ApiKey = "c64fd71a-d263-4461-8901-712150e4ee81",
+                Provider = "Venus",
+            }    
+        }
+    }
 })
 
 local Tab = Window:Tab({
