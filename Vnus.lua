@@ -11,7 +11,32 @@ local Tab = Window:Tab({
     Locked = false,
 })
 
+local Button = Tab:Button({
+    Title = "I Need universal script Please Read",
+    Desc = "Test Button",
+    Locked = false,
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal.lua"))()
+    end
+})
 
+local Button = Tab:Button({
+    Title = "Button",
+    Desc = "Test Button",
+    Locked = false,
+    Callback = function()
+        -- ...
+    end
+})
+
+local Button = Tab:Button({
+    Title = "Button",
+    Desc = "Test Button",
+    Locked = false,
+    Callback = function()
+        -- ...
+    end
+})
 
 local Button = Tab:Button({
     Title = "Infinite yield",
@@ -124,4 +149,3 @@ spawn(function()
         task.wait(0.1)
     end
 end)
-
