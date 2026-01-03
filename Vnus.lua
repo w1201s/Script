@@ -16,6 +16,16 @@ local Button = Tab:Button({
     Desc = "Here universal script Please read support game",
     Locked = false,
     Callback = function()
+        loadstring(game:HttpGet("loadstring(game:HttpGet("https://github.com/w1201s/Script/raw/refs/heads/main/Read%20note.lua"))()"))()
+    end
+})
+
+
+local Button = Tab:Button({
+    Title = "I Need universal script Please Read",
+    Desc = "Here universal script Please read support game",
+    Locked = false,
+    Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal.lua"))()
     end
 })
