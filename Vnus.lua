@@ -46,15 +46,6 @@ local Button = Tab:Button({
 })
 
 local Button = Tab:Button({
-    Title = "Button",
-    Desc = "Test Button",
-    Locked = false,
-    Callback = function()
-        -- ...
-    end
-})
-
-local Button = Tab:Button({
     Title = "Infinite yield",
     Desc = "Admin command script work in most game",
     Locked = false,
