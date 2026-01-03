@@ -1,13 +1,7 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-
 function load()
 print("Plz rate this 0/10")
 warn("made by w1201s with heart")    
 end
-
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 --dont change anything until you know what you do
 WindUI.Services.junkiedev = {
@@ -42,15 +36,6 @@ WindUI.Services.junkiedev = {
                 else
                     print("📝 Standard user")
                 end
-                
-                return true
-            else
-                local keyLink = JunkieProtected.GetKeyLink()
-                print("❌ Invalid key!")
-                game.Players.LocalPlayer:Kick("Invalid key. Get one from: " .. keyLink)
-                return false
-            end
-        end
 
         local function copyLink()
             local link = JunkieProtected.GetKeyLink()
@@ -66,6 +51,15 @@ WindUI.Services.junkiedev = {
         }
     end
 }
+                
+                return true
+            else
+                local keyLink = JunkieProtected.GetKeyLink()
+                print("❌ Invalid key!")
+                game.Players.LocalPlayer:Kick("Invalid key. Get one from: " .. keyLink)
+                return false
+            end
+        end
 
 --//CONTIUNE HERE!!
 
@@ -96,6 +90,11 @@ local Window = WindUI:CreateWindow({
         }
     }
 })
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
 
 local Tab = Window:Tab({
     Title = "Main",
