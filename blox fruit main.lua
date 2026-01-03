@@ -6,16 +6,6 @@ local Window = WindUI:CreateWindow({
     Author = "by .ftgs and .ftgs", -- optional
 })
 
-local AFKOptions = {}
-
-local Discord = Window:MakeTab({"Discord", "Info"})
-Discord:AddDiscordInvite({
-    Name = "redz Hub | Community",
-    Description = "Join our discord community to receive information about the next update",
-    Logo = "rbxassetid://15298567397",
-    Invite = "https://discord.gg/7aR7kNVt4g"
-})
-
 local Tab = Window:Tab({
     Title = "Tab Title",
     Icon = "bird", -- optional
