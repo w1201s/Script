@@ -3,7 +3,13 @@ local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
+local Window = WindUI:CreateWindow({
+    Title = "Venus test",
+    Icon = "house", -- lucide icon. optional
+    Author = "by w1201s", -- optional
+})
 
 local Tab = Window:Tab({
     Title = "Main",
@@ -12,11 +18,11 @@ local Tab = Window:Tab({
 })
 
 local Button = Tab:Button({
-    Title = "I Need universal script Please Read",
-    Desc = "Here universal script Please read support game",
+    Title = "Please Read This if u want to use universal script",
+    Desc = "Read here",
     Locked = false,
     Callback = function()
-        loadstring(game:HttpGet("loadstring(game:HttpGet("https://github.com/w1201s/Script/raw/refs/heads/main/Read%20note.lua"))()"))()
+        loadstring(game:HttpGet("https://github.com/w1201s/Script/raw/refs/heads/main/Read%20note.lua"))()
     end
 })
 
