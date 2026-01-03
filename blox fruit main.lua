@@ -1,9 +1,9 @@
-local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/REDzHUB/RedzLibV5/main/Source.Lua"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
-local Window = redzlib:MakeWindow({
-    Title = "redz Hub : Blox Fruits",
-    SubTitle = "by redz9999",
-    SaveFolder = "redz Hub | Blox Fruits.lua"
+local Window = WindUI:CreateWindow({
+    Title = "My Super Hub",
+    Icon = "door-open", -- lucide icon. optional
+    Author = "by .ftgs and .ftgs", -- optional
 })
 
 local AFKOptions = {}
@@ -16,7 +16,34 @@ Discord:AddDiscordInvite({
     Invite = "https://discord.gg/7aR7kNVt4g"
 })
 
-local MainFarm = Window:MakeTab({"Farm", "Home"})
+local Tab = Window:Tab({
+    Title = "Tab Title",
+    Icon = "bird", -- optional
+    Locked = false,
+})
+
+local Toggle = Tab:Toggle({
+    Title = "Toggledasd",
+    Desc = "Toggle Description",
+    Icon = "bird",
+    Type = "Checkbox",
+    Callback = function(Value)
+        getgenv().AutoFarm_Level = Value
+        if Value then AutoFarm_Level() end
+    end,
+})
+
+local Dropdown = Tab:Dropdown({
+    Title = "Farm Tool",
+    Desc = "Dropdown Description",
+    Values = { "Melee", "Sword", "Blox Fruit" },
+    Value = "Melee",
+    Callback = function(Value) 
+        getgenv().FarmTool = Value
+    end
+})
+
+
 
 if Sea3 then
     local AutoSea = Window:MakeTab({"Sea", "Waves"})
@@ -562,16 +589,7 @@ local Shop = Window:MakeTab({"Shop", "ShoppingCart"})
 -- Misc Tab
 local Misc = Window:MakeTab({"Misc", "Settings"})
 
--- MainFarm Dropdowns & Toggles
-MainFarm:AddDropdown({
-    Name = "Farm Tool",
-    Options = {"Melee", "Sword", "Blox Fruit"},
-    Default = "Melee",
-    Flag = "Main/FarmTool",
-    Callback = function(Value)
-        getgenv().FarmTool = Value
-    end
-})
+
 
 -- Multi Farm Toggle (เฉพาะ Sea3)
 if PlayerLevel.Value >= MaxLevel and Sea3 then
@@ -588,16 +606,19 @@ if PlayerLevel.Value >= MaxLevel and Sea3 then
 end
 
 -- MainFarm Section: Farm Toggles
-MainFarm:AddSection({"Farm"})
-MainFarm:AddToggle({
-    Name = "Auto Farm Level",
-    Value = false,
+
+local Toggle = Tab:Toggle({
+    Title = "Toggledasd",
+    Desc = "Toggle Description",
+    Icon = "bird",
+    Type = "Checkbox",
     Callback = function(Value)
         getgenv().AutoFarm_Level = Value
         if Value then AutoFarm_Level() end
     end,
-    Description = "Level Farm"
 })
+
+
 MainFarm:AddToggle({
     Name = "Auto Farm Nearest",
     Value = false,
