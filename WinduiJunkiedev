@@ -1,6 +1,6 @@
 function load()
-print("leave this blank or put anything")
-warn("made by uerd with ❤")    
+print("Plz rate this 0/10")
+warn("made by w1201s with heart")    
 end
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 --dont change anything until you know what you do
@@ -83,13 +83,14 @@ local Window = WindUI:CreateWindow({
         API = {                                                       
             { 
                 Type = "junkiedev",
-                ServiceId = "Aimbot key",
-                ApiKey = "4c3dcb1b-40b3-49e6-8c41-2c69914e0f4b",
-                Provider = "Aimbot",
+                ServiceId = "Venus",
+                ApiKey = "c64fd71a-d263-4461-8901-712150e4ee81",
+                Provider = "Venus",
             }    
         }
     }
 })
+
 local Tab = Window:Tab({
     Title = "Tab Title",
     Icon = "bird", 
