@@ -13,7 +13,7 @@ local Tab = Window:Tab({
 
 local Button = Tab:Button({
     Title = "I Need universal script Please Read",
-    Desc = "Test Button",
+    Desc = "Here universal script Please read support game",
     Locked = false,
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal.lua"))()
@@ -21,11 +21,11 @@ local Button = Tab:Button({
 })
 
 local Button = Tab:Button({
-    Title = "Button",
-    Desc = "Test Button",
+    Title = "I need aimbot script",
+    Desc = "Here",
     Locked = false,
     Callback = function()
-        -- ...
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Aimbot'))()
     end
 })
 
