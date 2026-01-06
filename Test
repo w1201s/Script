@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Fast Trigger 1-100</title>
+<style>
+body {
+    font-family: Arial;
+    text-align: center;
+    margin-top: 100px;
+}
+#number {
+    font-size: 80px;
+    margin: 20px;
+}
+button {
+    font-size: 20px;
+    padding: 10px 20px;
+    margin: 10px;
+}
+</style>
+</head>
+<body>
+
+<div id="number">0</div>
+
+<button onclick="start()">Start</button>
+<button onclick="stop()">Stop</button>
+<button onclick="reset()">Reset</button>
+
+<script>
+let count = 1;
+let timer = null;
+
+function start() {
+    if (timer) return; // กันกดซ้ำ
+    timer = setInterval(() => {
+        document.getElementById("number").innerText = count;
+        count++;
+        if (count > 100) count = 1;
+    }, 20); // ยิ่งน้อยยิ่งเร็ว (10 = โคตรไว)
+}
+
+function stop() {
+    clearInterval(timer);
+    timer = null;
+}
+
+function reset() {
+    stop();
+    count = 1;
+    document.getElementById("number").innerText = 0;
+}
+</script>
+
+</body>
+</html>
