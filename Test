@@ -38,7 +38,7 @@ function start() {
         document.getElementById("number").innerText = count;
         count++;
         if (count > 100) count = 1;
-    }, 20); // ยิ่งน้อยยิ่งเร็ว (10 = โคตรไว)
+    }, 10); // ยิ่งน้อยยิ่งเร็ว (10 = โคตรไว)
 }
 
 function stop() {
