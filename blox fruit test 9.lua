@@ -4,7 +4,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title = "Farm Core",
+    Title = "Bot foot",
     Icon = "swords",
     Author = "WindUI",
     Folder = "FarmCore",
