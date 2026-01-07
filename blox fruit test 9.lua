@@ -1,4 +1,3 @@
-
 -- Load WindUI
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
@@ -9,114 +8,105 @@ local Window = WindUI:CreateWindow({
     Icon = "swords",
     Author = "WindUI",
     Folder = "FarmCore",
-    Size = UDim2.fromOffset(500, 400),
+    Size = UDim2.fromOffset(500, 500),
     Theme = "Dark"
 })
 
 local FarmTab = Window:Tab({
-    Title = "Tab Title",
-    Icon = "bird", -- optional
+    Title = "Auto Farm",
+    Icon = "bird",
     Locked = false,
 })
 
+-- GLOBAL VARIABLES
+LevelFarmQuest = false
+ByPassTP = false
+Farm_Mode = CFrame.new(0,0,0)
+SelectWeapon = nil
+_G.SelectMonster = nil
+_G.FastAttack = false
+_G.TweenSpeed = 250
+_G.Distance = 10
+_G.PositionMode = "Above"
+Ms, NameQuest, QuestLv, NameMon, CFrameQ, CFrameMon = nil,nil,nil,nil,nil,nil
+
+local Player = game.Players.LocalPlayer
+local Enemies = workspace:WaitForChild("Enemies")
+local Modules = game.ReplicatedStorage:WaitForChild("Modules")
+local net = Modules:WaitForChild("Net")
+local RegisterAttack = net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = net:WaitForChild("RE/RegisterHit")
+local HIT_FUNCTION
+
+-- หา LocalScript ของ Player
+task.spawn(function()
+    local PlayerScripts = Player:WaitForChild("PlayerScripts")
+    local LocalScript = PlayerScripts:FindFirstChildOfClass("LocalScript")
+    while not LocalScript do
+        PlayerScripts.ChildAdded:Wait()
+        LocalScript = PlayerScripts:FindFirstChildOfClass("LocalScript")
+    end
+
+    local Success, ScriptEnv = pcall(getsenv, LocalScript)
+    if Success and ScriptEnv then
+        HIT_FUNCTION = ScriptEnv._G.SendHitsToServer
+    end
+end)
+
+-- WORLD CHECK
+local placeId = game.PlaceId
+First_Sea = placeId == 2753915549
+Second_Sea = placeId == 4442272183
+Third_Sea = placeId == 7449423635
+
+-- UI ELEMENTS
 FarmTab:Toggle({
     Name = "Level Farm Quest",
     Default = LevelFarmQuest,
     Callback = function(Value)
         LevelFarmQuest = Value
-        _G.SelectMonster = nil
-        CancelTween(LevelFarmQuest)
     end
 })
 
-
-spawn(function()
-    while task.wait() do
-        if LevelFarmQuest then
-            pcall(function()
-                CheckLevel()
-
-                local Player = game:GetService("Players").LocalPlayer
-                local QuestGui = Player.PlayerGui.Main.Quest
-                local QuestText = QuestGui.Container.QuestTitle.Title.Text
-
-                -- ยังไม่ได้รับเควส / เควสไม่ตรง
-                if not string.find(QuestText, NameMon) or QuestGui.Visible == false then
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
-
-                    if ByPassTP then
-                        BTP(CFrameQ)
-                    else
-                        Tween(CFrameQ)
-                    end
-
-                    if (CFrameQ.Position - Player.Character.HumanoidRootPart.Position).Magnitude <= 5 then
-                        task.wait(1)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
-                            "StartQuest",
-                            NameQuest,
-                            QuestLv
-                        )
-                    end
-
-                -- รับเควสแล้ว
-                elseif string.find(QuestText, NameMon) or QuestGui.Visible == true then
-                    local Enemies = workspace.Enemies
-
-                    if Enemies:FindFirstChild(Ms) then
-                        for _, v in pairs(Enemies:GetChildren()) do
-                            if v.Name == Ms
-                            and v:FindFirstChild("Humanoid")
-                            and v:FindFirstChild("HumanoidRootPart")
-                            and v.Humanoid.Health > 0 then
-
-                                repeat
-                                    game:GetService("RunService").Heartbeat:Wait()
-
-                                    EquipTool(SelectWeapon)
-                                    Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
-
-                                    v.HumanoidRootPart.CanCollide = false
-                                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                                    v.HumanoidRootPart.Transparency = 1
-
-                                    Level_Farm_Name = v.Name
-                                    Level_Farm_CFrame = v.HumanoidRootPart.CFrame
-
-                                    AutoClick()
-
-                                until not LevelFarmQuest
-                                or not v.Parent
-                                or not Enemies:FindFirstChild(v.Name)
-                                or QuestGui.Visible == false
-                            end
-                        end
-                    else
-                        Tween(CFrameMon)
-                    end
-                end
-            end)
-        end
+FarmTab:Toggle({
+    Name = "Fast Attack",
+    Default = _G.FastAttack,
+    Callback = function(Value)
+        _G.FastAttack = Value
     end
-end)
+})
 
+FarmTab:Slider({
+    Title = "Tween Speed",
+    Desc = "Speed for moving to NPC / Mob",
+    Step = 10,
+    Value = {Min = 100, Max = 350, Default = _G.TweenSpeed},
+    Callback = function(Value)
+        _G.TweenSpeed = Value
+    end
+})
 
+FarmTab:Slider({
+    Title = "Distance From Mob",
+    Desc = "How close to be to the mob",
+    Step = 1,
+    Value = {Min = 5, Max = 40, Default = _G.Distance},
+    Callback = function(Value)
+        _G.Distance = Value
+    end
+})
 
+FarmTab:Dropdown({
+    Title = "Position Mode",
+    Desc = "Position relative to mob",
+    Values = {"Above", "Under", "Side", "None"},
+    Value = _G.PositionMode,
+    Callback = function(option)
+        _G.PositionMode = option
+    end
+})
 
---// World Check
-First_Sea = false
-Second_Sea = false
-Third_Sea = false
-local placeId = game.PlaceId
-if placeId == 2753915549 then
-    First_Sea = true
-elseif placeId == 4442272183 then
-    Second_Sea = true
-elseif placeId == 7449423635 then
-    Third_Sea = true
-end
-
---// CHECK MONSTER
+-- CHECK LEVEL FUNCTION
 function CheckLevel()
     local Lv = game:GetService("Players").LocalPlayer.Data.Level.Value
     if First_Sea then
@@ -282,12 +272,6 @@ then -- Gladiator
             CFrameQ = CFrame.new(61122.65234375, 18.497442245483, 1569.3997802734)
             CFrameMon = CFrame.new(60844.10546875, 98.462875366211, 
 1298.3985595703)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 3000 then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
-            end
         elseif Lv == 400 or Lv <= 449 or _G.SelectMonster == "Fishman Commando [Lv.400]" then -- Fishman Commando
             Ms = "Fishman Commando"
             NameQuest = "FishmanQuest"
@@ -295,13 +279,7 @@ Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
             NameMon = "Fishman Commando"
             CFrameQ = CFrame.new(61122.65234375, 18.497442245483, 1569.3997802734)
             CFrameMon = CFrame.new(61738.3984375, 64.207321166992, 1433.8375244141)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 3000 then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
-            end
-        elseif Lv == 450 or Lv <= 474 or _G.SelectMonster == "God's Guard [Lv. 450]" then -- God's Guard
+         elseif Lv == 450 or Lv <= 474 or _G.SelectMonster == "God's Guard [Lv. 450]" then -- God's Guard
             Ms = "God's Guard"
             NameQuest = "SkyExp1Quest"
             QuestLv = 1
@@ -310,14 +288,7 @@ Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
 1953.8489990234)
             CFrameMon = CFrame.new(-4628.0498046875, 866.92877197266, 
 1931.2352294922)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 3000 then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(-4607.82275, 872.54248, -1667.55688))
-            end
-        elseif Lv == 475 or Lv <= 524 or _G.SelectMonster == "Shanda [Lv. 475]" 
-then -- Shanda
+        elseif Lv == 475 or Lv <= 524 or _G.SelectMonster == "Shanda [Lv. 475]" then -- Shanda
             Ms = "Shanda"
             NameQuest = "SkyExp1Quest"
             QuestLv = 2
@@ -326,12 +297,6 @@ then -- Shanda
 378.42266845703)
             CFrameMon = CFrame.new(-7685.1474609375, 5601.0751953125, 
 441.38876342773)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 3000 then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(-7894.6176757813, 5547.1416015625, -380.29119873047))
-            end
         elseif Lv == 525 or Lv <= 549 or _G.SelectMonster == "Royal Squad [Lv. 525]" then -- Royal Squad
             Ms = "Royal Squad"
             NameQuest = "SkyExp2Quest"
@@ -497,13 +462,6 @@ then -- Vampire
             NameMon = "Ship Deckhand"
             CFrameQ = CFrame.new(1040.2927246094, 125.08293151855, 32911.0390625)
             CFrameMon = CFrame.new(921.12365722656, 125.9839553833, 33088.328125)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 20000 
-then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
-            end
         elseif Lv == 1275 or Lv <= 1299 or _G.SelectMonster == "Ship Engineer [Lv. 1275]" then -- Ship Engineer
             Ms = "Ship Engineer"
             NameQuest = "ShipQuest1"
@@ -511,13 +469,6 @@ Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
             NameMon = "Ship Engineer"
             CFrameQ = CFrame.new(1040.2927246094, 125.08293151855, 32911.0390625)
             CFrameMon = CFrame.new(886.28179931641, 40.47790145874, 32800.83203125)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 20000 
-then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
-            end
         elseif Lv == 1300 or Lv <= 1324 or _G.SelectMonster == "Ship Steward [Lv. 1300]" then -- Ship Steward
             Ms = "Ship Steward"
             NameQuest = "ShipQuest2"
@@ -525,13 +476,6 @@ Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
             NameMon = "Ship Steward"
             CFrameQ = CFrame.new(971.42065429688, 125.08293151855, 33245.54296875)
             CFrameMon = CFrame.new(943.85504150391, 129.58183288574, 33444.3671875)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 20000 
-then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
-            end
         elseif Lv == 1325 or Lv <= 1349 or _G.SelectMonster == "Ship Officer [Lv. 1325]" then -- Ship Officer
             Ms = "Ship Officer"
             NameQuest = "ShipQuest2"
@@ -539,13 +483,6 @@ Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
             NameMon = "Ship Officer"
             CFrameQ = CFrame.new(971.42065429688, 125.08293151855, 33245.54296875)
             CFrameMon = CFrame.new(955.38458251953, 181.08335876465, 33331.890625)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 20000 
-then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
-            end
         elseif Lv == 1350 or Lv <= 1374 or _G.SelectMonster == "Arctic Warrior [Lv.1350]" then -- Arctic Warrior
             Ms = "Arctic Warrior"
             NameQuest = "FrostQuest"
@@ -555,13 +492,6 @@ Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
 6484.6005859375)
             CFrameMon = CFrame.new(5935.4541015625, 77.26016998291, 
 6472.7568359375)
-            if (LevelFarmQuest or LevelFarmNoQuest or SelectMonster_Quest_Farm or 
-SelectMonster_NoQuest_Farm or DevilMastery_Farm) and (CFrameMon.Position - 
-game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 20000 
-then
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance",
-Vector3.new(-6508.5581054688, 89.034996032715, -132.83953857422))
-            end
         elseif Lv == 1375 or Lv <= 1424 or _G.SelectMonster == "Snow Lurker [Lv. 1375]" then -- Snow Lurker
             Ms = "Snow Lurker"
             NameQuest = "FrostQuest"
@@ -929,14 +859,89 @@ then
 0.0424928814, 1.57886415e-08, 0.999096751)
         end
     end
-end--// Select Monster
-if First_Sea then
-    tableMon = {"Bandit [Lv. 5]","Monkey [Lv. 14]","Gorilla [Lv. 20]","Pirate [Lv. 35]",
-    "Brute [Lv. 45]","Desert Bandit [Lv. 60]","Desert Officer [Lv. 70]","Snow Bandit [Lv. 90]","Snowman [Lv. 100]","Chief Petty Officer [Lv. 120]","Sky Bandit [Lv. 150]","Dark Master [Lv. 175]","Prisoner [Lv. 190]", "Dangerous Prisoner [Lv. 210]","Toga Warrior [Lv. 250]","Gladiator [Lv. 275]","Military Soldier [Lv. 300]","Military Spy [Lv. 325]","Fishman Warrior [Lv. 375]","Fishman Commando [Lv. 400]","God's Guard [Lv. 450]","Shanda [Lv. 475]","Royal Squad [Lv. 525]","Royal Soldier [Lv. 550]","Galley Pirate [Lv. 625]","Galley Captain [Lv. 650]"}
-elseif Second_Sea then
-    tableMon = {"Raider [Lv. 700]","Mercenary [Lv. 725]","Swan Pirate [Lv. 775]","Factory Staff [Lv. 800]","Marine Lieutenant [Lv. 875]","Marine Captain [Lv. 900]","Zombie [Lv. 950]","Vampire [Lv. 975]","Snow Trooper [Lv. 1000]","Winter Warrior [Lv. 1050]","Lab Subordinate [Lv. 1100]","Horned Warrior [Lv. 1125]","MagmaNinja [Lv. 1175]","Lava Pirate [Lv. 1200]","Ship Deckhand [Lv. 1250]","Ship Engineer [Lv. 1275]","Ship Steward [Lv. 1300]","Ship Officer [Lv. 1325]","Arctic Warrior [Lv. 1350]","Snow Lurker [Lv. 1375]","Sea Soldier [Lv. 1425]","Water Fighter [Lv. 1450]"}
-elseif Third_Sea then
-    tableMon = {"Pirate Millionaire [Lv. 1500]","Dragon Crew Warrior [Lv. 1575]","Dragon Crew Archer [Lv. 1600]","Female Islander [Lv. 1625]","Giant Islander[Lv. 1650]","Marine Commodore [Lv. 1700]","Marine Rear Admiral [Lv. 1725]","FishmanRaider [Lv. 1775]","Fishman Captain [Lv. 1800]","Forest Pirate [Lv. 1825]","Mythological Pirate [Lv. 1850]","Jungle Pirate [Lv. 1900]","Musketeer Pirate [Lv. 1925]","Reborn Skeleton [Lv. 1975]","Living Zombie [Lv. 2000]","DemonicSoul [Lv. 2025]","Posessed Mummy [Lv. 2050]", "Peanut Scout [Lv. 2075]", "Peanut President [Lv. 2100]", "Ice Cream Chef [Lv. 2125]", "Ice Cream Commander [Lv. 2150]", "Cookie Crafter [Lv. 2200]", "Cake Guard [Lv. 2225]", "Baking Staff [Lv. 2250]", "Head Baker [Lv. 2275]", "Cocoa Warrior [Lv. 2300]", "Chocolate Bar Battler[Lv. 2325]", "Sweet Thief [Lv. 2350]", "Candy Rebel [Lv. 2375]", "Candy Pirate [Lv.2400]", "Snow Demon [Lv. 2425]",
-        "Isle Outlaw [Lv. 2450]", "Island Boy [2475]", "Sun-kissed Warrior [Lv. 2500]", "Isle Champion [Lv. 2525]", "Serpent Hunter [Lv. 2550]", "Skull Slayer [Lv.2575]"
-    }
 end
+
+-- TWEEN FUNCTION
+function Tween(cf)
+    local HRP = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if not HRP then return end
+    local TweenService = game:GetService("TweenService")
+    local dist = (HRP.Position - cf.Position).Magnitude
+    local t = dist / _G.TweenSpeed
+    local tw = TweenService:Create(HRP, TweenInfo.new(t, Enum.EasingStyle.Linear), {CFrame=cf})
+    tw:Play()
+    tw.Completed:Wait()
+end
+
+-- FAST ATTACK LOOP
+task.spawn(function()
+    while task.wait(0.01) do
+        if _G.FastAttack then
+            local target
+            local args = {}
+
+            for _, enemy in ipairs(Enemies:GetChildren()) do
+                local hrp = enemy:FindFirstChild("HumanoidRootPart")
+                if hrp and Player:DistanceFromCharacter(hrp.Position) < 100 then
+                    if not target then
+                        target = hrp
+                    else
+                        table.insert(args, {enemy, hrp})
+                    end
+                end
+            end
+
+            if target then
+                if HIT_FUNCTION then
+                    HIT_FUNCTION(target, args)
+                else
+                    RegisterHit:FireServer(target, args)
+                end
+                RegisterAttack:FireServer(0)
+            end
+        end
+    end
+end)
+
+-- AUTO FARM LOOP
+task.spawn(function()
+    while task.wait(0.2) do
+        if LevelFarmQuest then
+            pcall(function()
+                CheckLevel()
+                local QuestGui = Player.PlayerGui.Main:WaitForChild("Quest")
+                local QuestText = QuestGui.Container.QuestTitle.Title.Text
+
+                -- รับเควส
+                if not QuestGui.Visible or not string.find(QuestText, NameMon) then
+                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
+                    Tween(CFrameQ)
+                    task.wait(1)
+                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
+                end
+
+                -- ฟาร์มมอนสเตอร์
+                for _,v in pairs(Enemies:GetChildren()) do
+                    if v.Name == Ms and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        repeat
+                            task.wait()
+
+                            -- คำนวณ Offset ตาม PositionMode
+                            local offset = Vector3.new(0,0,_G.Distance)
+                            if _G.PositionMode == "Above" then offset = Vector3.new(0,_G.Distance,0)
+                            elseif _G.PositionMode == "Under" then offset = Vector3.new(0,-_G.Distance,0)
+                            elseif _G.PositionMode == "Side" then offset = Vector3.new(_G.Distance,0,0)
+                            elseif _G.PositionMode == "None" then offset = Vector3.new(0,0,0) end
+
+                            Player.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(offset)
+                            v.HumanoidRootPart.CanCollide = false
+                            v.HumanoidRootPart.Size = Vector3.new(60,60,60)
+
+                            -- EquipTool(SelectWeapon) และ AutoClick() สามารถใส่ต่อได้
+                        until v.Humanoid.Health <= 0 or not LevelFarmQuest
+                    end
+                end
+            end)
+        end
+    end
+end)
