@@ -865,12 +865,14 @@ end
 function Tween(cf)
     local HRP = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     if not HRP then return end
-    local TweenService = game:GetService("TweenService")
     local dist = (HRP.Position - cf.Position).Magnitude
-    local t = dist / _G.TweenSpeed
-    local tw = TweenService:Create(HRP, TweenInfo.new(t, Enum.EasingStyle.Linear), {CFrame=cf})
-    tw:Play()
-    tw.Completed:Wait()
+    if dist <= 5 then
+        HRP.CFrame = cf
+        return
+    end
+    local tween = TweenService:Create(HRP, TweenInfo.new(dist/_G.TweenSpeed, Enum.EasingStyle.Linear), {CFrame=cf})
+    tween:Play()
+    tween.Completed:Wait()
 end
 
 -- FAST ATTACK LOOP
@@ -906,42 +908,50 @@ end)
 -- AUTO FARM LOOP
 task.spawn(function()
     while task.wait(0.2) do
-        if LevelFarmQuest then
+        if _G.LevelFarmQuest then
             pcall(function()
                 CheckLevel()
-                local QuestGui = Player.PlayerGui.Main:WaitForChild("Quest")
+
+                local QuestGui = Player.PlayerGui.Main.Quest
                 local QuestText = QuestGui.Container.QuestTitle.Title.Text
 
-                -- รับเควส
-                if not QuestGui.Visible or not string.find(QuestText, NameMon) then
-                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
+                -- รับเควสถ้าไม่ตรง
+                if not string.find(QuestText, NameMon) or QuestGui.Visible == false then
+                    RS.Remotes.CommF_:InvokeServer("AbandonQuest")
                     Tween(CFrameQ)
-                    task.wait(1)
-                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
+                    if (CFrameQ.Position - Player.Character.HumanoidRootPart.Position).Magnitude <= 5 then
+                        task.wait(1)
+                        RS.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
+                    end
                 end
 
-                -- ฟาร์มมอนสเตอร์
-                for _,v in pairs(Enemies:GetChildren()) do
-                    if v.Name == Ms and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                        repeat
-                            task.wait()
+                -- ฟาร์มมอน
+                for _, v in pairs(Enemies:GetChildren()) do
+                    if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health>0 then
+                        -- Bring monsters
+                        if _G.BringMobs then
+                            local monHRP = v.HumanoidRootPart
+                            local HRP = Player.Character.HumanoidRootPart
+                            local dist = (HRP.Position - monHRP.Position).Magnitude
+                            if dist > _G.BringDistance then
+                                local direction = (HRP.Position - monHRP.Position).Unit
+                                monHRP.CFrame = CFrame.new(HRP.Position - direction*(_G.BringDistance-5))
+                                monHRP.CanCollide = false
+                            end
+                        end
 
-                            -- คำนวณ Offset ตาม PositionMode
-                            local offset = Vector3.new(0,0,_G.Distance)
-                            if _G.PositionMode == "Above" then offset = Vector3.new(0,_G.Distance,0)
-                            elseif _G.PositionMode == "Under" then offset = Vector3.new(0,-_G.Distance,0)
-                            elseif _G.PositionMode == "Side" then offset = Vector3.new(_G.Distance,0,0)
-                            elseif _G.PositionMode == "None" then offset = Vector3.new(0,0,0) end
-
+                        -- ฟาร์มตัวเลือก Ms
+                        if v.Name == Ms then
+                            local offset = Vector3.new(0,_G.FarmDistance,0)
+                            if _G.PositionMode=="Side" then offset=Vector3.new(_G.FarmDistance,0,0)
+                            elseif _G.PositionMode=="Under" then offset=Vector3.new(0,-_G.FarmDistance,0)
+                            elseif _G.PositionMode=="None" then offset=Vector3.new(0,0,0) end
                             Player.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(offset)
-                            v.HumanoidRootPart.CanCollide = false
-                            v.HumanoidRootPart.Size = Vector3.new(60,60,60)
-
-                            -- EquipTool(SelectWeapon) และ AutoClick() สามารถใส่ต่อได้
-                        until v.Humanoid.Health <= 0 or not LevelFarmQuest
+                        end
                     end
                 end
             end)
         end
     end
 end)
+
