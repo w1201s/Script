@@ -1,3 +1,4 @@
+
 -- Load WindUI
 local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
@@ -13,120 +14,109 @@ local Window = WindUI:CreateWindow({
 })
 
 local FarmTab = Window:Tab({
-    Title = "Auto Farm",
-    Icon = "bird",
+    Title = "Tab Title",
+    Icon = "bird", -- optional
     Locked = false,
 })
 
--- GLOBAL VARIABLES
-LevelFarmQuest = false
-ByPassTP = false
-Farm_Mode = CFrame.new(0,0,0)
-SelectWeapon = nil
-_G.SelectMonster = nil
-_G.FastAttack = false
-_G.TweenSpeed = 250
-_G.Distance = 10
-_G.PositionMode = "Above"
-_G.BringMonsters = false
-_G.BringDistance = 200
-Ms, NameQuest, QuestLv, NameMon, CFrameQ, CFrameMon = nil,nil,nil,nil,nil,nil
-
---// WORLD CHECK
-local placeId = game.PlaceId
-First_Sea = placeId == 2753915549
-Second_Sea = placeId == 4442272183
-Third_Sea = placeId == 7449423635
-
---// UI ELEMENT
 FarmTab:Toggle({
     Name = "Level Farm Quest",
     Default = LevelFarmQuest,
     Callback = function(Value)
         LevelFarmQuest = Value
+        _G.SelectMonster = nil
+        CancelTween(LevelFarmQuest)
     end
 })
 
-FarmTab:Toggle({
-    Name = "Fast Attack",
-    Default = _G.FastAttack,
-    Callback = function(Value)
-        _G.FastAttack = Value
-    end
-})
 
-FarmTab:Slider({
-    Title = "Tween Speed",
-    Desc = "Travel speed",
-    Step = 10,
-    Value = {Min = 100, Max = 350, Default = _G.TweenSpeed},
-    Callback = function(Value)
-        _G.TweenSpeed = Value
-    end
-})
+spawn(function()
+    while task.wait() do
+        if LevelFarmQuest then
+            pcall(function()
+                CheckLevel()
 
-FarmTab:Slider({
-    Title = "Distance From Mob",
-    Desc = "Yes",
-    Step = 1,
-    Value = {Min = 5, Max = 40, Default = _G.Distance},
-    Callback = function(Value)
-        _G.Distance = Value
-    end
-})
+                local Player = game:GetService("Players").LocalPlayer
+                local QuestGui = Player.PlayerGui.Main.Quest
+                local QuestText = QuestGui.Container.QuestTitle.Title.Text
 
-FarmTab:Dropdown({
-    Title = "Position Mode",
-    Desc = "position to farm",
-    Values = {"Above", "Under", "Side", "None"},
-    Value = _G.PositionMode,
-    Callback = function(option)
-        _G.PositionMode = option
-    end
-})
+                -- ยังไม่ได้รับเควส / เควสไม่ตรง
+                if not string.find(QuestText, NameMon) or QuestGui.Visible == false then
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
 
-FarmTab:Toggle({
-    Name = "Bring Monster",
-    Default = _G.BringMonsters,
-    Callback = function(Value)
-        _G.BringMonsters = Value
-    end
-})
+                    if ByPassTP then
+                        BTP(CFrameQ)
+                    else
+                        Tween(CFrameQ)
+                    end
 
-FarmTab:Slider({
-    Title = "Bring Distance",
-    Desc = "Distance to bring monsters (studs)",
-    Step = 10,
-    Value = {Min = 100, Max = 300, Default = _G.BringDistance},
-    Callback = function(Value)
-        _G.BringDistance = Value
-    end
-})
+                    if (CFrameQ.Position - Player.Character.HumanoidRootPart.Position).Magnitude <= 5 then
+                        task.wait(1)
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                            "StartQuest",
+                            NameQuest,
+                            QuestLv
+                        )
+                    end
 
-local Player = game.Players.LocalPlayer
-local Enemies = workspace:WaitForChild("Enemies")
-local Modules = game.ReplicatedStorage:WaitForChild("Modules")
-local net = Modules:WaitForChild("Net")
-local RegisterAttack = net:WaitForChild("RE/RegisterAttack")
-local RegisterHit = net:WaitForChild("RE/RegisterHit")
-local HIT_FUNCTION
+                -- รับเควสแล้ว
+                elseif string.find(QuestText, NameMon) or QuestGui.Visible == true then
+                    local Enemies = workspace.Enemies
 
-task.spawn(function()
-    local PlayerScripts = Player:WaitForChild("PlayerScripts")
-    local LocalScript = PlayerScripts:FindFirstChildOfClass("LocalScript")
-    while not LocalScript do
-        PlayerScripts.ChildAdded:Wait()
-        LocalScript = PlayerScripts:FindFirstChildOfClass("LocalScript")
-    end
+                    if Enemies:FindFirstChild(Ms) then
+                        for _, v in pairs(Enemies:GetChildren()) do
+                            if v.Name == Ms
+                            and v:FindFirstChild("Humanoid")
+                            and v:FindFirstChild("HumanoidRootPart")
+                            and v.Humanoid.Health > 0 then
 
-    local Success, ScriptEnv = pcall(getsenv, LocalScript)
-    if Success and ScriptEnv then
-        HIT_FUNCTION = ScriptEnv._G.SendHitsToServer
+                                repeat
+                                    game:GetService("RunService").Heartbeat:Wait()
+
+                                    EquipTool(SelectWeapon)
+                                    Tween(v.HumanoidRootPart.CFrame * Farm_Mode)
+
+                                    v.HumanoidRootPart.CanCollide = false
+                                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                                    v.HumanoidRootPart.Transparency = 1
+
+                                    Level_Farm_Name = v.Name
+                                    Level_Farm_CFrame = v.HumanoidRootPart.CFrame
+
+                                    AutoClick()
+
+                                until not LevelFarmQuest
+                                or not v.Parent
+                                or not Enemies:FindFirstChild(v.Name)
+                                or QuestGui.Visible == false
+                            end
+                        end
+                    else
+                        Tween(CFrameMon)
+                    end
+                end
+            end)
+        end
     end
 end)
 
 
 
+
+--// World Check
+First_Sea = false
+Second_Sea = false
+Third_Sea = false
+local placeId = game.PlaceId
+if placeId == 2753915549 then
+    First_Sea = true
+elseif placeId == 4442272183 then
+    Second_Sea = true
+elseif placeId == 7449423635 then
+    Third_Sea = true
+end
+
+--// CHECK MONSTER
 function CheckLevel()
     local Lv = game:GetService("Players").LocalPlayer.Data.Level.Value
     if First_Sea then
@@ -939,272 +929,14 @@ then
 0.0424928814, 1.57886415e-08, 0.999096751)
         end
     end
+end--// Select Monster
+if First_Sea then
+    tableMon = {"Bandit [Lv. 5]","Monkey [Lv. 14]","Gorilla [Lv. 20]","Pirate [Lv. 35]",
+    "Brute [Lv. 45]","Desert Bandit [Lv. 60]","Desert Officer [Lv. 70]","Snow Bandit [Lv. 90]","Snowman [Lv. 100]","Chief Petty Officer [Lv. 120]","Sky Bandit [Lv. 150]","Dark Master [Lv. 175]","Prisoner [Lv. 190]", "Dangerous Prisoner [Lv. 210]","Toga Warrior [Lv. 250]","Gladiator [Lv. 275]","Military Soldier [Lv. 300]","Military Spy [Lv. 325]","Fishman Warrior [Lv. 375]","Fishman Commando [Lv. 400]","God's Guard [Lv. 450]","Shanda [Lv. 475]","Royal Squad [Lv. 525]","Royal Soldier [Lv. 550]","Galley Pirate [Lv. 625]","Galley Captain [Lv. 650]"}
+elseif Second_Sea then
+    tableMon = {"Raider [Lv. 700]","Mercenary [Lv. 725]","Swan Pirate [Lv. 775]","Factory Staff [Lv. 800]","Marine Lieutenant [Lv. 875]","Marine Captain [Lv. 900]","Zombie [Lv. 950]","Vampire [Lv. 975]","Snow Trooper [Lv. 1000]","Winter Warrior [Lv. 1050]","Lab Subordinate [Lv. 1100]","Horned Warrior [Lv. 1125]","MagmaNinja [Lv. 1175]","Lava Pirate [Lv. 1200]","Ship Deckhand [Lv. 1250]","Ship Engineer [Lv. 1275]","Ship Steward [Lv. 1300]","Ship Officer [Lv. 1325]","Arctic Warrior [Lv. 1350]","Snow Lurker [Lv. 1375]","Sea Soldier [Lv. 1425]","Water Fighter [Lv. 1450]"}
+elseif Third_Sea then
+    tableMon = {"Pirate Millionaire [Lv. 1500]","Dragon Crew Warrior [Lv. 1575]","Dragon Crew Archer [Lv. 1600]","Female Islander [Lv. 1625]","Giant Islander[Lv. 1650]","Marine Commodore [Lv. 1700]","Marine Rear Admiral [Lv. 1725]","FishmanRaider [Lv. 1775]","Fishman Captain [Lv. 1800]","Forest Pirate [Lv. 1825]","Mythological Pirate [Lv. 1850]","Jungle Pirate [Lv. 1900]","Musketeer Pirate [Lv. 1925]","Reborn Skeleton [Lv. 1975]","Living Zombie [Lv. 2000]","DemonicSoul [Lv. 2025]","Posessed Mummy [Lv. 2050]", "Peanut Scout [Lv. 2075]", "Peanut President [Lv. 2100]", "Ice Cream Chef [Lv. 2125]", "Ice Cream Commander [Lv. 2150]", "Cookie Crafter [Lv. 2200]", "Cake Guard [Lv. 2225]", "Baking Staff [Lv. 2250]", "Head Baker [Lv. 2275]", "Cocoa Warrior [Lv. 2300]", "Chocolate Bar Battler[Lv. 2325]", "Sweet Thief [Lv. 2350]", "Candy Rebel [Lv. 2375]", "Candy Pirate [Lv.2400]", "Snow Demon [Lv. 2425]",
+        "Isle Outlaw [Lv. 2450]", "Island Boy [2475]", "Sun-kissed Warrior [Lv. 2500]", "Isle Champion [Lv. 2525]", "Serpent Hunter [Lv. 2550]", "Skull Slayer [Lv.2575]"
+    }
 end
-
---// TWEEN FUNCTION
--- TWEEN FUNCTION
-function Tween(cf)
-    local HRP = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    if not HRP then return end
-    local TweenService = game:GetService("TweenService")
-    local dist = (HRP.Position - cf.Position).Magnitude
-    local t = dist / _G.TweenSpeed
-    local tw = TweenService:Create(HRP, TweenInfo.new(t, Enum.EasingStyle.Linear), {CFrame=cf})
-    tw:Play()
-    tw.Completed:Wait()
-end
-
---// fast attack
-task.spawn(function()
-    while task.wait(0) do
-        if _G.FastAttack then
-            local target
-            local args = {}
-
-            for _, enemy in ipairs(Enemies:GetChildren()) do
-                local hrp = enemy:FindFirstChild("HumanoidRootPart")
-                if hrp and Player:DistanceFromCharacter(hrp.Position) < 100 then
-                    if not target then
-                        target = hrp
-                    else
-                        table.insert(args, {enemy, hrp})
-                    end
-                end
-            end
-
-            if target then
-                if HIT_FUNCTION then
-                    HIT_FUNCTION(target, args)
-                else
-                    RegisterHit:FireServer(target, args)
-                end
-                RegisterAttack:FireServer(0)
-            end
-        end
-    end
-end)
-
-
-
---// AUTO FARM LOOP
-task.spawn(function()
-    while task.wait(0.2) do
-        if LevelFarmQuest then
-            pcall(function()
-                CheckLevel()
-                local QuestGui = Player.PlayerGui.Main:WaitForChild("Quest")
-                local QuestText = QuestGui.Container.QuestTitle.Title.Text
-
-                -- รับเควส
-                if not QuestGui.Visible or not string.find(QuestText, NameMon) then
-                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
-                    Tween(CFrameQ)
-                    task.wait(1)
-                    game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, QuestLv)
-                end
-
-                -- ฟาร์มมอนสเตอร์
-                for _,v in pairs(Enemies:GetChildren()) do
-                    if v.Name == Ms and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                        repeat
-                            task.wait()
-
-                            -- คำนวณ Offset ตาม PositionMode
-                            local offset = Vector3.new(0,0,_G.Distance)
-                            if _G.PositionMode == "Above" then offset = Vector3.new(0,_G.Distance,0)
-                            elseif _G.PositionMode == "Under" then offset = Vector3.new(0,-_G.Distance,0)
-                            elseif _G.PositionMode == "Side" then offset = Vector3.new(_G.Distance,0,0)
-                            elseif _G.PositionMode == "None" then offset = Vector3.new(0,0,0) end
-
-                            Player.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(offset)
-                            v.HumanoidRootPart.CanCollide = false
-                            v.HumanoidRootPart.Size = Vector3.new(60,60,60)
-
-                            -- EquipTool(SelectWeapon) และ AutoClick() สามารถใส่ต่อได้
-                        until v.Humanoid.Health <= 0 or not LevelFarmQuest
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---// Bring Monster Loop
-task.spawn(function()
-    local Player = game.Players.LocalPlayer
-    while task.wait(0.1) do
-        if _G.BringMonsters and Ms and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            local HRP = Player.Character.HumanoidRootPart
-
-            for _, v in pairs(workspace.Enemies:GetChildren()) do
-                if v.Name == Ms 
-                and v:FindFirstChild("HumanoidRootPart") 
-                and v:FindFirstChild("Humanoid")
-                and v.Humanoid.Health > 0 then
-
-                    local monHRP = v.HumanoidRootPart
-                    local dist = (HRP.Position - monHRP.Position).Magnitude
-
-                    if dist > _G.BringDistance then
-                        -- คำนวณทิศทางจากมอนมาหาผู้เล่น
-                        local direction = (HRP.Position - monHRP.Position).Unit
-                        local newPos = HRP.Position - direction * (_G.BringDistance - 5) -- 5 stud offset ไม่ชนกัน
-
-                        -- ย้ายมอน
-                        monHRP.CFrame = CFrame.new(newPos.X, newPos.Y, newPos.Z)
-                    end
-                end
-            end
-        end
-    end
-end)
-
-spawn(function()
-    while wait() do
-        pcall(function()
-            if AutoSTartRaids or TeleporttoFruitDealer or _G.TeleportFruit or 
-TeleporttoKitsune or CollectAzureAmber or AutoTrain or AutoKillHuman or 
-AutoPirateCastle or TweenToPlayer or AutoSail or AutoFarmTerrorShark or 
-AutoFarmFish or AutoFarmSeaBeast or AutoFarmGhostBoats or LevelFarmNoQuest or 
-LevelFarmQuest or Farm_Bone or Farm_Ectoplasm or Nearest_Farm or 
-SelectMonster_Quest_Farm or SelectMonster_NoQuest_Farm or Auto_Farm_Material or 
-AutoFarmBossNoQuest or AutoFarmBossQuest or GunMastery_Farm or DevilMastery_Farm or
-AutoKenV2 or AutoFarmKen or AutoNextIsland or BossRaid or _G.Teleport_to_Player or 
-_G.Clip or _G.Auto_Kill_Player_Melee or _G.Auto_Kill_Player_Gun or TeleporttoMirage
-or TeleporttoGear or _G.Auto_Teleport_Fruit or AutoSecondWorld or AutoThirdWorld or
-AutoDeathStep or AutoSuperhuman or AutoSharkman or AutoElectricClaw or 
-AutoDragonTalon or AutoGodhuman or AutoSaber or AutoRengoku or AutoBuddySword or 
-AutoPole or AutoYama or AutoCavander or AutoTushita or Auto_Cursed_Dual_Katana or 
-Auto_Quest_Yama_1 or Auto_Quest_Yama_2 or Auto_Quest_Yama_3 or Auto_Quest_Tushita_1
-or Auto_Quest_Tushita_2 or Auto_Quest_Tushita_3 or AutoEliteHunter or 
-AutoCakePrince or _G.AutoDoughKing or AutoDarkDagger or AutoHallowSycthe or 
-AutoCitizen or AutoEvoRace or AutoBartilo or AutoFactory or _G.SwanGlasses or 
-RipIndra or AutoRainbowHaki or AutoTorch or AutoSoulGuitar or AutoTryLuck or 
-AutoPray or AutoAdvanceDungeon or AutoMusketeer or Auto_Serpent_Bow then
-                if not 
-game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
-                    local Noclip = Instance.new("BodyVelocity")
-                    Noclip.Name = "BodyClip"
-                    Noclip.Parent = 
-game:GetService("Players").LocalPlayer.Character.HumanoidRootPart
-                    Noclip.MaxForce = Vector3.new(100000,100000,100000)
-                    Noclip.Velocity = Vector3.new(0,0,0)
-                end
-            else
-                if 
-game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
-game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyClip"):Destroy()
-                end
-            end
-        end)
-    end
-end)--// Farming Clip Tween
-spawn(function()
-    pcall(function()
-        game:GetService("RunService").Stepped:Connect(function()
-            if AutoSTartRaids or TeleporttoFruitDealer or _G.TeleportFruit or 
-TeleporttoKitsune or CollectAzureAmber or AutoTrain or AutoKillHuman or 
-AutoPirateCastle or TweenToPlayer or AutoSail or AutoFarmTerrorShark or 
-AutoFarmFish or AutoFarmSeaBeast or AutoFarmGhostBoats or LevelFarmNoQuest or 
-LevelFarmQuest or Farm_Bone or Farm_Ectoplasm or Nearest_Farm or 
-SelectMonster_Quest_Farm or SelectMonster_NoQuest_Farm or Auto_Farm_Material or 
-AutoFarmBossNoQuest or AutoFarmBossQuest or GunMastery_Farm or DevilMastery_Farm or
-AutoKenV2 or AutoFarmKen or AutoNextIsland or BossRaid or _G.Teleport_to_Player or 
-_G.Clip or _G.Auto_Kill_Player_Melee or _G.Auto_Kill_Player_Gun or TeleporttoMirage
-or TeleporttoGear or _G.Auto_Teleport_Fruit or AutoSecondWorld or AutoThirdWorld or
-AutoDeathStep or AutoSuperhuman or AutoSharkman or AutoElectricClaw or 
-AutoDragonTalon or AutoGodhuman or AutoSaber or AutoRengoku or AutoBuddySword or 
-AutoPole or AutoYama or AutoCavander or AutoTushita or Auto_Cursed_Dual_Katana or 
-Auto_Quest_Yama_1 or Auto_Quest_Yama_2 or Auto_Quest_Yama_3 or Auto_Quest_Tushita_1
-or Auto_Quest_Tushita_2 or Auto_Quest_Tushita_3 or AutoEliteHunter or 
-AutoCakePrince or _G.AutoDoughKing or AutoDarkDagger or AutoHallowSycthe or 
-AutoCitizen or AutoEvoRace or AutoBartilo or AutoFactory or _G.SwanGlasses or 
-RipIndra or AutoRainbowHaki or AutoTorch or AutoSoulGuitar or AutoTryLuck or 
-AutoPray or AutoAdvanceDungeon or AutoMusketeer or Auto_Serpent_Bow then
-                for _,v in 
-pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
-                    if v:IsA("BasePart") then
-                        v.CanCollide = false
-                    end
-                end
-            end
-        end)
-    end)
-end)
-
-
-local BringMobs = true
-
-spawn(function()
-    while task.wait() do
-        if BringMobs and (LevelFarmQuest or LevelFarmNoQuest) then
-            pcall(function()
-                BringMonster(Level_Farm_Name, Level_Farm_CFrame)
-            end)
-        elseif BringMobs and Farm_Bone then
-            pcall(function()
-                BringMonster(Bone_Farm_Name, Bone_Farm_CFrame)
-            end)
-        elseif BringMobs and Farm_Ectoplasm then
-            pcall(function()
-                BringMonster(Ecto_Farm_Name, Ecto_Farm_CFrame)
-            end)
-        elseif BringMobs and Nearest_Farm then
-            pcall(function()
-                BringMonster(Nearest_Farm_Name, Nearest_Farm_CFrame)
-            end)
-        elseif BringMobs and (SelectMonster_Quest_Farm or SelectMonster_NoQuest_Farm) then
-            pcall(function()
-                BringMonster(SelectMonster_Farm_Name, SelectMonster_Farm_CFrame)
-            end)
-        elseif BringMobs and Auto_Farm_Material then
-            pcall(function()
-                BringMonster(Material_Farm_Name, Material_Farm_CFrame)
-            end)
-        elseif BringMobs and (GunMastery_Farm or DevilMastery_Farm) then
-            pcall(function()
-                BringMonster(Mastery_Farm_Name, Mastery_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoRengoku then
-            pcall(function()
-                BringMonster(Rengoku_Farm_Name, Rengoku_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoCakePrince then
-            pcall(function()
-                BringMonster(CakePrince_Farm_Name, CakePrince_Farm_CFrame)
-            end)
-        elseif BringMobs and _G.AutoDoughKing then
-            pcall(function()
-                BringMonster(DoughKing_Farm_Name, DoughKing_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoCitizen then
-            pcall(function()
-                BringMonster(Citizen_Farm_Name, Citizen_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoEvoRace then
-            pcall(function()
-                BringMonster(EvoV2_Farm_Name, EvoV2_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoBartilo then
-            pcall(function()
-                BringMonster(Bartilo_Farm_Name, Bartilo_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoSoulGuitar then
-            pcall(function()
-                BringMonster(SoulGuitar_Farm_Name, SoulGuitar_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoMusketeer then
-            pcall(function()
-                BringMonster(Musketere_Farm_Name, Musketere_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoTrain then
-            pcall(function()
-                BringMonster(Ancient_Farm_Name, Ancient_Farm_CFrame)
-            end)
-        elseif BringMobs and AutoPirateCastle then
-            pcall(function()
-                BringMonster(PirateCastle_Name, PirateCastle_CFrame)
-            end)
-        end
-    end
-end)
