@@ -2,4 +2,4 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/venus%20hub%20universal.lua"))()
 
 
-loadstring(game:HttpGet("https://github.com/w1201s/Script/raw/refs/heads/main/Read%20note.lua"))()
+loadstring(game:HttpGet("https://github.com/w1201s/Script/raw/refs/heads/main/blox%20fruit%20test%209.lua"))()
