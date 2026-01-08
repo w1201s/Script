@@ -1691,7 +1691,7 @@ then
             Ms = "Sun-kissed Warrior"
             NameQuest = "TikiQuest2"
             QuestLv = 1
-            NameMon = "Sun-"
+            NameMon = "Sun-kissed Warrior"
             CFrameQ = CFrame.new(-16541.0215, 54.770813, 1051.46118, 0.0410757065, -0, -0.999156058, 0, 1, -0, 0.999156058, 0, 0.0410757065)
             CFrameMon = CFrame.new(-16413.5078, 54.6350479, 1054.43555, 
 0.999391913, 0, -0.034868788, 0, 1, 0, 0.034868788, 0, -0.999391913)
@@ -1838,15 +1838,41 @@ end)
 
 
 
-local found = false
+local foundMob = false
 
-for _,v in pairs(Enemies:GetChildren()) do
-    if v.Name == Ms and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-        found = true
-        -- ฟาร์ม
+for _,v in pairs(workspace.Enemies:GetChildren()) do
+    if v.Name == Ms
+    and v:FindFirstChild("Humanoid")
+    and v.Humanoid.Health > 0 then
+        foundMob = true
+        -- ฟาร์มตรงนี้
+        break
     end
 end
 
-if not found then
+-- ❗ ไม่มีมอน → ไปจุดเกิดมอน
+if not foundMob then
     Tween(CFrameMon)
 end
+
+task.spawn(function()
+    while task.wait(0.3) do
+        if _G.AutoFarm and _G.BringMobs then
+            local hrp = HRP()
+            if not hrp then continue end
+
+            for _, mob in ipairs(GetEnemies()) do
+                local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                local hum = mob:FindFirstChild("Humanoid")
+                if mhrp and hum and hum.Health > 0 then
+                    local dist = (mhrp.Position - hrp.Position).Magnitude
+                    if dist <= _G.BringDistance then
+                        mhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+                        mhrp.Velocity = Vector3.zero
+                        mhrp.AssemblyLinearVelocity = Vector3.zero
+                    end
+                end
+            end
+        end
+    end
+end)
