@@ -85,13 +85,38 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title = "Venus x",
-    Icon = "zap",
-    Author = "by w1201s. W retired",
-    Folder = "W retired",
-    Size = UDim2.fromOffset(560, 460)
+    Title = "Venus X",
+    Icon = "zap", -- lucide icon
+    Author = "by w1201s W retired",
+    Folder = "retired w",
+    
+    -- ↓ This all is Optional. You can remove it.
+    Size = UDim2.fromOffset(580, 460),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+ 
+    --       remove this all, 
+    -- !  ↓  if you DON'T need the key system
+    KeySystem = { 
+        -- ↓ Optional. You can remove it.
+        Key = { "Venus", "67 boi" },
+        
+        Note = "join our discord for key link is press get key.",
+        
+        -- ↓ Optional. You can remove it.
+        URL = "https://discord.com/invite/4DzKBt62YB",
+        
+        -- ↓ Optional. You can remove it.
+        SaveKey = false, -- automatically save and load the key.
+    },
 })
-
 local TabMain   = Window:Tab({ Title = "Main",   Icon = "home" })
 local TabPlayer = Window:Tab({ Title = "Player", Icon = "user" })
 local TabBuy    = Window:Tab({ Title = "Auto Buy", Icon = "shopping-cart" })
