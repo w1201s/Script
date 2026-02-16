@@ -223,12 +223,12 @@ TweenObject(v6, 0.25, {
 });
 wait(0.25);
 v5:Destroy();
--- spawn(function()
---     while wait() do
---         function print()
---         end
---         function warn()
---         end
+ spawn(function()
+     while wait() do
+         function print()
+        end
+        function warn()
+--          end
 --         function error()
 --         end
 --         debug.traceback = function()
