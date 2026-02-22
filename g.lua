@@ -4,12 +4,17 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
+
+--// DETECT DEVICE TYPE
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local IsPC = not IsMobile
+
+print("Device detected:", IsMobile and "MOBILE" or "PC")
 
 --// CONFIGURATION
 local CONFIG = {
@@ -19,12 +24,15 @@ local CONFIG = {
         TeamCheck = true,
         WallCheck = true,
         InstantLock = true,
-        Smoothness = 0, -- 0 = instant, higher = smoother
-        FOV = 200,
+        Smoothness = 0,
+        FOV = 150,
         MaxDistance = 1000,
-        TargetPart = "Head", -- Head, HumanoidRootPart, Torso
-        TriggerKey = Enum.UserInputType.MouseButton2, -- Right click
-        MobileTrigger = Enum.UserInputType.Touch -- For mobile
+        TargetPart = "Head",
+        -- PC uses keys, Mobile uses buttons
+        Mode = IsMobile and "Button" or "Key", -- "Key" for PC, "Button" for Mobile
+        TriggerKey = Enum.KeyCode.E, -- For PC Key mode
+        TriggerButton = nil, -- Will be created for Mobile
+        LockPosition = nil -- For mobile position lock
     },
     
     -- ESP Settings
@@ -54,6 +62,8 @@ local UIVisible = true
 local Dragging = nil
 local DragStart = nil
 local StartPos = nil
+local MobileAimButton = nil
+local ScreenGui = nil
 
 --// UTILITY FUNCTIONS
 local function CreateTween(obj, info, properties)
@@ -89,7 +99,7 @@ local function IsVisible(targetPart)
     if not CONFIG.Aimbot.WallCheck then return true end
     
     local origin = Camera.CFrame.Position
-    local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+    local direction = (targetPart.Position - origin)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
@@ -98,13 +108,15 @@ local function IsVisible(targetPart)
     local result = Workspace:Raycast(origin, direction, raycastParams)
     
     if result then
-        return result.Instance:IsDescendantOf(targetPart.Parent)
+        local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+        return hitModel == targetPart.Parent
     end
     
     return true
 end
 
-local function GetClosestPlayerToMouse()
+-- FIXED: Get closest player to CENTER OF SCREEN (not mouse)
+local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = CONFIG.Aimbot.FOV
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -126,6 +138,7 @@ local function GetClosestPlayerToMouse()
         
         if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
         
+        -- Distance from CENTER OF SCREEN (not mouse)
         local distance = (screenPos - screenCenter).Magnitude
         
         if distance < shortestDistance then
@@ -137,52 +150,45 @@ local function GetClosestPlayerToMouse()
     return closestPlayer
 end
 
---// ESP SYSTEM
+--// ESP SYSTEM (Same as before, optimized)
 local function CreateESP(player)
     if ESPObjects[player] then return end
     
     local espData = {
         Player = player,
-        Drawings = {},
-        Connections = {}
+        Drawings = {}
     }
     
-    -- Name
     local nameText = Drawing.new("Text")
     nameText.Center = true
     nameText.Outline = true
     nameText.Size = CONFIG.ESP.TextSize
     espData.Drawings.Name = nameText
     
-    -- Health
     local healthText = Drawing.new("Text")
     healthText.Center = true
     healthText.Outline = true
     healthText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Health = healthText
     
-    -- Distance
     local distText = Drawing.new("Text")
     distText.Center = true
     distText.Outline = true
     distText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Distance = distText
     
-    -- Weapon
     local weaponText = Drawing.new("Text")
     weaponText.Center = true
     weaponText.Outline = true
     weaponText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Weapon = weaponText
     
-    -- Box
     local box = Drawing.new("Square")
-    box.Thickness = 2
+    box.Thickness = 1.5
     box.Filled = false
     box.Visible = false
     espData.Drawings.Box = box
     
-    -- Filled Box
     local filledBox = Drawing.new("Square")
     filledBox.Thickness = 1
     filledBox.Filled = true
@@ -190,13 +196,11 @@ local function CreateESP(player)
     filledBox.Visible = false
     espData.Drawings.FilledBox = filledBox
     
-    -- Tracer
     local tracer = Drawing.new("Line")
     tracer.Thickness = 1
     tracer.Visible = false
     espData.Drawings.Tracer = tracer
     
-    -- Chams Highlight
     local highlight = nil
     
     espData.Update = function()
@@ -229,7 +233,6 @@ local function CreateESP(player)
             return
         end
         
-        -- Distance check
         local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
         if distance > CONFIG.ESP.MaxDistance then
             for _, drawing in pairs(espData.Drawings) do
@@ -239,21 +242,20 @@ local function CreateESP(player)
             return
         end
         
-        -- Team check for colors
         local isTeammate = IsTeammate(player)
+        local color = (CONFIG.ESP.TeamCheck and isTeammate) and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
+        
+        nameText.Color = color
+        box.Color = CONFIG.ESP.BoxColor
+        filledBox.Color = CONFIG.ESP.BoxColor
+        tracer.Color = CONFIG.ESP.BoxColor
+        
         if CONFIG.ESP.TeamCheck and isTeammate then
-            nameText.Color = CONFIG.ESP.AllyColor
             box.Color = CONFIG.ESP.AllyColor
             filledBox.Color = CONFIG.ESP.AllyColor
             tracer.Color = CONFIG.ESP.AllyColor
-        else
-            nameText.Color = CONFIG.ESP.TextColor
-            box.Color = CONFIG.ESP.BoxColor
-            filledBox.Color = CONFIG.ESP.BoxColor
-            tracer.Color = CONFIG.ESP.BoxColor
         end
         
-        -- Screen position
         local headPos, headOnScreen = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
         local rootPos, rootOnScreen = WorldToScreen(rootPart.Position - Vector3.new(0, 3, 0))
         
@@ -265,12 +267,10 @@ local function CreateESP(player)
             return
         end
         
-        -- Calculate box
         local boxHeight = math.abs(headPos.Y - rootPos.Y)
         local boxWidth = boxHeight * 0.6
         local boxPos = Vector2.new(headPos.X - boxWidth / 2, headPos.Y)
         
-        -- Update drawings
         if CONFIG.ESP.ShowName then
             nameText.Text = player.Name .. (isTeammate and " [ALLY]" or " [ENEMY]")
             nameText.Position = Vector2.new(headPos.X, headPos.Y - 20)
@@ -298,7 +298,7 @@ local function CreateESP(player)
         end
         
         if CONFIG.ESP.ShowWeapon then
-            weaponText.Text = "Weapon: " .. GetWeaponName(character)
+            weaponText.Text = GetWeaponName(character)
             weaponText.Position = Vector2.new(headPos.X, rootPos.Y + 20)
             weaponText.Visible = true
         else
@@ -327,7 +327,6 @@ local function CreateESP(player)
             tracer.Visible = false
         end
         
-        -- Chams
         if CONFIG.ESP.Chams then
             if not highlight or highlight.Parent ~= character then
                 if highlight then highlight:Destroy() end
@@ -350,9 +349,6 @@ local function CreateESP(player)
             drawing:Remove()
         end
         if highlight then highlight:Destroy() end
-        for _, conn in pairs(espData.Connections) do
-            conn:Disconnect()
-        end
     end
     
     ESPObjects[player] = espData
@@ -366,29 +362,25 @@ local function RemoveESP(player)
     end
 end
 
---// UI CREATION (Lightweight & Animated)
+--// UI CREATION - COMPACT & MOBILE FRIENDLY
 local function CreateUI()
-    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "CombatUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- Mobile support detection
-    local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-    
-    -- Main Frame
+    -- SMALLER MAIN FRAME (260x320 instead of 320x400)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 320, 0, 400)
-    MainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainFrame.Size = UDim2.new(0, 260, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -130, 0.5, -160)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
     
-    -- Rounded corners
     local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 12)
+    UICorner.CornerRadius = UDim.new(0, 10)
     UICorner.Parent = MainFrame
     
     -- Shadow
@@ -397,7 +389,7 @@ local function CreateUI()
     Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
     Shadow.BackgroundTransparency = 1
     Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    Shadow.Size = UDim2.new(1, 40, 1, 40)
+    Shadow.Size = UDim2.new(1, 30, 1, 30)
     Shadow.ZIndex = -1
     Shadow.Image = "rbxassetid://5554236805"
     Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
@@ -406,108 +398,92 @@ local function CreateUI()
     Shadow.SliceCenter = Rect.new(23, 23, 277, 277)
     Shadow.Parent = MainFrame
     
-    -- Title Bar
+    -- Title Bar (smaller)
     local TitleBar = Instance.new("Frame")
     TitleBar.Name = "TitleBar"
-    TitleBar.Size = UDim2.new(1, 0, 0, 45)
-    TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    TitleBar.Size = UDim2.new(1, 0, 0, 35)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     TitleBar.BorderSizePixel = 0
     TitleBar.Parent = MainFrame
     
     local TitleCorner = Instance.new("UICorner")
-    TitleCorner.CornerRadius = UDim.new(0, 12)
+    TitleCorner.CornerRadius = UDim.new(0, 10)
     TitleCorner.Parent = TitleBar
     
-    -- Fix corner for title bar
     local TitleFix = Instance.new("Frame")
-    TitleFix.Size = UDim2.new(1, 0, 0, 20)
-    TitleFix.Position = UDim2.new(0, 0, 1, -20)
-    TitleFix.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    TitleFix.Size = UDim2.new(1, 0, 0, 15)
+    TitleFix.Position = UDim2.new(0, 0, 1, -15)
+    TitleFix.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     TitleFix.BorderSizePixel = 0
     TitleFix.Parent = TitleBar
     
-    -- Title Text
     local TitleText = Instance.new("TextLabel")
-    TitleText.Name = "Title"
-    TitleText.Size = UDim2.new(1, -80, 1, 0)
-    TitleText.Position = UDim2.new(0, 15, 0, 0)
+    TitleText.Size = UDim2.new(1, -60, 1, 0)
+    TitleText.Position = UDim2.new(0, 12, 0, 0)
     TitleText.BackgroundTransparency = 1
-    TitleText.Text = "⚔️ COMBAT MASTER"
+    TitleText.Text = "⚔️ COMBAT"
     TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleText.TextSize = 18
+    TitleText.TextSize = 16
     TitleText.Font = Enum.Font.GothamBold
     TitleText.TextXAlignment = Enum.TextXAlignment.Left
     TitleText.Parent = TitleBar
     
-    -- Version
-    local VersionText = Instance.new("TextLabel")
-    VersionText.Name = "Version"
-    VersionText.Size = UDim2.new(0, 50, 0, 20)
-    VersionText.Position = UDim2.new(0, 15, 0.5, 5)
-    VersionText.BackgroundTransparency = 1
-    VersionText.Text = "v2.0"
-    VersionText.TextColor3 = Color3.fromRGB(150, 150, 150)
-    VersionText.TextSize = 12
-    VersionText.Font = Enum.Font.Gotham
-    VersionText.TextXAlignment = Enum.TextXAlignment.Left
-    VersionText.Parent = TitleBar
-    
     -- Close Button
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Name = "Close"
-    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -40, 0.5, -15)
+    CloseBtn.Size = UDim2.new(0, 26, 0, 26)
+    CloseBtn.Position = UDim2.new(1, -33, 0.5, -13)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseBtn.TextSize = 14
+    CloseBtn.TextSize = 12
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.Parent = TitleBar
     
     local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 8)
+    CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
     
-    -- Tab Container
+    -- Tab Container (horizontal, compact)
     local TabContainer = Instance.new("Frame")
     TabContainer.Name = "TabContainer"
-    TabContainer.Size = UDim2.new(1, -20, 0, 40)
-    TabContainer.Position = UDim2.new(0, 10, 0, 55)
-    TabContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    TabContainer.Size = UDim2.new(1, -16, 0, 32)
+    TabContainer.Position = UDim2.new(0, 8, 0, 42)
+    TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     TabContainer.BorderSizePixel = 0
     TabContainer.Parent = MainFrame
     
     local TabCorner = Instance.new("UICorner")
-    TabCorner.CornerRadius = UDim.new(0, 8)
+    TabCorner.CornerRadius = UDim.new(0, 6)
     TabCorner.Parent = TabContainer
     
     -- Content Container
     local ContentContainer = Instance.new("Frame")
     ContentContainer.Name = "Content"
-    ContentContainer.Size = UDim2.new(1, -20, 1, -105)
-    ContentContainer.Position = UDim2.new(0, 10, 0, 100)
-    ContentContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    ContentContainer.Size = UDim2.new(1, -16, 1, -82)
+    ContentContainer.Position = UDim2.new(0, 8, 0, 78)
+    ContentContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     ContentContainer.BorderSizePixel = 0
     ContentContainer.ClipsDescendants = true
     ContentContainer.Parent = MainFrame
     
     local ContentCorner = Instance.new("UICorner")
-    ContentCorner.CornerRadius = UDim.new(0, 8)
+    ContentCorner.CornerRadius = UDim.new(0, 6)
     ContentCorner.Parent = ContentContainer
     
-    --// TOGGLE BUTTON (Outside UI - Draggable)
+    --// TOGGLE BUTTON (Outside UI)
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Name = "ToggleUI"
-    ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-    ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
+    ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
+    ToggleBtn.Position = UDim2.new(0, 15, 0.5, -22)
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
     ToggleBtn.Text = "⚔️"
-    ToggleBtn.TextSize = 24
+    ToggleBtn.TextSize = 20
     ToggleBtn.Font = Enum.Font.GothamBold
     ToggleBtn.Parent = ScreenGui
     
     local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(1, 0) -- Circle
+    ToggleCorner.CornerRadius = UDim.new(1, 0)
     ToggleCorner.Parent = ToggleBtn
     
     local ToggleStroke = Instance.new("UIStroke")
@@ -515,29 +491,87 @@ local function CreateUI()
     ToggleStroke.Thickness = 2
     ToggleStroke.Parent = ToggleBtn
     
-    -- Toggle Button Shadow
-    local ToggleShadow = Instance.new("ImageLabel")
-    ToggleShadow.Name = "Shadow"
-    ToggleShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    ToggleShadow.BackgroundTransparency = 1
-    ToggleShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ToggleShadow.Size = UDim2.new(1, 20, 1, 20)
-    ToggleShadow.ZIndex = -1
-    ToggleShadow.Image = "rbxassetid://5554236805"
-    ToggleShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    ToggleShadow.ImageTransparency = 0.4
-    ToggleShadow.ScaleType = Enum.ScaleType.Slice
-    ToggleShadow.SliceCenter = Rect.new(23, 23, 277, 277)
-    ToggleShadow.Parent = ToggleBtn
+    --// MOBILE AIM BUTTON (Only for mobile)
+    if IsMobile then
+        MobileAimButton = Instance.new("TextButton")
+        MobileAimButton.Name = "MobileAim"
+        MobileAimButton.Size = UDim2.new(0, 70, 0, 70)
+        MobileAimButton.Position = UDim2.new(1, -90, 1, -90)
+        MobileAimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        MobileAimButton.Text = "AIM"
+        MobileAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        MobileAimButton.TextSize = 18
+        MobileAimButton.Font = Enum.Font.GothamBold
+        MobileAimButton.Visible = false -- Hidden by default, shown when aimbot enabled
+        MobileAimButton.Parent = ScreenGui
+        
+        local MobileCorner = Instance.new("UICorner")
+        MobileCorner.CornerRadius = UDim.new(1, 0)
+        MobileCorner.Parent = MobileAimButton
+        
+        local MobileStroke = Instance.new("UIStroke")
+        MobileStroke.Color = Color3.fromRGB(255, 255, 255)
+        MobileStroke.Thickness = 3
+        MobileStroke.Parent = MobileAimButton
+        
+        -- Dragging for mobile aim button
+        local aimDragging = false
+        local aimDragStart = nil
+        local aimStartPos = nil
+        
+        MobileAimButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                -- Check if it's a tap (quick touch) or drag
+                aimDragging = true
+                aimDragStart = input.Position
+                aimStartPos = MobileAimButton.Position
+                
+                task.delay(0.2, function()
+                    if aimDragging and (input.Position - aimDragStart).Magnitude < 10 then
+                        -- It's a tap - activate aimbot
+                        aimDragging = false
+                    end
+                end)
+            end
+        end)
+        
+        MobileAimButton.InputChanged:Connect(function(input)
+            if aimDragging and input.UserInputType == Enum.UserInputType.Touch then
+                local delta = input.Position - aimDragStart
+                if delta.Magnitude > 10 then -- Actually dragging
+                    MobileAimButton.Position = UDim2.new(
+                        aimStartPos.X.Scale,
+                        aimStartPos.X.Offset + delta.X,
+                        aimStartPos.Y.Scale,
+                        aimStartPos.Y.Offset + delta.Y
+                    )
+                end
+            end
+        end)
+        
+        MobileAimButton.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                if aimDragging then
+                    -- Was dragging, don't activate
+                    aimDragging = false
+                else
+                    -- Was tap, activate aimbot toggle
+                    AimbotActive = not AimbotActive
+                    MobileAimButton.BackgroundColor3 = AimbotActive and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
+                end
+            end
+        end)
+        
+        CONFIG.Aimbot.TriggerButton = MobileAimButton
+    end
     
     --// ANIMATION FUNCTIONS
     local function AnimateIn(obj)
         obj.Size = UDim2.new(0, 0, 0, 0)
         obj.Visible = true
-        local tween = CreateTween(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 320, 0, 400)
-        })
-        tween:Play()
+        CreateTween(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 260, 0, 320)
+        }):Play()
     end
     
     local function AnimateOut(obj, callback)
@@ -553,11 +587,10 @@ local function CreateUI()
     
     local function ButtonPress(btn)
         local originalSize = btn.Size
-        local tween = CreateTween(btn, TweenInfo.new(0.1), {
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.95, originalSize.Y.Scale, originalSize.Y.Offset * 0.95)
-        })
-        tween:Play()
-        tween.Completed:Connect(function()
+        CreateTween(btn, TweenInfo.new(0.1), {
+            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.9, originalSize.Y.Scale, originalSize.Y.Offset * 0.9)
+        }):Play()
+        task.delay(0.1, function()
             CreateTween(btn, TweenInfo.new(0.1), {
                 Size = originalSize
             }):Play()
@@ -571,17 +604,17 @@ local function CreateUI()
     local function CreateTab(name, icon)
         local tabBtn = Instance.new("TextButton")
         tabBtn.Name = name .. "Tab"
-        tabBtn.Size = UDim2.new(0, 100, 0, 30)
-        tabBtn.Position = UDim2.new(0, #Tabs * 105 + 5, 0.5, -15)
-        tabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        tabBtn.Size = UDim2.new(0, 75, 0, 26)
+        tabBtn.Position = UDim2.new(0, #Tabs * 80 + 5, 0.5, -13)
+        tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         tabBtn.Text = icon .. " " .. name
-        tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-        tabBtn.TextSize = 12
+        tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+        tabBtn.TextSize = 11
         tabBtn.Font = Enum.Font.GothamSemibold
         tabBtn.Parent = TabContainer
         
         local tabCorner = Instance.new("UICorner")
-        tabCorner.CornerRadius = UDim.new(0, 6)
+        tabCorner.CornerRadius = UDim.new(0, 5)
         tabCorner.Parent = tabBtn
         
         local content = Instance.new("ScrollingFrame")
@@ -589,48 +622,43 @@ local function CreateUI()
         content.Size = UDim2.new(1, 0, 1, 0)
         content.BackgroundTransparency = 1
         content.BorderSizePixel = 0
-        content.ScrollBarThickness = 4
+        content.ScrollBarThickness = 3
         content.ScrollBarImageColor3 = Color3.fromRGB(0, 170, 255)
         content.Visible = false
         content.CanvasSize = UDim2.new(0, 0, 0, 0)
         content.Parent = ContentContainer
         
         local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 10)
+        layout.Padding = UDim.new(0, 8)
         layout.Parent = content
         
         local padding = Instance.new("UIPadding")
-        padding.PaddingTop = UDim.new(0, 10)
-        padding.PaddingLeft = UDim.new(0, 10)
-        padding.PaddingRight = UDim.new(0, 10)
+        padding.PaddingTop = UDim.new(0, 8)
+        padding.PaddingLeft = UDim.new(0, 8)
+        padding.PaddingRight = UDim.new(0, 8)
         padding.Parent = content
         
-        -- Auto update canvas size
         layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+            content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 16)
         end)
         
         tabBtn.MouseButton1Click:Connect(function()
-            ButtonPress(tabBtn)
             if CurrentTab == content then return end
             
-            -- Animate out current
             if CurrentTab then
                 CurrentTab.Visible = false
             end
             
-            -- Update tab colors
             for _, t in ipairs(Tabs) do
-                t.Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-                t.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+                t.Button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                t.Button.TextColor3 = Color3.fromRGB(180, 180, 180)
             end
             
             tabBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
             tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             
-            -- Show new tab with animation
             content.Visible = true
-            content.Position = UDim2.new(0, 0, 0, 20)
+            content.Position = UDim2.new(0, 0, 0, 10)
             content.BackgroundTransparency = 0.5
             CreateTween(content, TweenInfo.new(0.2), {
                 Position = UDim2.new(0, 0, 0, 0),
@@ -644,42 +672,41 @@ local function CreateUI()
         return content
     end
     
-    --// UI ELEMENTS CREATOR
+    --// UI ELEMENTS (COMPACT)
     local function CreateToggle(parent, text, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 40)
-        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.Size = UDim2.new(1, 0, 0, 32)
+        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.7, 0, 1, 0)
-        label.Position = UDim2.new(0, 15, 0, 0)
+        label.Size = UDim2.new(0.6, 0, 1, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 14
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local toggleBtn = Instance.new("TextButton")
-        toggleBtn.Name = "Toggle"
-        toggleBtn.Size = UDim2.new(0, 50, 0, 26)
-        toggleBtn.Position = UDim2.new(1, -60, 0.5, -13)
+        toggleBtn.Size = UDim2.new(0, 44, 0, 22)
+        toggleBtn.Position = UDim2.new(1, -52, 0.5, -11)
         toggleBtn.BackgroundColor3 = default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
         toggleBtn.Text = default and "ON" or "OFF"
         toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        toggleBtn.TextSize = 12
+        toggleBtn.TextSize = 11
         toggleBtn.Font = Enum.Font.GothamBold
         toggleBtn.Parent = frame
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 13)
+        toggleCorner.CornerRadius = UDim.new(0, 11)
         toggleCorner.Parent = toggleBtn
         
         local enabled = default
@@ -688,13 +715,8 @@ local function CreateUI()
             enabled = not enabled
             ButtonPress(toggleBtn)
             
-            local targetColor = enabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
-            local targetText = enabled and "ON" or "OFF"
-            
-            CreateTween(toggleBtn, TweenInfo.new(0.2), {
-                BackgroundColor3 = targetColor
-            }):Play()
-            toggleBtn.Text = targetText
+            toggleBtn.BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
+            toggleBtn.Text = enabled and "ON" or "OFF"
             
             if callback then callback(enabled) end
         end)
@@ -704,64 +726,61 @@ local function CreateUI()
     
     local function CreateSlider(parent, text, min, max, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 60)
-        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.Size = UDim2.new(1, 0, 0, 50)
+        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.6, 0, 0, 25)
-        label.Position = UDim2.new(0, 15, 0, 5)
+        label.Size = UDim2.new(0.6, 0, 0, 20)
+        label.Position = UDim2.new(0, 10, 0, 5)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 14
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local valueLabel = Instance.new("TextLabel")
-        valueLabel.Size = UDim2.new(0.3, 0, 0, 25)
+        valueLabel.Size = UDim2.new(0.3, 0, 0, 20)
         valueLabel.Position = UDim2.new(0.7, 0, 0, 5)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = tostring(default)
         valueLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
-        valueLabel.TextSize = 14
+        valueLabel.TextSize = 12
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.TextXAlignment = Enum.TextXAlignment.Right
         valueLabel.Parent = frame
         
         local sliderBg = Instance.new("Frame")
-        sliderBg.Name = "SliderBg"
-        sliderBg.Size = UDim2.new(1, -30, 0, 8)
-        sliderBg.Position = UDim2.new(0, 15, 0, 40)
-        sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        sliderBg.Size = UDim2.new(1, -20, 0, 6)
+        sliderBg.Position = UDim2.new(0, 10, 0, 32)
+        sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         sliderBg.BorderSizePixel = 0
         sliderBg.Parent = frame
         
         local bgCorner = Instance.new("UICorner")
-        bgCorner.CornerRadius = UDim.new(0, 4)
+        bgCorner.CornerRadius = UDim.new(0, 3)
         bgCorner.Parent = sliderBg
         
         local fill = Instance.new("Frame")
-        fill.Name = "Fill"
         fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
         fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
         fill.BorderSizePixel = 0
         fill.Parent = sliderBg
         
         local fillCorner = Instance.new("UICorner")
-        fillCorner.CornerRadius = UDim.new(0, 4)
+        fillCorner.CornerRadius = UDim.new(0, 3)
         fillCorner.Parent = fill
         
         local knob = Instance.new("Frame")
-        knob.Name = "Knob"
-        knob.Size = UDim2.new(0, 16, 0, 16)
-        knob.Position = UDim2.new((default - min) / (max - min), -8, 0.5, -8)
+        knob.Size = UDim2.new(0, 12, 0, 12)
+        knob.Position = UDim2.new((default - min) / (max - min), -6, 0.5, -6)
         knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         knob.BorderSizePixel = 0
         knob.Parent = sliderBg
@@ -777,7 +796,7 @@ local function CreateUI()
             local value = math.floor(min + (pos * (max - min)))
             
             fill.Size = UDim2.new(pos, 0, 1, 0)
-            knob.Position = UDim2.new(pos, -8, 0.5, -8)
+            knob.Position = UDim2.new(pos, -6, 0.5, -6)
             valueLabel.Text = tostring(value)
             
             if callback then callback(value) end
@@ -807,39 +826,39 @@ local function CreateUI()
     
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 45)
-        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.Size = UDim2.new(1, 0, 0, 36)
+        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.5, 0, 0, 45)
-        label.Position = UDim2.new(0, 15, 0, 0)
+        label.Size = UDim2.new(0.4, 0, 0, 36)
+        label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 14
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local dropBtn = Instance.new("TextButton")
-        dropBtn.Size = UDim2.new(0, 120, 0, 30)
-        dropBtn.Position = UDim2.new(1, -135, 0.5, -15)
-        dropBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        dropBtn.Size = UDim2.new(0, 100, 0, 26)
+        dropBtn.Position = UDim2.new(1, -110, 0.5, -13)
+        dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         dropBtn.Text = default
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        dropBtn.TextSize = 12
+        dropBtn.TextSize = 11
         dropBtn.Font = Enum.Font.GothamSemibold
         dropBtn.Parent = frame
         
         local dropCorner = Instance.new("UICorner")
-        dropCorner.CornerRadius = UDim.new(0, 6)
+        dropCorner.CornerRadius = UDim.new(0, 5)
         dropCorner.Parent = dropBtn
         
         local expanded = false
@@ -848,33 +867,29 @@ local function CreateUI()
             expanded = not expanded
             ButtonPress(dropBtn)
             
-            local targetSize = expanded and UDim2.new(1, 0, 0, 45 + #options * 35) or UDim2.new(1, 0, 0, 45)
-            CreateTween(frame, TweenInfo.new(0.2), {
-                Size = targetSize
-            }):Play()
+            local targetSize = expanded and UDim2.new(1, 0, 0, 36 + #options * 30) or UDim2.new(1, 0, 0, 36)
+            CreateTween(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
         end)
         
         for i, option in ipairs(options) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -30, 0, 30)
-            optBtn.Position = UDim2.new(0, 15, 0, 45 + (i-1) * 35)
-            optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            optBtn.Size = UDim2.new(1, -20, 0, 26)
+            optBtn.Position = UDim2.new(0, 10, 0, 36 + (i-1) * 30)
+            optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             optBtn.Text = option
             optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            optBtn.TextSize = 12
+            optBtn.TextSize = 11
             optBtn.Font = Enum.Font.Gotham
             optBtn.Parent = frame
             
             local optCorner = Instance.new("UICorner")
-            optCorner.CornerRadius = UDim.new(0, 6)
+            optCorner.CornerRadius = UDim.new(0, 5)
             optCorner.Parent = optBtn
             
             optBtn.MouseButton1Click:Connect(function()
                 dropBtn.Text = option
                 expanded = false
-                CreateTween(frame, TweenInfo.new(0.2), {
-                    Size = UDim2.new(1, 0, 0, 45)
-                }):Play()
+                CreateTween(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 36)}):Play()
                 if callback then callback(option) end
             end)
         end
@@ -882,13 +897,16 @@ local function CreateUI()
         return frame
     end
     
-    --// CREATE TABS AND CONTENT
+    --// CREATE TABS
     
     -- AIMBOT TAB (First)
     local AimbotTab = CreateTab("Aimbot", "🎯")
     
     CreateToggle(AimbotTab, "Enable Aimbot", CONFIG.Aimbot.Enabled, function(val)
         CONFIG.Aimbot.Enabled = val
+        if MobileAimButton then
+            MobileAimButton.Visible = val
+        end
     end)
     
     CreateToggle(AimbotTab, "Team Check", CONFIG.Aimbot.TeamCheck, function(val)
@@ -904,7 +922,7 @@ local function CreateUI()
         CONFIG.Aimbot.Smoothness = val and 0 or 0.1
     end)
     
-    CreateSlider(AimbotTab, "FOV Size", 50, 500, CONFIG.Aimbot.FOV, function(val)
+    CreateSlider(AimbotTab, "FOV Size", 50, 400, CONFIG.Aimbot.FOV, function(val)
         CONFIG.Aimbot.FOV = val
     end)
     
@@ -912,31 +930,41 @@ local function CreateUI()
         CONFIG.Aimbot.MaxDistance = val
     end)
     
-    CreateDropdown(AimbotTab, "Target Part", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
+    CreateDropdown(AimbotTab, "Target", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
         CONFIG.Aimbot.TargetPart = val
     end)
     
-    -- AIMBOT SETTINGS TAB (Second)
-    local SettingsTab = CreateTab("Settings", "⚙️")
-    
-    CreateToggle(SettingsTab, "Show FOV Circle", true, function(val)
-        -- Implement FOV circle visibility
-    end)
-    
-    CreateSlider(SettingsTab, "Smoothness", 0, 1, CONFIG.Aimbot.Smoothness * 10, function(val)
-        if not CONFIG.Aimbot.InstantLock then
-            CONFIG.Aimbot.Smoothness = val / 10
+    -- MODE DROPDOWN: Key for PC, Button for Mobile
+    local modeOptions = IsMobile and {"Button", "Position Lock"} or {"Key", "Button"}
+    CreateDropdown(AimbotTab, "Mode", modeOptions, CONFIG.Aimbot.Mode, function(val)
+        CONFIG.Aimbot.Mode = val
+        
+        -- Show/hide mobile button based on mode
+        if IsMobile and MobileAimButton then
+            MobileAimButton.Visible = CONFIG.Aimbot.Enabled and (val == "Button")
         end
     end)
     
-    CreateDropdown(SettingsTab, "Aim Key", {"RightClick", "LeftClick", "E", "Q"}, "RightClick", function(val)
-        local keyMap = {
-            RightClick = Enum.UserInputType.MouseButton2,
-            LeftClick = Enum.UserInputType.MouseButton1,
-            E = Enum.KeyCode.E,
-            Q = Enum.KeyCode.Q
-        }
-        CONFIG.Aimbot.TriggerKey = keyMap[val]
+    -- SETTINGS TAB (Second)
+    local SettingsTab = CreateTab("Settings", "⚙️")
+    
+    -- Only show key selection for PC or if Button mode selected
+    if IsPC then
+        CreateDropdown(SettingsTab, "Aim Key", {"E", "Q", "LeftCtrl", "LeftShift"}, "E", function(val)
+            local keyMap = {
+                E = Enum.KeyCode.E,
+                Q = Enum.KeyCode.Q,
+                LeftCtrl = Enum.KeyCode.LeftControl,
+                LeftShift = Enum.KeyCode.LeftShift
+            }
+            CONFIG.Aimbot.TriggerKey = keyMap[val]
+        end)
+    end
+    
+    CreateSlider(SettingsTab, "Smoothness", 0, 10, CONFIG.Aimbot.Smoothness * 10, function(val)
+        if not CONFIG.Aimbot.InstantLock then
+            CONFIG.Aimbot.Smoothness = val / 10
+        end
     end)
     
     -- ESP TAB (Third)
@@ -948,22 +976,6 @@ local function CreateUI()
     
     CreateToggle(ESPTab, "Team Check", CONFIG.ESP.TeamCheck, function(val)
         CONFIG.ESP.TeamCheck = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Names", CONFIG.ESP.ShowName, function(val)
-        CONFIG.ESP.ShowName = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Health", CONFIG.ESP.ShowHealth, function(val)
-        CONFIG.ESP.ShowHealth = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Distance", CONFIG.ESP.ShowDistance, function(val)
-        CONFIG.ESP.ShowDistance = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Weapon", CONFIG.ESP.ShowWeapon, function(val)
-        CONFIG.ESP.ShowWeapon = val
     end)
     
     CreateToggle(ESPTab, "Box ESP", CONFIG.ESP.BoxESP, function(val)
@@ -978,11 +990,23 @@ local function CreateUI()
         CONFIG.ESP.Chams = val
     end)
     
-    CreateSlider(ESPTab, "Max ESP Distance", 100, 3000, CONFIG.ESP.MaxDistance, function(val)
+    CreateToggle(ESPTab, "Show Names", CONFIG.ESP.ShowName, function(val)
+        CONFIG.ESP.ShowName = val
+    end)
+    
+    CreateToggle(ESPTab, "Show Health", CONFIG.ESP.ShowHealth, function(val)
+        CONFIG.ESP.ShowHealth = val
+    end)
+    
+    CreateToggle(ESPTab, "Show Distance", CONFIG.ESP.ShowDistance, function(val)
+        CONFIG.ESP.ShowDistance = val
+    end)
+    
+    CreateSlider(ESPTab, "Max Distance", 100, 3000, CONFIG.ESP.MaxDistance, function(val)
         CONFIG.ESP.MaxDistance = val
     end)
     
-    --// DRAGGING SYSTEM (PC & Mobile)
+    --// DRAGGING SYSTEM
     local function EnableDragging(frame, handle)
         handle = handle or frame
         
@@ -991,11 +1015,6 @@ local function CreateUI()
                 Dragging = frame
                 DragStart = input.Position
                 StartPos = frame.Position
-                
-                -- Visual feedback
-                CreateTween(frame, TweenInfo.new(0.1), {
-                    BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                }):Play()
             end
         end)
     end
@@ -1017,11 +1036,6 @@ local function CreateUI()
     
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if Dragging == MainFrame then
-                CreateTween(Dragging, TweenInfo.new(0.1), {
-                    BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-                }):Play()
-            end
             Dragging = nil
         end
     end)
@@ -1044,30 +1058,30 @@ local function CreateUI()
     --// CLOSE BUTTON
     CloseBtn.MouseButton1Click:Connect(function()
         ButtonPress(CloseBtn)
-        AnimateOut(MainFrame, function()
-            -- Optional: fully destroy or just hide
-        end)
+        AnimateOut(MainFrame)
         UIVisible = false
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
     end)
     
-    --// FOV CIRCLE (Drawing)
+    --// FOV CIRCLE - CENTER OF SCREEN
     local FOVCircle = Drawing.new("Circle")
-    FOVCircle.Visible = true
+    FOVCircle.Visible = false
     FOVCircle.Thickness = 1.5
     FOVCircle.Color = Color3.fromRGB(0, 170, 255)
     FOVCircle.Filled = false
     FOVCircle.NumSides = 64
     
     --// MAIN LOOPS
-    -- ESP Update
+    
+    -- RenderStepped for ESP and Aimbot
     RunService.RenderStepped:Connect(function()
-        -- Update FOV Circle
-        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36) -- +36 for GUI inset
+        -- Update FOV Circle at CENTER of screen
+        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        FOVCircle.Position = screenCenter
         FOVCircle.Radius = CONFIG.Aimbot.FOV
         FOVCircle.Visible = CONFIG.Aimbot.Enabled
         
-        -- Update ESP for all players
+        -- Update ESP
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 if not ESPObjects[player] then
@@ -1077,55 +1091,67 @@ local function CreateUI()
             end
         end
         
-        -- Cleanup disconnected players
+        -- Cleanup
         for player, _ in pairs(ESPObjects) do
             if not player or not player.Parent then
                 RemoveESP(player)
             end
         end
-    end)
-    
-    -- Aimbot Logic
-    RunService.RenderStepped:Connect(function()
-        if not CONFIG.Aimbot.Enabled then return end
         
-        if AimbotActive then
-            local target = GetClosestPlayerToMouse()
+        -- AIMBOT LOGIC - CENTER BASED
+        if CONFIG.Aimbot.Enabled and AimbotActive then
+            local target = GetClosestPlayerToCenter()
             
             if target then
+                CurrentTarget = target
                 local character = GetCharacter(target)
                 local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                 
                 if targetPart then
                     if CONFIG.Aimbot.InstantLock then
+                        -- INSTANT LOCK to target
                         Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                     else
+                        -- Smooth lock
                         local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                         Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CONFIG.Aimbot.Smoothness)
                     end
                 end
+            else
+                CurrentTarget = nil
             end
         end
     end)
     
-    -- Input Handling
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
+    -- INPUT HANDLING - PC vs Mobile
+    if IsPC then
+        -- PC: Use keys
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            
+            if CONFIG.Aimbot.Mode == "Key" then
+                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
+                    AimbotActive = true
+                end
+            elseif CONFIG.Aimbot.Mode == "Button" then
+                -- Even on PC, can use toggle mode
+                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
+                    AimbotActive = not AimbotActive
+                end
+            end
+        end)
         
-        -- Aimbot activation
-        if input.UserInputType == CONFIG.Aimbot.TriggerKey or input.KeyCode == (typeof(CONFIG.Aimbot.TriggerKey) == "EnumItem" and CONFIG.Aimbot.TriggerKey.EnumType == Enum.KeyCode and CONFIG.Aimbot.TriggerKey) then
-            AimbotActive = true
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == CONFIG.Aimbot.TriggerKey or input.KeyCode == (typeof(CONFIG.Aimbot.TriggerKey) == "EnumItem" and CONFIG.Aimbot.TriggerKey.EnumType == Enum.KeyCode and CONFIG.Aimbot.TriggerKey) then
-            AimbotActive = false
-        end
-    end)
+        UserInputService.InputEnded:Connect(function(input)
+            if CONFIG.Aimbot.Mode == "Key" then
+                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
+                    AimbotActive = false
+                end
+            end
+            -- In Button mode, we toggle so we don't auto-release
+        end)
+    end
     
     --// INITIALIZATION
-    -- Select first tab
     if Tabs[1] then
         Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
         Tabs[1].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1137,7 +1163,7 @@ local function CreateUI()
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
     AnimateIn(MainFrame)
     
-    -- Cleanup on destroy
+    -- Cleanup
     ScreenGui.Destroying:Connect(function()
         for player, _ in pairs(ESPObjects) do
             RemoveESP(player)
@@ -1150,21 +1176,18 @@ end
 
 --// INITIALIZE
 local success, result = pcall(function()
-    -- Wait for player to load
     if not LocalPlayer.Character then
         LocalPlayer.CharacterAdded:Wait()
     end
     
-    -- Create UI
     local ui = CreateUI()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    print("✅ Combat System Loaded Successfully!")
-    print("🎯 Aimbot: Hold Right Click to lock on")
-    print("👁️ ESP: Active with all features")
-    print("⚙️ UI: Drag tabs to move, use ⚔️ button to toggle")
+    print("✅ Combat System Loaded!")
+    print("Device:", IsMobile and "Mobile" or "PC")
+    print("Mode:", CONFIG.Aimbot.Mode)
 end)
 
 if not success then
-    warn("❌ Error loading Combat System:", result)
+    warn("❌ Error:", result)
 end
