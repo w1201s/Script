@@ -14,7 +14,7 @@ local CONFIG = {
         Enabled = false,
         TeamCheck = true,
         WallCheck = true,
-        Smoothness = 1,
+        Smoothness = 0, -- 0 = instant, 10 = very smooth
         FOV = 150,
         ShowFOV = true,
         MaxDistance = 1000,
@@ -54,6 +54,8 @@ local TargetDropdownFrame = nil
 local AllyDropdownFrame = nil
 local TargetDropdownBtn = nil
 local AllyDropdownBtn = nil
+local TargetExpanded = false
+local AllyExpanded = false
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -373,117 +375,125 @@ end
 --// REFRESH PLAYER DROPDOWNS
 local function RefreshPlayerDropdowns()
     if TargetDropdownFrame then
-        for _, child in ipairs(TargetDropdownFrame:GetChildren()) do
-            if child:IsA("TextButton") and child.Name ~= "DropBtn" and child.Name ~= "RefreshBtn" then
-                child:Destroy()
-            end
-        end
-        
-        local players = Players:GetPlayers()
-        local yOffset = 34
-        
-        for _, player in ipairs(players) do
-            if player == LocalPlayer then continue end
-            
-            local optBtn = Instance.new("TextButton")
-            optBtn.Name = player.Name .. "Option"
-            optBtn.Size = UDim2.new(1, -18, 0, 26)
-            optBtn.Position = UDim2.new(0, 9, 0, yOffset)
-            optBtn.BackgroundColor3 = IsInTargetList(player) and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 45, 45)
-            optBtn.Text = GetPlayerDisplayText(player)
-            optBtn.TextColor3 = IsInTargetList(player) and Color3.new(1, 1, 1) or Color3.fromRGB(200, 200, 200)
-            optBtn.TextSize = 10
-            optBtn.Font = Enum.Font.Gotham
-            optBtn.TextTruncate = Enum.TextTruncate.AtEnd
-            optBtn.Parent = TargetDropdownFrame
-            
-            local optCorner = Instance.new("UICorner")
-            optCorner.CornerRadius = UDim.new(0, 5)
-            optCorner.Parent = optBtn
-            
-            optBtn.MouseButton1Click:Connect(function()
-                local isSelected = IsInTargetList(player)
-                
-                if isSelected then
-                    for i, name in ipairs(CONFIG.Aimbot.TargetList) do
-                        if name == player.Name then
-                            table.remove(CONFIG.Aimbot.TargetList, i)
-                            break
-                        end
-                    end
-                    optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-                    optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-                else
-                    table.insert(CONFIG.Aimbot.TargetList, player.Name)
-                    optBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-                    optBtn.TextColor3 = Color3.new(1, 1, 1)
+        local scrollFrame = TargetDropdownFrame:FindFirstChild("ScrollFrame")
+        if scrollFrame then
+            -- Clear old options
+            for _, child in ipairs(scrollFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
                 end
-                
-                local count = #CONFIG.Aimbot.TargetList
-                TargetDropdownBtn.Text = count > 0 and (count .. " selected") or "Select targets"
-            end)
+            end
             
-            yOffset = yOffset + 28
+            -- Add new options
+            local players = Players:GetPlayers()
+            local yOffset = 0
+            
+            for _, player in ipairs(players) do
+                if player == LocalPlayer then continue end
+                
+                local optBtn = Instance.new("TextButton")
+                optBtn.Name = player.Name .. "Option"
+                optBtn.Size = UDim2.new(1, -10, 0, 28)
+                optBtn.Position = UDim2.new(0, 5, 0, yOffset)
+                optBtn.BackgroundColor3 = IsInTargetList(player) and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 45, 45)
+                optBtn.Text = GetPlayerDisplayText(player)
+                optBtn.TextColor3 = IsInTargetList(player) and Color3.new(1, 1, 1) or Color3.fromRGB(200, 200, 200)
+                optBtn.TextSize = 10
+                optBtn.Font = Enum.Font.Gotham
+                optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+                optBtn.Parent = scrollFrame
+                
+                local optCorner = Instance.new("UICorner")
+                optCorner.CornerRadius = UDim.new(0, 5)
+                optCorner.Parent = optBtn
+                
+                optBtn.MouseButton1Click:Connect(function()
+                    local isSelected = IsInTargetList(player)
+                    
+                    if isSelected then
+                        for i, name in ipairs(CONFIG.Aimbot.TargetList) do
+                            if name == player.Name then
+                                table.remove(CONFIG.Aimbot.TargetList, i)
+                                break
+                            end
+                        end
+                        optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                        optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    else
+                        table.insert(CONFIG.Aimbot.TargetList, player.Name)
+                        optBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+                        optBtn.TextColor3 = Color3.new(1, 1, 1)
+                    end
+                    
+                    local count = #CONFIG.Aimbot.TargetList
+                    TargetDropdownBtn.Text = count > 0 and (count .. " selected") or "Select targets"
+                end)
+                
+                yOffset = yOffset + 30
+            end
+            
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset + 5)
         end
-        
-        TargetDropdownFrame:SetAttribute("ContentHeight", yOffset + 5)
     end
     
     if AllyDropdownFrame then
-        for _, child in ipairs(AllyDropdownFrame:GetChildren()) do
-            if child:IsA("TextButton") and child.Name ~= "DropBtn" and child.Name ~= "RefreshBtn" then
-                child:Destroy()
-            end
-        end
-        
-        local players = Players:GetPlayers()
-        local yOffset = 34
-        
-        for _, player in ipairs(players) do
-            if player == LocalPlayer then continue end
-            
-            local optBtn = Instance.new("TextButton")
-            optBtn.Name = player.Name .. "AllyOption"
-            optBtn.Size = UDim2.new(1, -18, 0, 26)
-            optBtn.Position = UDim2.new(0, 9, 0, yOffset)
-            optBtn.BackgroundColor3 = IsInAllyList(player) and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(45, 45, 45)
-            optBtn.Text = GetPlayerDisplayText(player)
-            optBtn.TextColor3 = IsInAllyList(player) and Color3.new(0, 0, 0) or Color3.fromRGB(200, 200, 200)
-            optBtn.TextSize = 10
-            optBtn.Font = Enum.Font.Gotham
-            optBtn.TextTruncate = Enum.TextTruncate.AtEnd
-            optBtn.Parent = AllyDropdownFrame
-            
-            local optCorner = Instance.new("UICorner")
-            optCorner.CornerRadius = UDim.new(0, 5)
-            optCorner.Parent = optBtn
-            
-            optBtn.MouseButton1Click:Connect(function()
-                local isSelected = IsInAllyList(player)
-                
-                if isSelected then
-                    for i, name in ipairs(CONFIG.Aimbot.AllyList) do
-                        if name == player.Name then
-                            table.remove(CONFIG.Aimbot.AllyList, i)
-                            break
-                        end
-                    end
-                    optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-                    optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-                else
-                    table.insert(CONFIG.Aimbot.AllyList, player.Name)
-                    optBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-                    optBtn.TextColor3 = Color3.new(0, 0, 0)
+        local scrollFrame = AllyDropdownFrame:FindFirstChild("ScrollFrame")
+        if scrollFrame then
+            for _, child in ipairs(scrollFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
                 end
-                
-                local count = #CONFIG.Aimbot.AllyList
-                AllyDropdownBtn.Text = count > 0 and (count .. " allies") or "Select allies"
-            end)
+            end
             
-            yOffset = yOffset + 28
+            local players = Players:GetPlayers()
+            local yOffset = 0
+            
+            for _, player in ipairs(players) do
+                if player == LocalPlayer then continue end
+                
+                local optBtn = Instance.new("TextButton")
+                optBtn.Name = player.Name .. "AllyOption"
+                optBtn.Size = UDim2.new(1, -10, 0, 28)
+                optBtn.Position = UDim2.new(0, 5, 0, yOffset)
+                optBtn.BackgroundColor3 = IsInAllyList(player) and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(45, 45, 45)
+                optBtn.Text = GetPlayerDisplayText(player)
+                optBtn.TextColor3 = IsInAllyList(player) and Color3.new(0, 0, 0) or Color3.fromRGB(200, 200, 200)
+                optBtn.TextSize = 10
+                optBtn.Font = Enum.Font.Gotham
+                optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+                optBtn.Parent = scrollFrame
+                
+                local optCorner = Instance.new("UICorner")
+                optCorner.CornerRadius = UDim.new(0, 5)
+                optCorner.Parent = optBtn
+                
+                optBtn.MouseButton1Click:Connect(function()
+                    local isSelected = IsInAllyList(player)
+                    
+                    if isSelected then
+                        for i, name in ipairs(CONFIG.Aimbot.AllyList) do
+                            if name == player.Name then
+                                table.remove(CONFIG.Aimbot.AllyList, i)
+                                break
+                            end
+                        end
+                        optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                        optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    else
+                        table.insert(CONFIG.Aimbot.AllyList, player.Name)
+                        optBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+                        optBtn.TextColor3 = Color3.new(0, 0, 0)
+                    end
+                    
+                    local count = #CONFIG.Aimbot.AllyList
+                    AllyDropdownBtn.Text = count > 0 and (count .. " allies") or "Select allies"
+                end)
+                
+                yOffset = yOffset + 30
+            end
+            
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset + 5)
         end
-        
-        AllyDropdownFrame:SetAttribute("ContentHeight", yOffset + 5)
     end
 end
 
@@ -494,7 +504,7 @@ local function CreateUI()
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- Main Frame (300x420 - bigger for 4 tabs)
+    -- Main Frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 300, 0, 420)
@@ -566,7 +576,7 @@ local function CreateUI()
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
     
-    -- Tab Container (wider for 4 tabs)
+    -- Tab Container
     local TabContainer = Instance.new("Frame")
     TabContainer.Size = UDim2.new(1, -16, 0, 28)
     TabContainer.Position = UDim2.new(0, 8, 0, 38)
@@ -867,6 +877,7 @@ local function CreateUI()
         return frame
     end
     
+    -- Multi-select dropdown with SCROLLING and TOGGLE close
     local function CreateMultiDropdown(parent, text, isTarget)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 36)
@@ -921,15 +932,51 @@ local function CreateUI()
         refreshCorner.CornerRadius = UDim.new(0, 5)
         refreshCorner.Parent = refreshBtn
         
-        local expanded = false
+        -- SCROLLING FRAME for dropdown options
+        local scrollFrame = Instance.new("ScrollingFrame")
+        scrollFrame.Name = "ScrollFrame"
+        scrollFrame.Size = UDim2.new(1, -10, 1, -40)
+        scrollFrame.Position = UDim2.new(0, 5, 0, 38)
+        scrollFrame.BackgroundTransparency = 1
+        scrollFrame.BorderSizePixel = 0
+        scrollFrame.ScrollBarThickness = 4
+        scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 170, 255)
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scrollFrame.Visible = false -- Hidden when collapsed
+        scrollFrame.ZIndex = 10
+        scrollFrame.Parent = frame
+        
+        -- Toggle function
+        local function ToggleDropdown()
+            if isTarget then
+                TargetExpanded = not TargetExpanded
+            else
+                AllyExpanded = not AllyExpanded
+            end
+            
+            local expanded = isTarget and TargetExpanded or AllyExpanded
+            
+            if expanded then
+                -- Open - show scroll frame
+                scrollFrame.Visible = true
+                frame.Size = UDim2.new(1, 0, 0, 200) -- Expanded height
+                dropBtn.Text = isTarget and "▼ Close" or "▼ Close"
+            else
+                -- Close - hide scroll frame
+                scrollFrame.Visible = false
+                frame.Size = UDim2.new(1, 0, 0, 36) -- Collapsed height
+                local count = isTarget and #CONFIG.Aimbot.TargetList or #CONFIG.Aimbot.AllyList
+                dropBtn.Text = count > 0 and (count .. (isTarget and " selected" or " allies")) or (isTarget and "Select targets" or "Select allies")
+            end
+            
+            TweenService:Create(frame, TweenInfo.new(0.2), {
+                Size = expanded and UDim2.new(1, 0, 0, 200) or UDim2.new(1, 0, 0, 36)
+            }):Play()
+        end
         
         dropBtn.MouseButton1Click:Connect(function()
-            expanded = not expanded
             ButtonPress(dropBtn)
-            
-            local contentHeight = frame:GetAttribute("ContentHeight") or 200
-            local targetSize = expanded and UDim2.new(1, 0, 0, math.min(contentHeight, 250)) or UDim2.new(1, 0, 0, 36)
-            TweenService:Create(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
+            ToggleDropdown()
         end)
         
         refreshBtn.MouseButton1Click:Connect(function()
@@ -1027,7 +1074,7 @@ local function CreateUI()
     
     --// CREATE 4 TABS
     
-    -- 1. AIMBOT TAB (สั้นลง)
+    -- 1. AIMBOT TAB
     local AimbotTab = CreateTab("Aimbot", "🎯")
     
     CreateToggle(AimbotTab, "Enable Aimbot", CONFIG.Aimbot.Enabled, function(val)
@@ -1058,7 +1105,7 @@ local function CreateUI()
         CONFIG.Aimbot.TargetPart = val
     end)
     
-    -- 2. ESP TAB (สั้นลง)
+    -- 2. ESP TAB
     local ESPTab = CreateTab("ESP", "👁️")
     
     CreateToggle(ESPTab, "Enable ESP", CONFIG.ESP.Enabled, function(val)
@@ -1093,10 +1140,9 @@ local function CreateUI()
         CONFIG.ESP.MaxDistance = val
     end)
     
-    -- 3. EXTRA TAB (ใหม่! รวม Ally และ Aimbot Settings)
+    -- 3. EXTRA TAB
     local ExtraTab = CreateTab("Extra", "✨")
     
-    -- Aimbot Settings Section
     local AimbotSettingsLabel = Instance.new("TextLabel")
     AimbotSettingsLabel.Size = UDim2.new(1, 0, 0, 25)
     AimbotSettingsLabel.BackgroundTransparency = 1
@@ -1106,11 +1152,11 @@ local function CreateUI()
     AimbotSettingsLabel.Font = Enum.Font.GothamBold
     AimbotSettingsLabel.Parent = ExtraTab
     
-    CreateSlider(ExtraTab, "Smoothness (1-10)", 1, 10, CONFIG.Aimbot.Smoothness, function(val)
+    -- FIXED: Smoothness 0 = instant, 10 = smooth
+    CreateSlider(ExtraTab, "Smoothness (0-10)", 0, 10, CONFIG.Aimbot.Smoothness, function(val)
         CONFIG.Aimbot.Smoothness = val
     end)
     
-    -- Separator
     local Separator = Instance.new("Frame")
     Separator.Size = UDim2.new(1, -20, 0, 2)
     Separator.Position = UDim2.new(0, 10, 0, 0)
@@ -1122,7 +1168,6 @@ local function CreateUI()
     SepCorner.CornerRadius = UDim.new(0, 1)
     SepCorner.Parent = Separator
     
-    -- Ally & Target Section
     local AllySectionLabel = Instance.new("TextLabel")
     AllySectionLabel.Size = UDim2.new(1, 0, 0, 25)
     AllySectionLabel.BackgroundTransparency = 1
@@ -1144,7 +1189,7 @@ local function CreateUI()
     
     CreateMultiDropdown(ExtraTab, "Allies", false)
     
-    -- 4. SETTINGS TAB (เดิม แต่เปลี่ยนชื่อเล็กน้อย)
+    -- 4. SETTINGS TAB
     local SettingsTab = CreateTab("Settings", "🔧")
     
     local InfoLabel = Instance.new("TextLabel")
@@ -1232,7 +1277,7 @@ local function CreateUI()
     FOVCircle.Filled = false
     FOVCircle.NumSides = 64
     
-    --// MAIN LOOP
+    --// MAIN LOOP - FIXED SMOOTHNESS
     RunService.RenderStepped:Connect(function()
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         FOVCircle.Position = screenCenter
@@ -1263,10 +1308,15 @@ local function CreateUI()
                 local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                 
                 if targetPart then
-                    if CONFIG.Aimbot.Smoothness <= 1 then
+                    -- FIXED: 0 = instant, higher = smoother
+                    if CONFIG.Aimbot.Smoothness <= 0 then
+                        -- Instant snap
                         Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                     else
-                        local smoothFactor = CONFIG.Aimbot.Smoothness / 10
+                        -- Smooth - convert 0-10 to 0.01-0.5 lerp factor
+                        -- Higher smoothness = slower/more smooth
+                        local smoothFactor = 0.5 - (CONFIG.Aimbot.Smoothness * 0.05) -- 0=0.5, 10=0.0
+                        smoothFactor = math.max(0.01, smoothFactor) -- Minimum 0.01
                         local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                         Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
                     end
@@ -1308,7 +1358,9 @@ local success, result = pcall(function()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     print("✅ Combat System Loaded!")
-    print("🎯 4 Tabs: Aimbot, ESP, Extra, Settings")
+    print("🎯 Smoothness: 0=instant, 10=smooth")
+    print("📜 Dropdown: Click to open, click again to close")
+    print("📜 Dropdown: Can scroll to see all players")
 end)
 
 if not success then
