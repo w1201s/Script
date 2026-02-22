@@ -2,6 +2,8 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -12,11 +14,15 @@ local CONFIG = {
         Enabled = false,
         TeamCheck = true,
         WallCheck = true,
-        InstantLock = true,
-        Smoothness = 0,
+        Smoothness = 1,
         FOV = 150,
+        ShowFOV = true,
         MaxDistance = 1000,
-        TargetPart = "Head"
+        TargetPart = "Head",
+        UseTargetList = false,
+        UseAllyList = false,
+        TargetList = {},
+        AllyList = {}
     },
     
     ESP = {
@@ -44,6 +50,10 @@ local UIVisible = true
 local Dragging = nil
 local DragStart = nil
 local StartPos = nil
+local TargetDropdownFrame = nil
+local AllyDropdownFrame = nil
+local TargetDropdownBtn = nil
+local AllyDropdownBtn = nil
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -91,7 +101,28 @@ local function IsVisible(targetPart)
     return true
 end
 
--- Get closest player to CENTER OF SCREEN (crosshair)
+local function GetPlayerDisplayText(player)
+    return "@" .. player.Name .. "(" .. player.DisplayName .. ")"
+end
+
+local function IsInTargetList(player)
+    for _, targetName in ipairs(CONFIG.Aimbot.TargetList) do
+        if targetName == player.Name then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsInAllyList(player)
+    for _, allyName in ipairs(CONFIG.Aimbot.AllyList) do
+        if allyName == player.Name then
+            return true
+        end
+    end
+    return false
+end
+
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = CONFIG.Aimbot.FOV
@@ -102,19 +133,19 @@ local function GetClosestPlayerToCenter()
         if not IsAlive(GetCharacter(player)) then continue end
         
         if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
+        if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
+        if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
         
         local character = GetCharacter(player)
         local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
         
         if not targetPart then continue end
-        
         if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
         
         local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
         
         if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
         
-        -- Distance from CENTER OF SCREEN
         local distance = (screenPos - screenCenter).Magnitude
         
         if distance < shortestDistance then
@@ -136,42 +167,36 @@ local function CreateESP(player)
         Highlight = nil
     }
     
-    -- Name
     local nameText = Drawing.new("Text")
     nameText.Center = true
     nameText.Outline = true
     nameText.Size = CONFIG.ESP.TextSize
     espData.Drawings.Name = nameText
     
-    -- Health
     local healthText = Drawing.new("Text")
     healthText.Center = true
     healthText.Outline = true
     healthText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Health = healthText
     
-    -- Distance
     local distText = Drawing.new("Text")
     distText.Center = true
     distText.Outline = true
     distText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Distance = distText
     
-    -- Weapon
     local weaponText = Drawing.new("Text")
     weaponText.Center = true
     weaponText.Outline = true
     weaponText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Weapon = weaponText
     
-    -- Box
     local box = Drawing.new("Square")
     box.Thickness = 1.5
     box.Filled = false
     box.Visible = false
     espData.Drawings.Box = box
     
-    -- Filled Box
     local filledBox = Drawing.new("Square")
     filledBox.Thickness = 1
     filledBox.Filled = true
@@ -179,7 +204,6 @@ local function CreateESP(player)
     filledBox.Visible = false
     espData.Drawings.FilledBox = filledBox
     
-    -- Tracer
     local tracer = Drawing.new("Line")
     tracer.Thickness = 1
     tracer.Visible = false
@@ -225,14 +249,15 @@ local function CreateESP(player)
         end
         
         local isTeammate = IsTeammate(player)
-        local color = (CONFIG.ESP.TeamCheck and isTeammate) and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
+        local isAlly = IsInAllyList(player)
+        local color = (CONFIG.ESP.TeamCheck and (isTeammate or isAlly)) and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
         
         espData.Drawings.Name.Color = color
         espData.Drawings.Box.Color = CONFIG.ESP.BoxColor
         espData.Drawings.FilledBox.Color = CONFIG.ESP.BoxColor
         espData.Drawings.Tracer.Color = CONFIG.ESP.BoxColor
         
-        if CONFIG.ESP.TeamCheck and isTeammate then
+        if CONFIG.ESP.TeamCheck and (isTeammate or isAlly) then
             espData.Drawings.Box.Color = CONFIG.ESP.AllyColor
             espData.Drawings.FilledBox.Color = CONFIG.ESP.AllyColor
             espData.Drawings.Tracer.Color = CONFIG.ESP.AllyColor
@@ -254,7 +279,8 @@ local function CreateESP(player)
         local boxPos = Vector2.new(headPos.X - boxWidth / 2, headPos.Y)
         
         if CONFIG.ESP.ShowName then
-            espData.Drawings.Name.Text = player.Name .. (isTeammate and " [ALLY]" or " [ENEMY]")
+            local allyTag = isAlly and " [ALLY]" or (isTeammate and " [TEAM]" or " [ENEMY]")
+            espData.Drawings.Name.Text = player.Name .. allyTag
             espData.Drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 20)
             espData.Drawings.Name.Visible = true
         else
@@ -313,14 +339,14 @@ local function CreateESP(player)
             if not espData.Highlight or espData.Highlight.Parent ~= character then
                 if espData.Highlight then espData.Highlight:Destroy() end
                 espData.Highlight = Instance.new("Highlight")
-                espData.Highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
+                espData.Highlight.FillColor = (isTeammate or isAlly) and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
                 espData.Highlight.OutlineColor = Color3.new(1, 1, 1)
                 espData.Highlight.FillTransparency = 0.5
                 espData.Highlight.OutlineTransparency = 0
                 espData.Highlight.Parent = character
             end
             espData.Highlight.Enabled = true
-            espData.Highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
+            espData.Highlight.FillColor = (isTeammate or isAlly) and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
         elseif espData.Highlight then
             espData.Highlight.Enabled = false
         end
@@ -344,6 +370,123 @@ local function RemoveESP(player)
     end
 end
 
+--// REFRESH PLAYER DROPDOWNS
+local function RefreshPlayerDropdowns()
+    if TargetDropdownFrame then
+        for _, child in ipairs(TargetDropdownFrame:GetChildren()) do
+            if child:IsA("TextButton") and child.Name ~= "DropBtn" and child.Name ~= "RefreshBtn" then
+                child:Destroy()
+            end
+        end
+        
+        local players = Players:GetPlayers()
+        local yOffset = 34
+        
+        for _, player in ipairs(players) do
+            if player == LocalPlayer then continue end
+            
+            local optBtn = Instance.new("TextButton")
+            optBtn.Name = player.Name .. "Option"
+            optBtn.Size = UDim2.new(1, -18, 0, 26)
+            optBtn.Position = UDim2.new(0, 9, 0, yOffset)
+            optBtn.BackgroundColor3 = IsInTargetList(player) and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 45, 45)
+            optBtn.Text = GetPlayerDisplayText(player)
+            optBtn.TextColor3 = IsInTargetList(player) and Color3.new(1, 1, 1) or Color3.fromRGB(200, 200, 200)
+            optBtn.TextSize = 10
+            optBtn.Font = Enum.Font.Gotham
+            optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+            optBtn.Parent = TargetDropdownFrame
+            
+            local optCorner = Instance.new("UICorner")
+            optCorner.CornerRadius = UDim.new(0, 5)
+            optCorner.Parent = optBtn
+            
+            optBtn.MouseButton1Click:Connect(function()
+                local isSelected = IsInTargetList(player)
+                
+                if isSelected then
+                    for i, name in ipairs(CONFIG.Aimbot.TargetList) do
+                        if name == player.Name then
+                            table.remove(CONFIG.Aimbot.TargetList, i)
+                            break
+                        end
+                    end
+                    optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                    optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                else
+                    table.insert(CONFIG.Aimbot.TargetList, player.Name)
+                    optBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+                    optBtn.TextColor3 = Color3.new(1, 1, 1)
+                end
+                
+                local count = #CONFIG.Aimbot.TargetList
+                TargetDropdownBtn.Text = count > 0 and (count .. " selected") or "Select targets"
+            end)
+            
+            yOffset = yOffset + 28
+        end
+        
+        TargetDropdownFrame:SetAttribute("ContentHeight", yOffset + 5)
+    end
+    
+    if AllyDropdownFrame then
+        for _, child in ipairs(AllyDropdownFrame:GetChildren()) do
+            if child:IsA("TextButton") and child.Name ~= "DropBtn" and child.Name ~= "RefreshBtn" then
+                child:Destroy()
+            end
+        end
+        
+        local players = Players:GetPlayers()
+        local yOffset = 34
+        
+        for _, player in ipairs(players) do
+            if player == LocalPlayer then continue end
+            
+            local optBtn = Instance.new("TextButton")
+            optBtn.Name = player.Name .. "AllyOption"
+            optBtn.Size = UDim2.new(1, -18, 0, 26)
+            optBtn.Position = UDim2.new(0, 9, 0, yOffset)
+            optBtn.BackgroundColor3 = IsInAllyList(player) and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(45, 45, 45)
+            optBtn.Text = GetPlayerDisplayText(player)
+            optBtn.TextColor3 = IsInAllyList(player) and Color3.new(0, 0, 0) or Color3.fromRGB(200, 200, 200)
+            optBtn.TextSize = 10
+            optBtn.Font = Enum.Font.Gotham
+            optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+            optBtn.Parent = AllyDropdownFrame
+            
+            local optCorner = Instance.new("UICorner")
+            optCorner.CornerRadius = UDim.new(0, 5)
+            optCorner.Parent = optBtn
+            
+            optBtn.MouseButton1Click:Connect(function()
+                local isSelected = IsInAllyList(player)
+                
+                if isSelected then
+                    for i, name in ipairs(CONFIG.Aimbot.AllyList) do
+                        if name == player.Name then
+                            table.remove(CONFIG.Aimbot.AllyList, i)
+                            break
+                        end
+                    end
+                    optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                    optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                else
+                    table.insert(CONFIG.Aimbot.AllyList, player.Name)
+                    optBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+                    optBtn.TextColor3 = Color3.new(0, 0, 0)
+                end
+                
+                local count = #CONFIG.Aimbot.AllyList
+                AllyDropdownBtn.Text = count > 0 and (count .. " allies") or "Select allies"
+            end)
+            
+            yOffset = yOffset + 28
+        end
+        
+        AllyDropdownFrame:SetAttribute("ContentHeight", yOffset + 5)
+    end
+end
+
 --// UI CREATION
 local function CreateUI()
     local ScreenGui = Instance.new("ScreenGui")
@@ -351,11 +494,11 @@ local function CreateUI()
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- Main Frame (Small: 240x280)
+    -- Main Frame (300x420 - bigger for 4 tabs)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 240, 0, 280)
-    MainFrame.Position = UDim2.new(0.5, -120, 0.5, -140)
+    MainFrame.Size = UDim2.new(0, 300, 0, 420)
+    MainFrame.Position = UDim2.new(0.5, -150, 0.5, -210)
     MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
@@ -423,7 +566,7 @@ local function CreateUI()
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
     
-    -- Tab Container
+    -- Tab Container (wider for 4 tabs)
     local TabContainer = Instance.new("Frame")
     TabContainer.Size = UDim2.new(1, -16, 0, 28)
     TabContainer.Position = UDim2.new(0, 8, 0, 38)
@@ -469,13 +612,11 @@ local function CreateUI()
     ToggleStroke.Parent = ToggleBtn
     
     --// ANIMATION FUNCTIONS
-    local TweenService = game:GetService("TweenService")
-    
     local function AnimateIn(obj)
         obj.Size = UDim2.new(0, 0, 0, 0)
         obj.Visible = true
         TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 240, 0, 280)
+            Size = UDim2.new(0, 300, 0, 420)
         }):Play()
     end
     
@@ -508,12 +649,12 @@ local function CreateUI()
     local function CreateTab(name, icon)
         local tabBtn = Instance.new("TextButton")
         tabBtn.Name = name .. "Tab"
-        tabBtn.Size = UDim2.new(0, 70, 0, 22)
-        tabBtn.Position = UDim2.new(0, #Tabs * 75 + 4, 0.5, -11)
+        tabBtn.Size = UDim2.new(0, 65, 0, 22)
+        tabBtn.Position = UDim2.new(0, #Tabs * 70 + 4, 0.5, -11)
         tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         tabBtn.Text = icon .. " " .. name
         tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-        tabBtn.TextSize = 11
+        tabBtn.TextSize = 10
         tabBtn.Font = Enum.Font.GothamSemibold
         tabBtn.Parent = TabContainer
         
@@ -575,9 +716,6 @@ local function CreateUI()
     end
     
     --// UI ELEMENTS
-    local UserInputService = game:GetService("UserInputService")
-    local TweenService = game:GetService("TweenService")
-    
     local function CreateToggle(parent, text, default, callback)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 30)
@@ -729,6 +867,91 @@ local function CreateUI()
         return frame
     end
     
+    local function CreateMultiDropdown(parent, text, isTarget)
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 0, 36)
+        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        frame.BorderSizePixel = 0
+        frame.ClipsDescendants = true
+        frame.Parent = parent
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = frame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(0.3, 0, 0, 36)
+        label.Position = UDim2.new(0, 10, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextSize = 12
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = frame
+        
+        local dropBtn = Instance.new("TextButton")
+        dropBtn.Name = "DropBtn"
+        dropBtn.Size = UDim2.new(0, 120, 0, 24)
+        dropBtn.Position = UDim2.new(0.35, 0, 0.5, -12)
+        dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        dropBtn.Text = isTarget and "Select targets" or "Select allies"
+        dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        dropBtn.TextSize = 10
+        dropBtn.Font = Enum.Font.GothamSemibold
+        dropBtn.TextTruncate = Enum.TextTruncate.AtEnd
+        dropBtn.Parent = frame
+        
+        local dropCorner = Instance.new("UICorner")
+        dropCorner.CornerRadius = UDim.new(0, 5)
+        dropCorner.Parent = dropBtn
+        
+        local refreshBtn = Instance.new("TextButton")
+        refreshBtn.Name = "RefreshBtn"
+        refreshBtn.Size = UDim2.new(0, 30, 0, 24)
+        refreshBtn.Position = UDim2.new(1, -38, 0.5, -12)
+        refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        refreshBtn.Text = "🔄"
+        refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        refreshBtn.TextSize = 14
+        refreshBtn.Font = Enum.Font.GothamBold
+        refreshBtn.Parent = frame
+        
+        local refreshCorner = Instance.new("UICorner")
+        refreshCorner.CornerRadius = UDim.new(0, 5)
+        refreshCorner.Parent = refreshBtn
+        
+        local expanded = false
+        
+        dropBtn.MouseButton1Click:Connect(function()
+            expanded = not expanded
+            ButtonPress(dropBtn)
+            
+            local contentHeight = frame:GetAttribute("ContentHeight") or 200
+            local targetSize = expanded and UDim2.new(1, 0, 0, math.min(contentHeight, 250)) or UDim2.new(1, 0, 0, 36)
+            TweenService:Create(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
+        end)
+        
+        refreshBtn.MouseButton1Click:Connect(function()
+            ButtonPress(refreshBtn)
+            RefreshPlayerDropdowns()
+            refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+            task.delay(0.3, function()
+                refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+            end)
+        end)
+        
+        if isTarget then
+            TargetDropdownFrame = frame
+            TargetDropdownBtn = dropBtn
+        else
+            AllyDropdownFrame = frame
+            AllyDropdownBtn = dropBtn
+        end
+        
+        return frame
+    end
+    
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 34)
@@ -753,8 +976,8 @@ local function CreateUI()
         label.Parent = frame
         
         local dropBtn = Instance.new("TextButton")
-        dropBtn.Size = UDim2.new(0, 90, 0, 24)
-        dropBtn.Position = UDim2.new(1, -100, 0.5, -12)
+        dropBtn.Size = UDim2.new(0, 120, 0, 24)
+        dropBtn.Position = UDim2.new(1, -130, 0.5, -12)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         dropBtn.Text = default
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -802,9 +1025,9 @@ local function CreateUI()
         return frame
     end
     
-    --// CREATE TABS
+    --// CREATE 4 TABS
     
-    -- AIMBOT TAB
+    -- 1. AIMBOT TAB (สั้นลง)
     local AimbotTab = CreateTab("Aimbot", "🎯")
     
     CreateToggle(AimbotTab, "Enable Aimbot", CONFIG.Aimbot.Enabled, function(val)
@@ -819,6 +1042,10 @@ local function CreateUI()
         CONFIG.Aimbot.WallCheck = val
     end)
     
+    CreateToggle(AimbotTab, "Show FOV", CONFIG.Aimbot.ShowFOV, function(val)
+        CONFIG.Aimbot.ShowFOV = val
+    end)
+    
     CreateSlider(AimbotTab, "FOV Size", 50, 400, CONFIG.Aimbot.FOV, function(val)
         CONFIG.Aimbot.FOV = val
     end)
@@ -827,11 +1054,11 @@ local function CreateUI()
         CONFIG.Aimbot.MaxDistance = val
     end)
     
-    CreateDropdown(AimbotTab, "Target", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
+    CreateDropdown(AimbotTab, "Target Part", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
         CONFIG.Aimbot.TargetPart = val
     end)
     
-    -- ESP TAB
+    -- 2. ESP TAB (สั้นลง)
     local ESPTab = CreateTab("ESP", "👁️")
     
     CreateToggle(ESPTab, "Enable ESP", CONFIG.ESP.Enabled, function(val)
@@ -854,8 +1081,96 @@ local function CreateUI()
         CONFIG.ESP.Chams = val
     end)
     
+    CreateToggle(ESPTab, "Show Names", CONFIG.ESP.ShowName, function(val)
+        CONFIG.ESP.ShowName = val
+    end)
+    
+    CreateToggle(ESPTab, "Show Health", CONFIG.ESP.ShowHealth, function(val)
+        CONFIG.ESP.ShowHealth = val
+    end)
+    
     CreateSlider(ESPTab, "Max Distance", 100, 3000, CONFIG.ESP.MaxDistance, function(val)
         CONFIG.ESP.MaxDistance = val
+    end)
+    
+    -- 3. EXTRA TAB (ใหม่! รวม Ally และ Aimbot Settings)
+    local ExtraTab = CreateTab("Extra", "✨")
+    
+    -- Aimbot Settings Section
+    local AimbotSettingsLabel = Instance.new("TextLabel")
+    AimbotSettingsLabel.Size = UDim2.new(1, 0, 0, 25)
+    AimbotSettingsLabel.BackgroundTransparency = 1
+    AimbotSettingsLabel.Text = "⚙️ AIMBOT SETTINGS"
+    AimbotSettingsLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+    AimbotSettingsLabel.TextSize = 14
+    AimbotSettingsLabel.Font = Enum.Font.GothamBold
+    AimbotSettingsLabel.Parent = ExtraTab
+    
+    CreateSlider(ExtraTab, "Smoothness (1-10)", 1, 10, CONFIG.Aimbot.Smoothness, function(val)
+        CONFIG.Aimbot.Smoothness = val
+    end)
+    
+    -- Separator
+    local Separator = Instance.new("Frame")
+    Separator.Size = UDim2.new(1, -20, 0, 2)
+    Separator.Position = UDim2.new(0, 10, 0, 0)
+    Separator.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Separator.BorderSizePixel = 0
+    Separator.Parent = ExtraTab
+    
+    local SepCorner = Instance.new("UICorner")
+    SepCorner.CornerRadius = UDim.new(0, 1)
+    SepCorner.Parent = Separator
+    
+    -- Ally & Target Section
+    local AllySectionLabel = Instance.new("TextLabel")
+    AllySectionLabel.Size = UDim2.new(1, 0, 0, 25)
+    AllySectionLabel.BackgroundTransparency = 1
+    AllySectionLabel.Text = "🛡️ ALLY & TARGET"
+    AllySectionLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+    AllySectionLabel.TextSize = 14
+    AllySectionLabel.Font = Enum.Font.GothamBold
+    AllySectionLabel.Parent = ExtraTab
+    
+    CreateToggle(ExtraTab, "Use Target List", CONFIG.Aimbot.UseTargetList, function(val)
+        CONFIG.Aimbot.UseTargetList = val
+    end)
+    
+    CreateMultiDropdown(ExtraTab, "Targets", true)
+    
+    CreateToggle(ExtraTab, "Use Ally List", CONFIG.Aimbot.UseAllyList, function(val)
+        CONFIG.Aimbot.UseAllyList = val
+    end)
+    
+    CreateMultiDropdown(ExtraTab, "Allies", false)
+    
+    -- 4. SETTINGS TAB (เดิม แต่เปลี่ยนชื่อเล็กน้อย)
+    local SettingsTab = CreateTab("Settings", "🔧")
+    
+    local InfoLabel = Instance.new("TextLabel")
+    InfoLabel.Size = UDim2.new(1, 0, 0, 60)
+    InfoLabel.BackgroundTransparency = 1
+    InfoLabel.Text = "Combat System v2.0\nMade for Roblox\nAuto-aimbot & ESP"
+    InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    InfoLabel.TextSize = 12
+    InfoLabel.Font = Enum.Font.Gotham
+    InfoLabel.TextWrapped = true
+    InfoLabel.Parent = SettingsTab
+    
+    CreateToggle(SettingsTab, "Show UI Toggle Button", true, function(val)
+        ToggleBtn.Visible = val
+    end)
+    
+    --// INITIALIZE DROPDOWNS
+    RefreshPlayerDropdowns()
+    
+    --// PLAYER EVENTS
+    Players.PlayerAdded:Connect(function()
+        task.delay(0.5, RefreshPlayerDropdowns)
+    end)
+    
+    Players.PlayerRemoving:Connect(function()
+        task.delay(0.5, RefreshPlayerDropdowns)
     end)
     
     --// DRAGGING
@@ -919,13 +1234,11 @@ local function CreateUI()
     
     --// MAIN LOOP
     RunService.RenderStepped:Connect(function()
-        -- Update FOV Circle at CENTER
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         FOVCircle.Position = screenCenter
         FOVCircle.Radius = CONFIG.Aimbot.FOV
-        FOVCircle.Visible = CONFIG.Aimbot.Enabled
+        FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV
         
-        -- Update ESP
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 if not ESPObjects[player] then
@@ -935,14 +1248,12 @@ local function CreateUI()
             end
         end
         
-        -- Cleanup ESP
         for player, _ in pairs(ESPObjects) do
             if not player or not player.Parent then
                 RemoveESP(player)
             end
         end
         
-        -- AUTO AIMBOT - No key needed!
         if CONFIG.Aimbot.Enabled then
             local target = GetClosestPlayerToCenter()
             
@@ -952,8 +1263,13 @@ local function CreateUI()
                 local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                 
                 if targetPart then
-                    -- INSTANT LOCK
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                    if CONFIG.Aimbot.Smoothness <= 1 then
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                    else
+                        local smoothFactor = CONFIG.Aimbot.Smoothness / 10
+                        local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
+                    end
                 end
             else
                 CurrentTarget = nil
@@ -992,7 +1308,7 @@ local success, result = pcall(function()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     print("✅ Combat System Loaded!")
-    print("🎯 Auto-Aimbot: Just enable and it locks automatically!")
+    print("🎯 4 Tabs: Aimbot, ESP, Extra, Settings")
 end)
 
 if not success then
