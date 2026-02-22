@@ -1,24 +1,13 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
-
---// DETECT DEVICE TYPE
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local IsPC = not IsMobile
-
-print("Device detected:", IsMobile and "MOBILE" or "PC")
 
 --// CONFIGURATION
 local CONFIG = {
-    -- Aimbot Settings
     Aimbot = {
         Enabled = false,
         TeamCheck = true,
@@ -27,19 +16,13 @@ local CONFIG = {
         Smoothness = 0,
         FOV = 150,
         MaxDistance = 1000,
-        TargetPart = "Head",
-        -- PC uses keys, Mobile uses buttons
-        Mode = IsMobile and "Button" or "Key", -- "Key" for PC, "Button" for Mobile
-        TriggerKey = Enum.KeyCode.E, -- For PC Key mode
-        TriggerButton = nil, -- Will be created for Mobile
-        LockPosition = nil -- For mobile position lock
+        TargetPart = "Head"
     },
     
-    -- ESP Settings
     ESP = {
         Enabled = true,
         MaxDistance = 1000,
-        TextSize = 14,
+        TextSize = 13,
         TextColor = Color3.fromRGB(255, 50, 50),
         AllyColor = Color3.fromRGB(50, 255, 50),
         BoxColor = Color3.fromRGB(255, 0, 0),
@@ -57,19 +40,12 @@ local CONFIG = {
 --// VARIABLES
 local ESPObjects = {}
 local CurrentTarget = nil
-local AimbotActive = false
 local UIVisible = true
 local Dragging = nil
 local DragStart = nil
 local StartPos = nil
-local MobileAimButton = nil
-local ScreenGui = nil
 
 --// UTILITY FUNCTIONS
-local function CreateTween(obj, info, properties)
-    return TweenService:Create(obj, info, properties)
-end
-
 local function GetCharacter(player)
     return player and player.Character
 end
@@ -115,7 +91,7 @@ local function IsVisible(targetPart)
     return true
 end
 
--- FIXED: Get closest player to CENTER OF SCREEN (not mouse)
+-- Get closest player to CENTER OF SCREEN (crosshair)
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = CONFIG.Aimbot.FOV
@@ -138,7 +114,7 @@ local function GetClosestPlayerToCenter()
         
         if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
         
-        -- Distance from CENTER OF SCREEN (not mouse)
+        -- Distance from CENTER OF SCREEN
         local distance = (screenPos - screenCenter).Magnitude
         
         if distance < shortestDistance then
@@ -150,45 +126,52 @@ local function GetClosestPlayerToCenter()
     return closestPlayer
 end
 
---// ESP SYSTEM (Same as before, optimized)
+--// ESP SYSTEM
 local function CreateESP(player)
     if ESPObjects[player] then return end
     
     local espData = {
         Player = player,
-        Drawings = {}
+        Drawings = {},
+        Highlight = nil
     }
     
+    -- Name
     local nameText = Drawing.new("Text")
     nameText.Center = true
     nameText.Outline = true
     nameText.Size = CONFIG.ESP.TextSize
     espData.Drawings.Name = nameText
     
+    -- Health
     local healthText = Drawing.new("Text")
     healthText.Center = true
     healthText.Outline = true
     healthText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Health = healthText
     
+    -- Distance
     local distText = Drawing.new("Text")
     distText.Center = true
     distText.Outline = true
     distText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Distance = distText
     
+    -- Weapon
     local weaponText = Drawing.new("Text")
     weaponText.Center = true
     weaponText.Outline = true
     weaponText.Size = CONFIG.ESP.TextSize - 2
     espData.Drawings.Weapon = weaponText
     
+    -- Box
     local box = Drawing.new("Square")
     box.Thickness = 1.5
     box.Filled = false
     box.Visible = false
     espData.Drawings.Box = box
     
+    -- Filled Box
     local filledBox = Drawing.new("Square")
     filledBox.Thickness = 1
     filledBox.Filled = true
@@ -196,19 +179,18 @@ local function CreateESP(player)
     filledBox.Visible = false
     espData.Drawings.FilledBox = filledBox
     
+    -- Tracer
     local tracer = Drawing.new("Line")
     tracer.Thickness = 1
     tracer.Visible = false
     espData.Drawings.Tracer = tracer
-    
-    local highlight = nil
     
     espData.Update = function()
         if not CONFIG.ESP.Enabled then
             for _, drawing in pairs(espData.Drawings) do
                 drawing.Visible = false
             end
-            if highlight then highlight.Enabled = false end
+            if espData.Highlight then espData.Highlight.Enabled = false end
             return
         end
         
@@ -217,7 +199,7 @@ local function CreateESP(player)
             for _, drawing in pairs(espData.Drawings) do
                 drawing.Visible = false
             end
-            if highlight then highlight.Enabled = false end
+            if espData.Highlight then espData.Highlight.Enabled = false end
             return
         end
         
@@ -229,7 +211,7 @@ local function CreateESP(player)
             for _, drawing in pairs(espData.Drawings) do
                 drawing.Visible = false
             end
-            if highlight then highlight.Enabled = false end
+            if espData.Highlight then espData.Highlight.Enabled = false end
             return
         end
         
@@ -238,22 +220,22 @@ local function CreateESP(player)
             for _, drawing in pairs(espData.Drawings) do
                 drawing.Visible = false
             end
-            if highlight then highlight.Enabled = false end
+            if espData.Highlight then espData.Highlight.Enabled = false end
             return
         end
         
         local isTeammate = IsTeammate(player)
         local color = (CONFIG.ESP.TeamCheck and isTeammate) and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
         
-        nameText.Color = color
-        box.Color = CONFIG.ESP.BoxColor
-        filledBox.Color = CONFIG.ESP.BoxColor
-        tracer.Color = CONFIG.ESP.BoxColor
+        espData.Drawings.Name.Color = color
+        espData.Drawings.Box.Color = CONFIG.ESP.BoxColor
+        espData.Drawings.FilledBox.Color = CONFIG.ESP.BoxColor
+        espData.Drawings.Tracer.Color = CONFIG.ESP.BoxColor
         
         if CONFIG.ESP.TeamCheck and isTeammate then
-            box.Color = CONFIG.ESP.AllyColor
-            filledBox.Color = CONFIG.ESP.AllyColor
-            tracer.Color = CONFIG.ESP.AllyColor
+            espData.Drawings.Box.Color = CONFIG.ESP.AllyColor
+            espData.Drawings.FilledBox.Color = CONFIG.ESP.AllyColor
+            espData.Drawings.Tracer.Color = CONFIG.ESP.AllyColor
         end
         
         local headPos, headOnScreen = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
@@ -263,7 +245,7 @@ local function CreateESP(player)
             for _, drawing in pairs(espData.Drawings) do
                 drawing.Visible = false
             end
-            if highlight then highlight.Enabled = false end
+            if espData.Highlight then espData.Highlight.Enabled = false end
             return
         end
         
@@ -272,75 +254,75 @@ local function CreateESP(player)
         local boxPos = Vector2.new(headPos.X - boxWidth / 2, headPos.Y)
         
         if CONFIG.ESP.ShowName then
-            nameText.Text = player.Name .. (isTeammate and " [ALLY]" or " [ENEMY]")
-            nameText.Position = Vector2.new(headPos.X, headPos.Y - 20)
-            nameText.Visible = true
+            espData.Drawings.Name.Text = player.Name .. (isTeammate and " [ALLY]" or " [ENEMY]")
+            espData.Drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 20)
+            espData.Drawings.Name.Visible = true
         else
-            nameText.Visible = false
+            espData.Drawings.Name.Visible = false
         end
         
         if CONFIG.ESP.ShowHealth then
             local hpPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
-            healthText.Text = hpPercent .. " HP"
-            healthText.Color = Color3.fromRGB(255 - (hpPercent * 2.55), hpPercent * 2.55, 0)
-            healthText.Position = Vector2.new(headPos.X, headPos.Y - 35)
-            healthText.Visible = true
+            espData.Drawings.Health.Text = hpPercent .. " HP"
+            espData.Drawings.Health.Color = Color3.fromRGB(255 - (hpPercent * 2.55), hpPercent * 2.55, 0)
+            espData.Drawings.Health.Position = Vector2.new(headPos.X, headPos.Y - 35)
+            espData.Drawings.Health.Visible = true
         else
-            healthText.Visible = false
+            espData.Drawings.Health.Visible = false
         end
         
         if CONFIG.ESP.ShowDistance then
-            distText.Text = math.floor(distance) .. "m"
-            distText.Position = Vector2.new(headPos.X, rootPos.Y + 5)
-            distText.Visible = true
+            espData.Drawings.Distance.Text = math.floor(distance) .. "m"
+            espData.Drawings.Distance.Position = Vector2.new(headPos.X, rootPos.Y + 5)
+            espData.Drawings.Distance.Visible = true
         else
-            distText.Visible = false
+            espData.Drawings.Distance.Visible = false
         end
         
         if CONFIG.ESP.ShowWeapon then
-            weaponText.Text = GetWeaponName(character)
-            weaponText.Position = Vector2.new(headPos.X, rootPos.Y + 20)
-            weaponText.Visible = true
+            espData.Drawings.Weapon.Text = GetWeaponName(character)
+            espData.Drawings.Weapon.Position = Vector2.new(headPos.X, rootPos.Y + 20)
+            espData.Drawings.Weapon.Visible = true
         else
-            weaponText.Visible = false
+            espData.Drawings.Weapon.Visible = false
         end
         
         if CONFIG.ESP.BoxESP then
-            box.Size = Vector2.new(boxWidth, boxHeight)
-            box.Position = boxPos
-            box.Visible = true
+            espData.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
+            espData.Drawings.Box.Position = boxPos
+            espData.Drawings.Box.Visible = true
             
-            filledBox.Size = Vector2.new(boxWidth, boxHeight)
-            filledBox.Position = boxPos
-            filledBox.Visible = CONFIG.ESP.Chams
+            espData.Drawings.FilledBox.Size = Vector2.new(boxWidth, boxHeight)
+            espData.Drawings.FilledBox.Position = boxPos
+            espData.Drawings.FilledBox.Visible = CONFIG.ESP.Chams
         else
-            box.Visible = false
-            filledBox.Visible = false
+            espData.Drawings.Box.Visible = false
+            espData.Drawings.FilledBox.Visible = false
         end
         
         if CONFIG.ESP.TracerESP then
             local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            tracer.From = screenCenter
-            tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-            tracer.Visible = true
+            espData.Drawings.Tracer.From = screenCenter
+            espData.Drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
+            espData.Drawings.Tracer.Visible = true
         else
-            tracer.Visible = false
+            espData.Drawings.Tracer.Visible = false
         end
         
         if CONFIG.ESP.Chams then
-            if not highlight or highlight.Parent ~= character then
-                if highlight then highlight:Destroy() end
-                highlight = Instance.new("Highlight")
-                highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
-                highlight.OutlineColor = Color3.new(1, 1, 1)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-                highlight.Parent = character
+            if not espData.Highlight or espData.Highlight.Parent ~= character then
+                if espData.Highlight then espData.Highlight:Destroy() end
+                espData.Highlight = Instance.new("Highlight")
+                espData.Highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
+                espData.Highlight.OutlineColor = Color3.new(1, 1, 1)
+                espData.Highlight.FillTransparency = 0.5
+                espData.Highlight.OutlineTransparency = 0
+                espData.Highlight.Parent = character
             end
-            highlight.Enabled = true
-            highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
-        elseif highlight then
-            highlight.Enabled = false
+            espData.Highlight.Enabled = true
+            espData.Highlight.FillColor = isTeammate and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor
+        elseif espData.Highlight then
+            espData.Highlight.Enabled = false
         end
     end
     
@@ -348,7 +330,7 @@ local function CreateESP(player)
         for _, drawing in pairs(espData.Drawings) do
             drawing:Remove()
         end
-        if highlight then highlight:Destroy() end
+        if espData.Highlight then espData.Highlight:Destroy() end
     end
     
     ESPObjects[player] = espData
@@ -362,18 +344,18 @@ local function RemoveESP(player)
     end
 end
 
---// UI CREATION - COMPACT & MOBILE FRIENDLY
+--// UI CREATION
 local function CreateUI()
-    ScreenGui = Instance.new("ScreenGui")
+    local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "CombatUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- SMALLER MAIN FRAME (260x320 instead of 320x400)
+    -- Main Frame (Small: 240x280)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 260, 0, 320)
-    MainFrame.Position = UDim2.new(0.5, -130, 0.5, -160)
+    MainFrame.Size = UDim2.new(0, 240, 0, 280)
+    MainFrame.Position = UDim2.new(0.5, -120, 0.5, -140)
     MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
@@ -385,7 +367,6 @@ local function CreateUI()
     
     -- Shadow
     local Shadow = Instance.new("ImageLabel")
-    Shadow.Name = "Shadow"
     Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
     Shadow.BackgroundTransparency = 1
     Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -398,10 +379,9 @@ local function CreateUI()
     Shadow.SliceCenter = Rect.new(23, 23, 277, 277)
     Shadow.Parent = MainFrame
     
-    -- Title Bar (smaller)
+    -- Title Bar
     local TitleBar = Instance.new("Frame")
-    TitleBar.Name = "TitleBar"
-    TitleBar.Size = UDim2.new(1, 0, 0, 35)
+    TitleBar.Size = UDim2.new(1, 0, 0, 32)
     TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     TitleBar.BorderSizePixel = 0
     TitleBar.Parent = MainFrame
@@ -418,7 +398,7 @@ local function CreateUI()
     TitleFix.Parent = TitleBar
     
     local TitleText = Instance.new("TextLabel")
-    TitleText.Size = UDim2.new(1, -60, 1, 0)
+    TitleText.Size = UDim2.new(1, -50, 1, 0)
     TitleText.Position = UDim2.new(0, 12, 0, 0)
     TitleText.BackgroundTransparency = 1
     TitleText.Text = "⚔️ COMBAT"
@@ -430,9 +410,8 @@ local function CreateUI()
     
     -- Close Button
     local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Name = "Close"
-    CloseBtn.Size = UDim2.new(0, 26, 0, 26)
-    CloseBtn.Position = UDim2.new(1, -33, 0.5, -13)
+    CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+    CloseBtn.Position = UDim2.new(1, -32, 0.5, -12)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -444,11 +423,10 @@ local function CreateUI()
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
     
-    -- Tab Container (horizontal, compact)
+    -- Tab Container
     local TabContainer = Instance.new("Frame")
-    TabContainer.Name = "TabContainer"
-    TabContainer.Size = UDim2.new(1, -16, 0, 32)
-    TabContainer.Position = UDim2.new(0, 8, 0, 42)
+    TabContainer.Size = UDim2.new(1, -16, 0, 28)
+    TabContainer.Position = UDim2.new(0, 8, 0, 38)
     TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     TabContainer.BorderSizePixel = 0
     TabContainer.Parent = MainFrame
@@ -459,9 +437,8 @@ local function CreateUI()
     
     -- Content Container
     local ContentContainer = Instance.new("Frame")
-    ContentContainer.Name = "Content"
-    ContentContainer.Size = UDim2.new(1, -16, 1, -82)
-    ContentContainer.Position = UDim2.new(0, 8, 0, 78)
+    ContentContainer.Size = UDim2.new(1, -16, 1, -74)
+    ContentContainer.Position = UDim2.new(0, 8, 0, 70)
     ContentContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     ContentContainer.BorderSizePixel = 0
     ContentContainer.ClipsDescendants = true
@@ -471,7 +448,7 @@ local function CreateUI()
     ContentCorner.CornerRadius = UDim.new(0, 6)
     ContentCorner.Parent = ContentContainer
     
-    --// TOGGLE BUTTON (Outside UI)
+    -- Toggle Button (Outside)
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Name = "ToggleUI"
     ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
@@ -491,107 +468,34 @@ local function CreateUI()
     ToggleStroke.Thickness = 2
     ToggleStroke.Parent = ToggleBtn
     
-    --// MOBILE AIM BUTTON (Only for mobile)
-    if IsMobile then
-        MobileAimButton = Instance.new("TextButton")
-        MobileAimButton.Name = "MobileAim"
-        MobileAimButton.Size = UDim2.new(0, 70, 0, 70)
-        MobileAimButton.Position = UDim2.new(1, -90, 1, -90)
-        MobileAimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        MobileAimButton.Text = "AIM"
-        MobileAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        MobileAimButton.TextSize = 18
-        MobileAimButton.Font = Enum.Font.GothamBold
-        MobileAimButton.Visible = false -- Hidden by default, shown when aimbot enabled
-        MobileAimButton.Parent = ScreenGui
-        
-        local MobileCorner = Instance.new("UICorner")
-        MobileCorner.CornerRadius = UDim.new(1, 0)
-        MobileCorner.Parent = MobileAimButton
-        
-        local MobileStroke = Instance.new("UIStroke")
-        MobileStroke.Color = Color3.fromRGB(255, 255, 255)
-        MobileStroke.Thickness = 3
-        MobileStroke.Parent = MobileAimButton
-        
-        -- Dragging for mobile aim button
-        local aimDragging = false
-        local aimDragStart = nil
-        local aimStartPos = nil
-        
-        MobileAimButton.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                -- Check if it's a tap (quick touch) or drag
-                aimDragging = true
-                aimDragStart = input.Position
-                aimStartPos = MobileAimButton.Position
-                
-                task.delay(0.2, function()
-                    if aimDragging and (input.Position - aimDragStart).Magnitude < 10 then
-                        -- It's a tap - activate aimbot
-                        aimDragging = false
-                    end
-                end)
-            end
-        end)
-        
-        MobileAimButton.InputChanged:Connect(function(input)
-            if aimDragging and input.UserInputType == Enum.UserInputType.Touch then
-                local delta = input.Position - aimDragStart
-                if delta.Magnitude > 10 then -- Actually dragging
-                    MobileAimButton.Position = UDim2.new(
-                        aimStartPos.X.Scale,
-                        aimStartPos.X.Offset + delta.X,
-                        aimStartPos.Y.Scale,
-                        aimStartPos.Y.Offset + delta.Y
-                    )
-                end
-            end
-        end)
-        
-        MobileAimButton.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                if aimDragging then
-                    -- Was dragging, don't activate
-                    aimDragging = false
-                else
-                    -- Was tap, activate aimbot toggle
-                    AimbotActive = not AimbotActive
-                    MobileAimButton.BackgroundColor3 = AimbotActive and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
-                end
-            end
-        end)
-        
-        CONFIG.Aimbot.TriggerButton = MobileAimButton
-    end
-    
     --// ANIMATION FUNCTIONS
+    local TweenService = game:GetService("TweenService")
+    
     local function AnimateIn(obj)
         obj.Size = UDim2.new(0, 0, 0, 0)
         obj.Visible = true
-        CreateTween(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 260, 0, 320)
+        TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 240, 0, 280)
         }):Play()
     end
     
-    local function AnimateOut(obj, callback)
-        local tween = CreateTween(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+    local function AnimateOut(obj)
+        local tween = TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Size = UDim2.new(0, 0, 0, 0)
         })
         tween.Completed:Connect(function()
             obj.Visible = false
-            if callback then callback() end
         end)
         tween:Play()
     end
     
     local function ButtonPress(btn)
         local originalSize = btn.Size
-        CreateTween(btn, TweenInfo.new(0.1), {
+        TweenService:Create(btn, TweenInfo.new(0.1), {
             Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.9, originalSize.Y.Scale, originalSize.Y.Offset * 0.9)
         }):Play()
         task.delay(0.1, function()
-            CreateTween(btn, TweenInfo.new(0.1), {
+            TweenService:Create(btn, TweenInfo.new(0.1), {
                 Size = originalSize
             }):Play()
         end)
@@ -604,8 +508,8 @@ local function CreateUI()
     local function CreateTab(name, icon)
         local tabBtn = Instance.new("TextButton")
         tabBtn.Name = name .. "Tab"
-        tabBtn.Size = UDim2.new(0, 75, 0, 26)
-        tabBtn.Position = UDim2.new(0, #Tabs * 80 + 5, 0.5, -13)
+        tabBtn.Size = UDim2.new(0, 70, 0, 22)
+        tabBtn.Position = UDim2.new(0, #Tabs * 75 + 4, 0.5, -11)
         tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         tabBtn.Text = icon .. " " .. name
         tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -629,7 +533,7 @@ local function CreateUI()
         content.Parent = ContentContainer
         
         local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 8)
+        layout.Padding = UDim.new(0, 6)
         layout.Parent = content
         
         local padding = Instance.new("UIPadding")
@@ -659,10 +563,8 @@ local function CreateUI()
             
             content.Visible = true
             content.Position = UDim2.new(0, 0, 0, 10)
-            content.BackgroundTransparency = 0.5
-            CreateTween(content, TweenInfo.new(0.2), {
-                Position = UDim2.new(0, 0, 0, 0),
-                BackgroundTransparency = 1
+            TweenService:Create(content, TweenInfo.new(0.2), {
+                Position = UDim2.new(0, 0, 0, 0)
             }):Play()
             
             CurrentTab = content
@@ -672,10 +574,13 @@ local function CreateUI()
         return content
     end
     
-    --// UI ELEMENTS (COMPACT)
+    --// UI ELEMENTS
+    local UserInputService = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    
     local function CreateToggle(parent, text, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 32)
+        frame.Size = UDim2.new(1, 0, 0, 30)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
@@ -696,8 +601,8 @@ local function CreateUI()
         label.Parent = frame
         
         local toggleBtn = Instance.new("TextButton")
-        toggleBtn.Size = UDim2.new(0, 44, 0, 22)
-        toggleBtn.Position = UDim2.new(1, -52, 0.5, -11)
+        toggleBtn.Size = UDim2.new(0, 42, 0, 20)
+        toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
         toggleBtn.BackgroundColor3 = default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
         toggleBtn.Text = default and "ON" or "OFF"
         toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -706,7 +611,7 @@ local function CreateUI()
         toggleBtn.Parent = frame
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 11)
+        toggleCorner.CornerRadius = UDim.new(0, 10)
         toggleCorner.Parent = toggleBtn
         
         local enabled = default
@@ -726,7 +631,7 @@ local function CreateUI()
     
     local function CreateSlider(parent, text, min, max, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 50)
+        frame.Size = UDim2.new(1, 0, 0, 48)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
@@ -737,7 +642,7 @@ local function CreateUI()
         
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(0.6, 0, 0, 20)
-        label.Position = UDim2.new(0, 10, 0, 5)
+        label.Position = UDim2.new(0, 10, 0, 4)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -748,7 +653,7 @@ local function CreateUI()
         
         local valueLabel = Instance.new("TextLabel")
         valueLabel.Size = UDim2.new(0.3, 0, 0, 20)
-        valueLabel.Position = UDim2.new(0.7, 0, 0, 5)
+        valueLabel.Position = UDim2.new(0.7, 0, 0, 4)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = tostring(default)
         valueLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
@@ -759,7 +664,7 @@ local function CreateUI()
         
         local sliderBg = Instance.new("Frame")
         sliderBg.Size = UDim2.new(1, -20, 0, 6)
-        sliderBg.Position = UDim2.new(0, 10, 0, 32)
+        sliderBg.Position = UDim2.new(0, 10, 0, 30)
         sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         sliderBg.BorderSizePixel = 0
         sliderBg.Parent = frame
@@ -826,7 +731,7 @@ local function CreateUI()
     
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 36)
+        frame.Size = UDim2.new(1, 0, 0, 34)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
@@ -837,7 +742,7 @@ local function CreateUI()
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.4, 0, 0, 36)
+        label.Size = UDim2.new(0.4, 0, 0, 34)
         label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
@@ -848,8 +753,8 @@ local function CreateUI()
         label.Parent = frame
         
         local dropBtn = Instance.new("TextButton")
-        dropBtn.Size = UDim2.new(0, 100, 0, 26)
-        dropBtn.Position = UDim2.new(1, -110, 0.5, -13)
+        dropBtn.Size = UDim2.new(0, 90, 0, 24)
+        dropBtn.Position = UDim2.new(1, -100, 0.5, -12)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         dropBtn.Text = default
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -867,14 +772,14 @@ local function CreateUI()
             expanded = not expanded
             ButtonPress(dropBtn)
             
-            local targetSize = expanded and UDim2.new(1, 0, 0, 36 + #options * 30) or UDim2.new(1, 0, 0, 36)
-            CreateTween(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
+            local targetSize = expanded and UDim2.new(1, 0, 0, 34 + #options * 28) or UDim2.new(1, 0, 0, 34)
+            TweenService:Create(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
         end)
         
         for i, option in ipairs(options) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -20, 0, 26)
-            optBtn.Position = UDim2.new(0, 10, 0, 36 + (i-1) * 30)
+            optBtn.Size = UDim2.new(1, -18, 0, 24)
+            optBtn.Position = UDim2.new(0, 9, 0, 34 + (i-1) * 28)
             optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             optBtn.Text = option
             optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -889,7 +794,7 @@ local function CreateUI()
             optBtn.MouseButton1Click:Connect(function()
                 dropBtn.Text = option
                 expanded = false
-                CreateTween(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 36)}):Play()
+                TweenService:Create(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 34)}):Play()
                 if callback then callback(option) end
             end)
         end
@@ -899,14 +804,11 @@ local function CreateUI()
     
     --// CREATE TABS
     
-    -- AIMBOT TAB (First)
+    -- AIMBOT TAB
     local AimbotTab = CreateTab("Aimbot", "🎯")
     
     CreateToggle(AimbotTab, "Enable Aimbot", CONFIG.Aimbot.Enabled, function(val)
         CONFIG.Aimbot.Enabled = val
-        if MobileAimButton then
-            MobileAimButton.Visible = val
-        end
     end)
     
     CreateToggle(AimbotTab, "Team Check", CONFIG.Aimbot.TeamCheck, function(val)
@@ -915,11 +817,6 @@ local function CreateUI()
     
     CreateToggle(AimbotTab, "Wall Check", CONFIG.Aimbot.WallCheck, function(val)
         CONFIG.Aimbot.WallCheck = val
-    end)
-    
-    CreateToggle(AimbotTab, "Instant Lock", CONFIG.Aimbot.InstantLock, function(val)
-        CONFIG.Aimbot.InstantLock = val
-        CONFIG.Aimbot.Smoothness = val and 0 or 0.1
     end)
     
     CreateSlider(AimbotTab, "FOV Size", 50, 400, CONFIG.Aimbot.FOV, function(val)
@@ -934,40 +831,7 @@ local function CreateUI()
         CONFIG.Aimbot.TargetPart = val
     end)
     
-    -- MODE DROPDOWN: Key for PC, Button for Mobile
-    local modeOptions = IsMobile and {"Button", "Position Lock"} or {"Key", "Button"}
-    CreateDropdown(AimbotTab, "Mode", modeOptions, CONFIG.Aimbot.Mode, function(val)
-        CONFIG.Aimbot.Mode = val
-        
-        -- Show/hide mobile button based on mode
-        if IsMobile and MobileAimButton then
-            MobileAimButton.Visible = CONFIG.Aimbot.Enabled and (val == "Button")
-        end
-    end)
-    
-    -- SETTINGS TAB (Second)
-    local SettingsTab = CreateTab("Settings", "⚙️")
-    
-    -- Only show key selection for PC or if Button mode selected
-    if IsPC then
-        CreateDropdown(SettingsTab, "Aim Key", {"E", "Q", "LeftCtrl", "LeftShift"}, "E", function(val)
-            local keyMap = {
-                E = Enum.KeyCode.E,
-                Q = Enum.KeyCode.Q,
-                LeftCtrl = Enum.KeyCode.LeftControl,
-                LeftShift = Enum.KeyCode.LeftShift
-            }
-            CONFIG.Aimbot.TriggerKey = keyMap[val]
-        end)
-    end
-    
-    CreateSlider(SettingsTab, "Smoothness", 0, 10, CONFIG.Aimbot.Smoothness * 10, function(val)
-        if not CONFIG.Aimbot.InstantLock then
-            CONFIG.Aimbot.Smoothness = val / 10
-        end
-    end)
-    
-    -- ESP TAB (Third)
+    -- ESP TAB
     local ESPTab = CreateTab("ESP", "👁️")
     
     CreateToggle(ESPTab, "Enable ESP", CONFIG.ESP.Enabled, function(val)
@@ -990,26 +854,13 @@ local function CreateUI()
         CONFIG.ESP.Chams = val
     end)
     
-    CreateToggle(ESPTab, "Show Names", CONFIG.ESP.ShowName, function(val)
-        CONFIG.ESP.ShowName = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Health", CONFIG.ESP.ShowHealth, function(val)
-        CONFIG.ESP.ShowHealth = val
-    end)
-    
-    CreateToggle(ESPTab, "Show Distance", CONFIG.ESP.ShowDistance, function(val)
-        CONFIG.ESP.ShowDistance = val
-    end)
-    
     CreateSlider(ESPTab, "Max Distance", 100, 3000, CONFIG.ESP.MaxDistance, function(val)
         CONFIG.ESP.MaxDistance = val
     end)
     
-    --// DRAGGING SYSTEM
+    --// DRAGGING
     local function EnableDragging(frame, handle)
         handle = handle or frame
-        
         handle.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 Dragging = frame
@@ -1025,12 +876,7 @@ local function CreateUI()
     UserInputService.InputChanged:Connect(function(input)
         if Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - DragStart
-            Dragging.Position = UDim2.new(
-                StartPos.X.Scale, 
-                StartPos.X.Offset + delta.X, 
-                StartPos.Y.Scale, 
-                StartPos.Y.Offset + delta.Y
-            )
+            Dragging.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
         end
     end)
     
@@ -1040,7 +886,7 @@ local function CreateUI()
         end
     end)
     
-    --// TOGGLE UI BUTTON
+    --// TOGGLE UI
     ToggleBtn.MouseButton1Click:Connect(function()
         ButtonPress(ToggleBtn)
         UIVisible = not UIVisible
@@ -1055,7 +901,7 @@ local function CreateUI()
         end
     end)
     
-    --// CLOSE BUTTON
+    --// CLOSE
     CloseBtn.MouseButton1Click:Connect(function()
         ButtonPress(CloseBtn)
         AnimateOut(MainFrame)
@@ -1063,7 +909,7 @@ local function CreateUI()
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
     end)
     
-    --// FOV CIRCLE - CENTER OF SCREEN
+    --// FOV CIRCLE
     local FOVCircle = Drawing.new("Circle")
     FOVCircle.Visible = false
     FOVCircle.Thickness = 1.5
@@ -1071,11 +917,9 @@ local function CreateUI()
     FOVCircle.Filled = false
     FOVCircle.NumSides = 64
     
-    --// MAIN LOOPS
-    
-    -- RenderStepped for ESP and Aimbot
+    --// MAIN LOOP
     RunService.RenderStepped:Connect(function()
-        -- Update FOV Circle at CENTER of screen
+        -- Update FOV Circle at CENTER
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         FOVCircle.Position = screenCenter
         FOVCircle.Radius = CONFIG.Aimbot.FOV
@@ -1091,15 +935,15 @@ local function CreateUI()
             end
         end
         
-        -- Cleanup
+        -- Cleanup ESP
         for player, _ in pairs(ESPObjects) do
             if not player or not player.Parent then
                 RemoveESP(player)
             end
         end
         
-        -- AIMBOT LOGIC - CENTER BASED
-        if CONFIG.Aimbot.Enabled and AimbotActive then
+        -- AUTO AIMBOT - No key needed!
+        if CONFIG.Aimbot.Enabled then
             local target = GetClosestPlayerToCenter()
             
             if target then
@@ -1108,14 +952,8 @@ local function CreateUI()
                 local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                 
                 if targetPart then
-                    if CONFIG.Aimbot.InstantLock then
-                        -- INSTANT LOCK to target
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                    else
-                        -- Smooth lock
-                        local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, CONFIG.Aimbot.Smoothness)
-                    end
+                    -- INSTANT LOCK
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 end
             else
                 CurrentTarget = nil
@@ -1123,35 +961,7 @@ local function CreateUI()
         end
     end)
     
-    -- INPUT HANDLING - PC vs Mobile
-    if IsPC then
-        -- PC: Use keys
-        UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
-            
-            if CONFIG.Aimbot.Mode == "Key" then
-                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
-                    AimbotActive = true
-                end
-            elseif CONFIG.Aimbot.Mode == "Button" then
-                -- Even on PC, can use toggle mode
-                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
-                    AimbotActive = not AimbotActive
-                end
-            end
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input)
-            if CONFIG.Aimbot.Mode == "Key" then
-                if input.KeyCode == CONFIG.Aimbot.TriggerKey then
-                    AimbotActive = false
-                end
-            end
-            -- In Button mode, we toggle so we don't auto-release
-        end)
-    end
-    
-    --// INITIALIZATION
+    --// INIT
     if Tabs[1] then
         Tabs[1].Button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
         Tabs[1].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1159,11 +969,9 @@ local function CreateUI()
         CurrentTab = Tabs[1].Content
     end
     
-    -- Animate in
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
     AnimateIn(MainFrame)
     
-    -- Cleanup
     ScreenGui.Destroying:Connect(function()
         for player, _ in pairs(ESPObjects) do
             RemoveESP(player)
@@ -1174,7 +982,7 @@ local function CreateUI()
     return ScreenGui
 end
 
---// INITIALIZE
+--// START
 local success, result = pcall(function()
     if not LocalPlayer.Character then
         LocalPlayer.CharacterAdded:Wait()
@@ -1184,8 +992,7 @@ local success, result = pcall(function()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     print("✅ Combat System Loaded!")
-    print("Device:", IsMobile and "Mobile" or "PC")
-    print("Mode:", CONFIG.Aimbot.Mode)
+    print("🎯 Auto-Aimbot: Just enable and it locks automatically!")
 end)
 
 if not success then
