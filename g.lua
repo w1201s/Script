@@ -12,14 +12,12 @@ local Camera = Workspace.CurrentCamera
 local CONFIG = {
     Aimbot = {
         Enabled = false,
-        Mode = "Normal",
+        Mode = "Normal", -- "Normal" (use FOV) or "Lock" (lock no matter what)
         TeamCheck = true,
         WallCheck = true,
         Smoothness = 0,
         FOV = 150,
         ShowFOV = true,
-        FOVColor = Color3.fromRGB(0, 170, 255),
-        FOVUseRGB = false,
         MaxDistance = 1000,
         TargetPart = "Head",
         UseTargetList = false,
@@ -43,13 +41,14 @@ local CONFIG = {
         BoxESP = true,
         TracerESP = true,
         Chams = true,
-        UseRGB = false,
+        UseRGB = false, -- RGB rainbow mode
         RGBSpeed = 5
     },
     
     UI = {
         MainColor = Color3.fromRGB(0, 170, 255),
-        BackgroundTransparency = 0
+        BackgroundTransparency = 0,
+        AccentColor = Color3.fromRGB(0, 255, 100)
     }
 }
 
@@ -66,9 +65,7 @@ local TargetDropdownBtn = nil
 local AllyDropdownBtn = nil
 local TargetExpanded = false
 local AllyExpanded = false
-local ActiveColorPicker = nil
-local FOVHue = 0
-local ESPHue = 0
+local ColorPickerOpen = false
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -98,16 +95,21 @@ end
 
 local function IsVisible(targetPart)
     if not CONFIG.Aimbot.WallCheck then return true end
+    
     local origin = Camera.CFrame.Position
     local direction = (targetPart.Position - origin)
+    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    
     local result = Workspace:Raycast(origin, direction, raycastParams)
+    
     if result then
         local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
         return hitModel == targetPart.Parent
     end
+    
     return true
 end
 
@@ -117,64 +119,90 @@ end
 
 local function IsInTargetList(player)
     for _, targetName in ipairs(CONFIG.Aimbot.TargetList) do
-        if targetName == player.Name then return true end
+        if targetName == player.Name then
+            return true
+        end
     end
     return false
 end
 
 local function IsInAllyList(player)
     for _, allyName in ipairs(CONFIG.Aimbot.AllyList) do
-        if allyName == player.Name then return true end
+        if allyName == player.Name then
+            return true
+        end
     end
     return false
 end
 
+-- FIXED: Get target based on mode
 local function GetTarget()
     if CONFIG.Aimbot.Mode == "Lock" then
+        -- Lock mode: closest player no matter what (no FOV limit)
         local closestPlayer = nil
         local shortestDistance = math.huge
+        
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer then continue end
             if not IsAlive(GetCharacter(player)) then continue end
+            
             if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
             if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
             if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
+            
             local character = GetCharacter(player)
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
+            
             if not targetPart then continue end
             if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
+            
             local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
+            
             if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
+            
+            -- Distance from center
             local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             local distance = (screenPos - screenCenter).Magnitude
+            
             if distance < shortestDistance then
                 shortestDistance = distance
                 closestPlayer = player
             end
         end
+        
         return closestPlayer
     else
+        -- Normal mode: use FOV
         local closestPlayer = nil
         local shortestDistance = CONFIG.Aimbot.FOV
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer then continue end
             if not IsAlive(GetCharacter(player)) then continue end
+            
             if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
             if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
             if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
+            
             local character = GetCharacter(player)
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
+            
             if not targetPart then continue end
             if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
+            
             local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
+            
             if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
+            
             local distance = (screenPos - screenCenter).Magnitude
+            
             if distance < shortestDistance then
                 shortestDistance = distance
                 closestPlayer = player
             end
         end
+        
         return closestPlayer
     end
 end
@@ -182,6 +210,7 @@ end
 --// ESP SYSTEM
 local function CreateESP(player)
     if ESPObjects[player] then return end
+    
     local espData = {
         Player = player,
         Drawings = {},
@@ -230,6 +259,9 @@ local function CreateESP(player)
     tracer.Visible = false
     espData.Drawings.Tracer = tracer
     
+    -- RGB variables
+    espData.Hue = 0
+    
     espData.Update = function(deltaTime)
         if not CONFIG.ESP.Enabled then
             for _, drawing in pairs(espData.Drawings) do
@@ -269,14 +301,16 @@ local function CreateESP(player)
             return
         end
         
+        -- FIXED: Only show [ALLY] if in AllyList OR (TeamCheck ON and teammate)
         local isTeammate = CONFIG.ESP.TeamCheck and IsTeammate(player)
         local isAlly = CONFIG.Aimbot.UseAllyList and IsInAllyList(player)
         local isFriendly = isTeammate or isAlly
         
+        -- RGB Color calculation
         local displayColor
         if CONFIG.ESP.UseRGB then
-            ESPHue = (ESPHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
-            displayColor = Color3.fromHSV(ESPHue, 1, 1)
+            espData.Hue = (espData.Hue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
+            displayColor = Color3.fromHSV(espData.Hue, 1, 1)
         else
             displayColor = isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
         end
@@ -302,6 +336,7 @@ local function CreateESP(player)
         local boxPos = Vector2.new(headPos.X - boxWidth / 2, headPos.Y)
         
         if CONFIG.ESP.ShowName then
+            -- FIXED: Only show tag if actually ally/teammate
             local tag = ""
             if isAlly then
                 tag = " [ALLY]"
@@ -527,77 +562,79 @@ local function RefreshPlayerDropdowns()
     end
 end
 
---// UI CREATION - COMPACT FOR MOBILE
-local function CreateUI()
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "CombatUI"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+--// COLOR PICKER
+local function CreateColorPicker(parent, title, defaultColor, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Parent = parent
     
-    -- SMALLER MAIN FRAME (250x350 for mobile)
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 250, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.ClipsDescendants = true
-    MainFrame.Parent = ScreenGui
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
     
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 10)
-    UICorner.Parent = MainFrame
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = title
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 12
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
     
-    -- Color Picker Container (OUTSIDE main frame, on top)
-    local ColorPickerContainer = Instance.new("Frame")
-    ColorPickerContainer.Name = "ColorPickerContainer"
-    ColorPickerContainer.Size = UDim2.new(0, 200, 0, 150)
-    ColorPickerContainer.Position = UDim2.new(0.5, -100, 0.5, -75)
-    ColorPickerContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    ColorPickerContainer.BorderSizePixel = 0
-    ColorPickerContainer.Visible = false
-    ColorPickerContainer.ZIndex = 1000 -- HIGHEST
-    ColorPickerContainer.Parent = ScreenGui
+    -- Color display button
+    local colorBtn = Instance.new("TextButton")
+    colorBtn.Size = UDim2.new(0, 80, 0, 26)
+    colorBtn.Position = UDim2.new(1, -90, 0.5, -13)
+    colorBtn.BackgroundColor3 = defaultColor
+    colorBtn.Text = "Pick"
+    colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    colorBtn.TextSize = 11
+    colorBtn.Font = Enum.Font.GothamBold
+    colorBtn.Parent = frame
+    
+    local colorCorner = Instance.new("UICorner")
+    colorCorner.CornerRadius = UDim.new(0, 6)
+    colorCorner.Parent = colorBtn
+    
+    -- Color picker popup
+    local pickerFrame = Instance.new("Frame")
+    pickerFrame.Size = UDim2.new(0, 200, 0, 120)
+    pickerFrame.Position = UDim2.new(0, 50, 0, 45)
+    pickerFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    pickerFrame.BorderSizePixel = 0
+    pickerFrame.Visible = false
+    pickerFrame.ZIndex = 100
+    pickerFrame.Parent = frame
     
     local pickerCorner = Instance.new("UICorner")
-    pickerCorner.CornerRadius = UDim.new(0, 10)
-    pickerCorner.Parent = ColorPickerContainer
+    pickerCorner.CornerRadius = UDim.new(0, 8)
+    pickerCorner.Parent = pickerFrame
     
-    -- Color Picker Title
-    local pickerTitle = Instance.new("TextLabel")
-    pickerTitle.Size = UDim2.new(1, 0, 0, 25)
-    pickerTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    pickerTitle.Text = "🎨 Color Picker"
-    pickerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pickerTitle.TextSize = 12
-    pickerTitle.Font = Enum.Font.GothamBold
-    pickerTitle.ZIndex = 1001
-    pickerTitle.Parent = ColorPickerContainer
+    -- Hue slider
+    local hueLabel = Instance.new("TextLabel")
+    hueLabel.Size = UDim2.new(1, -10, 0, 20)
+    hueLabel.Position = UDim2.new(0, 5, 0, 5)
+    hueLabel.BackgroundTransparency = 1
+    hueLabel.Text = "Hue (Color)"
+    hueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hueLabel.TextSize = 10
+    hueLabel.Font = Enum.Font.Gotham
+    hueLabel.Parent = pickerFrame
     
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 10)
-    titleCorner.Parent = pickerTitle
-    
-    local titleFix = Instance.new("Frame")
-    titleFix.Size = UDim2.new(1, 0, 0, 10)
-    titleFix.Position = UDim2.new(0, 0, 1, -10)
-    titleFix.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    titleFix.BorderSizePixel = 0
-    titleFix.ZIndex = 1001
-    titleFix.Parent = pickerTitle
-    
-    -- Hue Slider
     local hueSlider = Instance.new("Frame")
-    hueSlider.Size = UDim2.new(1, -20, 0, 20)
-    hueSlider.Position = UDim2.new(0, 10, 0, 35)
+    hueSlider.Size = UDim2.new(1, -10, 0, 15)
+    hueSlider.Position = UDim2.new(0, 5, 0, 25)
     hueSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     hueSlider.BorderSizePixel = 0
-    hueSlider.ZIndex = 1001
-    hueSlider.Parent = ColorPickerContainer
+    hueSlider.Parent = pickerFrame
     
-    local hueSliderCorner = Instance.new("UICorner")
-    hueSliderCorner.CornerRadius = UDim.new(0, 5)
-    hueSliderCorner.Parent = hueSlider
+    local hueCorner = Instance.new("UICorner")
+    hueCorner.CornerRadius = UDim.new(0, 3)
+    hueCorner.Parent = hueSlider
     
     local hueGradient = Instance.new("UIGradient")
     hueGradient.Color = ColorSequence.new{
@@ -612,48 +649,114 @@ local function CreateUI()
     hueGradient.Parent = hueSlider
     
     local hueKnob = Instance.new("Frame")
-    hueKnob.Size = UDim2.new(0, 10, 1, 6)
-    hueKnob.Position = UDim2.new(0, -5, 0, -3)
+    hueKnob.Size = UDim2.new(0, 8, 1, 4)
+    hueKnob.Position = UDim2.new(0, -4, 0, -2)
     hueKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     hueKnob.BorderSizePixel = 0
-    hueKnob.ZIndex = 1002
     hueKnob.Parent = hueSlider
     
-    -- Preview
-    local previewFrame = Instance.new("Frame")
-    previewFrame.Size = UDim2.new(1, -20, 0, 40)
-    previewFrame.Position = UDim2.new(0, 10, 0, 65)
-    previewFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    previewFrame.BorderSizePixel = 0
-    previewFrame.ZIndex = 1001
-    previewFrame.Parent = ColorPickerContainer
+    -- Saturation/Value preview
+    local svFrame = Instance.new("Frame")
+    svFrame.Size = UDim2.new(1, -10, 0, 40)
+    svFrame.Position = UDim2.new(0, 5, 0, 50)
+    svFrame.BackgroundColor3 = defaultColor
+    svFrame.BorderSizePixel = 0
+    svFrame.Parent = pickerFrame
     
-    local previewCorner = Instance.new("UICorner")
-    previewCorner.CornerRadius = UDim.new(0, 8)
-    previewCorner.Parent = previewFrame
+    local svCorner = Instance.new("UICorner")
+    svCorner.CornerRadius = UDim.new(0, 6)
+    svCorner.Parent = svFrame
     
-    -- Close Button
-    local closePickerBtn = Instance.new("TextButton")
-    closePickerBtn.Size = UDim2.new(0, 80, 0, 25)
-    closePickerBtn.Position = UDim2.new(0.5, -40, 1, -35)
-    closePickerBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-    closePickerBtn.Text = "Done"
-    closePickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closePickerBtn.TextSize = 12
-    closePickerBtn.Font = Enum.Font.GothamBold
-    closePickerBtn.ZIndex = 1001
-    closePickerBtn.Parent = ColorPickerContainer
+    -- Close button
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 60, 0, 20)
+    closeBtn.Position = UDim2.new(0.5, -30, 1, -25)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    closeBtn.Text = "Done"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 11
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.Parent = pickerFrame
     
-    local closePickerCorner = Instance.new("UICorner")
-    closePickerCorner.CornerRadius = UDim.new(0, 6)
-    closePickerCorner.Parent = closePickerBtn
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 5)
+    closeCorner.Parent = closeBtn
+    
+    local currentHue = 0
+    local draggingHue = false
+    
+    local function updateColor()
+        local newColor = Color3.fromHSV(currentHue, 1, 1)
+        colorBtn.BackgroundColor3 = newColor
+        svFrame.BackgroundColor3 = newColor
+        if callback then callback(newColor) end
+    end
+    
+    hueSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingHue = true
+            local pos = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+            currentHue = pos
+            hueKnob.Position = UDim2.new(pos, -4, 0, -2)
+            updateColor()
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingHue and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local pos = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+            currentHue = pos
+            hueKnob.Position = UDim2.new(pos, -4, 0, -2)
+            updateColor()
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingHue = false
+        end
+    end)
+    
+    colorBtn.MouseButton1Click:Connect(function()
+        ColorPickerOpen = not ColorPickerOpen
+        pickerFrame.Visible = ColorPickerOpen
+    end)
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        ColorPickerOpen = false
+        pickerFrame.Visible = false
+    end)
+    
+    return frame
+end
+
+--// UI CREATION
+local function CreateUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "CombatUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Main Frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 320, 0, 450)
+    MainFrame.Position = UDim2.new(0.5, -160, 0.5, -225)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScreenGui
+    
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 10)
+    UICorner.Parent = MainFrame
     
     -- Shadow
     local Shadow = Instance.new("ImageLabel")
     Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
     Shadow.BackgroundTransparency = 1
     Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    Shadow.Size = UDim2.new(1, 20, 1, 20)
+    Shadow.Size = UDim2.new(1, 30, 1, 30)
     Shadow.ZIndex = -1
     Shadow.Image = "rbxassetid://5554236805"
     Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
@@ -664,7 +767,7 @@ local function CreateUI()
     
     -- Title Bar
     local TitleBar = Instance.new("Frame")
-    TitleBar.Size = UDim2.new(1, 0, 0, 28)
+    TitleBar.Size = UDim2.new(1, 0, 0, 32)
     TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     TitleBar.BorderSizePixel = 0
     TitleBar.Parent = MainFrame
@@ -674,42 +777,42 @@ local function CreateUI()
     TitleCorner.Parent = TitleBar
     
     local TitleFix = Instance.new("Frame")
-    TitleFix.Size = UDim2.new(1, 0, 0, 12)
-    TitleFix.Position = UDim2.new(0, 0, 1, -12)
+    TitleFix.Size = UDim2.new(1, 0, 0, 15)
+    TitleFix.Position = UDim2.new(0, 0, 1, -15)
     TitleFix.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     TitleFix.BorderSizePixel = 0
     TitleFix.Parent = TitleBar
     
     local TitleText = Instance.new("TextLabel")
-    TitleText.Size = UDim2.new(1, -40, 1, 0)
-    TitleText.Position = UDim2.new(0, 10, 0, 0)
+    TitleText.Size = UDim2.new(1, -50, 1, 0)
+    TitleText.Position = UDim2.new(0, 12, 0, 0)
     TitleText.BackgroundTransparency = 1
     TitleText.Text = "⚔️ COMBAT"
     TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleText.TextSize = 14
+    TitleText.TextSize = 16
     TitleText.Font = Enum.Font.GothamBold
     TitleText.TextXAlignment = Enum.TextXAlignment.Left
     TitleText.Parent = TitleBar
     
     -- Close Button
     local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-    CloseBtn.Position = UDim2.new(1, -28, 0.5, -11)
+    CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+    CloseBtn.Position = UDim2.new(1, -32, 0.5, -12)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseBtn.TextSize = 11
+    CloseBtn.TextSize = 12
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.Parent = TitleBar
     
     local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 5)
+    CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
     
-    -- Tab Container
+    -- Tab Container (5 tabs now)
     local TabContainer = Instance.new("Frame")
-    TabContainer.Size = UDim2.new(1, -12, 0, 26)
-    TabContainer.Position = UDim2.new(0, 6, 0, 34)
+    TabContainer.Size = UDim2.new(1, -16, 0, 28)
+    TabContainer.Position = UDim2.new(0, 8, 0, 38)
     TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     TabContainer.BorderSizePixel = 0
     TabContainer.Parent = MainFrame
@@ -720,8 +823,8 @@ local function CreateUI()
     
     -- Content Container
     local ContentContainer = Instance.new("Frame")
-    ContentContainer.Size = UDim2.new(1, -12, 1, -68)
-    ContentContainer.Position = UDim2.new(0, 6, 0, 64)
+    ContentContainer.Size = UDim2.new(1, -16, 1, -74)
+    ContentContainer.Position = UDim2.new(0, 8, 0, 70)
     ContentContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     ContentContainer.BorderSizePixel = 0
     ContentContainer.ClipsDescendants = true
@@ -734,11 +837,11 @@ local function CreateUI()
     -- Toggle Button (Outside)
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Name = "ToggleUI"
-    ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
-    ToggleBtn.Position = UDim2.new(0, 10, 0.5, -20)
+    ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
+    ToggleBtn.Position = UDim2.new(0, 15, 0.5, -22)
     ToggleBtn.BackgroundColor3 = CONFIG.UI.MainColor
     ToggleBtn.Text = "⚔️"
-    ToggleBtn.TextSize = 18
+    ToggleBtn.TextSize = 20
     ToggleBtn.Font = Enum.Font.GothamBold
     ToggleBtn.Parent = ScreenGui
     
@@ -751,54 +854,12 @@ local function CreateUI()
     ToggleStroke.Thickness = 2
     ToggleStroke.Parent = ToggleBtn
     
-    --// COLOR PICKER LOGIC
-    local currentHue = 0
-    local draggingHue = false
-    local colorCallback = nil
-    
-    local function updateColorPicker()
-        local newColor = Color3.fromHSV(currentHue, 1, 1)
-        previewFrame.BackgroundColor3 = newColor
-        hueKnob.Position = UDim2.new(currentHue, -5, 0, -3)
-        if colorCallback then
-            colorCallback(newColor)
-        end
-    end
-    
-    hueSlider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingHue = true
-            local pos = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-            currentHue = pos
-            updateColorPicker()
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingHue and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local pos = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-            currentHue = pos
-            updateColorPicker()
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingHue = false
-        end
-    end)
-    
-    closePickerBtn.MouseButton1Click:Connect(function()
-        ColorPickerContainer.Visible = false
-        ActiveColorPicker = nil
-    end)
-    
     --// ANIMATION FUNCTIONS
     local function AnimateIn(obj)
         obj.Size = UDim2.new(0, 0, 0, 0)
         obj.Visible = true
         TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 250, 0, 350)
+            Size = UDim2.new(0, 320, 0, 450)
         }):Play()
     end
     
@@ -824,16 +885,6 @@ local function CreateUI()
         end)
     end
     
-    -- Function to open color picker
-    local function OpenColorPicker(title, defaultColor, callback)
-        pickerTitle.Text = "🎨 " .. title
-        currentHue = 0
-        colorCallback = callback
-        previewFrame.BackgroundColor3 = defaultColor
-        ColorPickerContainer.Visible = true
-        ActiveColorPicker = ColorPickerContainer
-    end
-    
     --// TAB SYSTEM
     local Tabs = {}
     local CurrentTab = nil
@@ -841,12 +892,12 @@ local function CreateUI()
     local function CreateTab(name, icon)
         local tabBtn = Instance.new("TextButton")
         tabBtn.Name = name .. "Tab"
-        tabBtn.Size = UDim2.new(0, 45, 0, 20)
-        tabBtn.Position = UDim2.new(0, #Tabs * 48 + 3, 0.5, -10)
+        tabBtn.Size = UDim2.new(0, 55, 0, 22)
+        tabBtn.Position = UDim2.new(0, #Tabs * 60 + 3, 0.5, -11)
         tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        tabBtn.Text = icon
+        tabBtn.Text = icon .. " " .. name
         tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-        tabBtn.TextSize = 14
+        tabBtn.TextSize = 9
         tabBtn.Font = Enum.Font.GothamSemibold
         tabBtn.Parent = TabContainer
         
@@ -866,17 +917,17 @@ local function CreateUI()
         content.Parent = ContentContainer
         
         local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 5)
+        layout.Padding = UDim.new(0, 6)
         layout.Parent = content
         
         local padding = Instance.new("UIPadding")
-        padding.PaddingTop = UDim.new(0, 6)
-        padding.PaddingLeft = UDim.new(0, 6)
-        padding.PaddingRight = UDim.new(0, 6)
+        padding.PaddingTop = UDim.new(0, 8)
+        padding.PaddingLeft = UDim.new(0, 8)
+        padding.PaddingRight = UDim.new(0, 8)
         padding.Parent = content
         
         layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 12)
+            content.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 16)
         end)
         
         tabBtn.MouseButton1Click:Connect(function()
@@ -907,41 +958,41 @@ local function CreateUI()
         return content
     end
     
-    --// UI ELEMENTS - COMPACT
+    --// UI ELEMENTS
     local function CreateToggle(parent, text, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 26)
+        frame.Size = UDim2.new(1, 0, 0, 30)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(0.6, 0, 1, 0)
-        label.Position = UDim2.new(0, 8, 0, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 11
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local toggleBtn = Instance.new("TextButton")
-        toggleBtn.Size = UDim2.new(0, 38, 0, 18)
-        toggleBtn.Position = UDim2.new(1, -44, 0.5, -9)
+        toggleBtn.Size = UDim2.new(0, 42, 0, 20)
+        toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
         toggleBtn.BackgroundColor3 = default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
         toggleBtn.Text = default and "ON" or "OFF"
         toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        toggleBtn.TextSize = 10
+        toggleBtn.TextSize = 11
         toggleBtn.Font = Enum.Font.GothamBold
         toggleBtn.Parent = frame
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 9)
+        toggleCorner.CornerRadius = UDim.new(0, 10)
         toggleCorner.Parent = toggleBtn
         
         local enabled = default
@@ -949,8 +1000,10 @@ local function CreateUI()
         toggleBtn.MouseButton1Click:Connect(function()
             enabled = not enabled
             ButtonPress(toggleBtn)
+            
             toggleBtn.BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 70, 70)
             toggleBtn.Text = enabled and "ON" or "OFF"
+            
             if callback then callback(enabled) end
         end)
         
@@ -959,40 +1012,40 @@ local function CreateUI()
     
     local function CreateSlider(parent, text, min, max, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 42)
+        frame.Size = UDim2.new(1, 0, 0, 48)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.6, 0, 0, 18)
-        label.Position = UDim2.new(0, 8, 0, 3)
+        label.Size = UDim2.new(0.6, 0, 0, 20)
+        label.Position = UDim2.new(0, 10, 0, 4)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 11
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local valueLabel = Instance.new("TextLabel")
-        valueLabel.Size = UDim2.new(0.3, 0, 0, 18)
-        valueLabel.Position = UDim2.new(0.7, 0, 0, 3)
+        valueLabel.Size = UDim2.new(0.3, 0, 0, 20)
+        valueLabel.Position = UDim2.new(0.7, 0, 0, 4)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = tostring(default)
         valueLabel.TextColor3 = CONFIG.UI.MainColor
-        valueLabel.TextSize = 11
+        valueLabel.TextSize = 12
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.TextXAlignment = Enum.TextXAlignment.Right
         valueLabel.Parent = frame
         
         local sliderBg = Instance.new("Frame")
-        sliderBg.Size = UDim2.new(1, -16, 0, 5)
-        sliderBg.Position = UDim2.new(0, 8, 0, 26)
+        sliderBg.Size = UDim2.new(1, -20, 0, 6)
+        sliderBg.Position = UDim2.new(0, 10, 0, 30)
         sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         sliderBg.BorderSizePixel = 0
         sliderBg.Parent = frame
@@ -1012,8 +1065,8 @@ local function CreateUI()
         fillCorner.Parent = fill
         
         local knob = Instance.new("Frame")
-        knob.Size = UDim2.new(0, 10, 0, 10)
-        knob.Position = UDim2.new((default - min) / (max - min), -5, 0.5, -5)
+        knob.Size = UDim2.new(0, 12, 0, 12)
+        knob.Position = UDim2.new((default - min) / (max - min), -6, 0.5, -6)
         knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         knob.BorderSizePixel = 0
         knob.Parent = sliderBg
@@ -1027,9 +1080,11 @@ local function CreateUI()
         local function update(input)
             local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
             local value = math.floor(min + (pos * (max - min)))
+            
             fill.Size = UDim2.new(pos, 0, 1, 0)
-            knob.Position = UDim2.new(pos, -5, 0.5, -5)
+            knob.Position = UDim2.new(pos, -6, 0.5, -6)
             valueLabel.Text = tostring(value)
+            
             if callback then callback(value) end
         end
         
@@ -1057,34 +1112,34 @@ local function CreateUI()
     
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 30)
+        frame.Size = UDim2.new(1, 0, 0, 34)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.4, 0, 0, 30)
-        label.Position = UDim2.new(0, 8, 0, 0)
+        label.Size = UDim2.new(0.4, 0, 0, 34)
+        label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 11
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local dropBtn = Instance.new("TextButton")
-        dropBtn.Size = UDim2.new(0, 110, 0, 22)
-        dropBtn.Position = UDim2.new(1, -118, 0.5, -11)
+        dropBtn.Size = UDim2.new(0, 130, 0, 24)
+        dropBtn.Position = UDim2.new(1, -140, 0.5, -12)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         dropBtn.Text = default
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        dropBtn.TextSize = 10
+        dropBtn.TextSize = 11
         dropBtn.Font = Enum.Font.GothamSemibold
         dropBtn.Parent = frame
         
@@ -1097,18 +1152,19 @@ local function CreateUI()
         dropBtn.MouseButton1Click:Connect(function()
             expanded = not expanded
             ButtonPress(dropBtn)
-            local targetSize = expanded and UDim2.new(1, 0, 0, 30 + #options * 24) or UDim2.new(1, 0, 0, 30)
+            
+            local targetSize = expanded and UDim2.new(1, 0, 0, 34 + #options * 28) or UDim2.new(1, 0, 0, 34)
             TweenService:Create(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
         end)
         
         for i, option in ipairs(options) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -14, 0, 22)
-            optBtn.Position = UDim2.new(0, 7, 0, 30 + (i-1) * 24)
+            optBtn.Size = UDim2.new(1, -18, 0, 24)
+            optBtn.Position = UDim2.new(0, 9, 0, 34 + (i-1) * 28)
             optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             optBtn.Text = option
             optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            optBtn.TextSize = 10
+            optBtn.TextSize = 11
             optBtn.Font = Enum.Font.Gotham
             optBtn.Parent = frame
             
@@ -1119,7 +1175,7 @@ local function CreateUI()
             optBtn.MouseButton1Click:Connect(function()
                 dropBtn.Text = option
                 expanded = false
-                TweenService:Create(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
+                TweenService:Create(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 34)}):Play()
                 if callback then callback(option) end
             end)
         end
@@ -1130,33 +1186,33 @@ local function CreateUI()
     -- Multi-select dropdown with SCROLLING
     local function CreateMultiDropdown(parent, text, isTarget)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 32)
+        frame.Size = UDim2.new(1, 0, 0, 36)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
+        corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = frame
         
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.25, 0, 0, 32)
-        label.Position = UDim2.new(0, 8, 0, 0)
+        label.Size = UDim2.new(0.3, 0, 0, 36)
+        label.Position = UDim2.new(0, 10, 0, 0)
         label.BackgroundTransparency = 1
         label.Text = text
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 11
+        label.TextSize = 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
         
         local dropBtn = Instance.new("TextButton")
         dropBtn.Name = "DropBtn"
-        dropBtn.Size = UDim2.new(0, 100, 0, 22)
-        dropBtn.Position = UDim2.new(0.3, 0, 0.5, -11)
+        dropBtn.Size = UDim2.new(0, 120, 0, 24)
+        dropBtn.Position = UDim2.new(0.35, 0, 0.5, -12)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        dropBtn.Text = isTarget and "Select" or "Select"
+        dropBtn.Text = isTarget and "Select targets" or "Select allies"
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         dropBtn.TextSize = 10
         dropBtn.Font = Enum.Font.GothamSemibold
@@ -1169,12 +1225,12 @@ local function CreateUI()
         
         local refreshBtn = Instance.new("TextButton")
         refreshBtn.Name = "RefreshBtn"
-        refreshBtn.Size = UDim2.new(0, 26, 0, 22)
-        refreshBtn.Position = UDim2.new(1, -32, 0.5, -11)
+        refreshBtn.Size = UDim2.new(0, 30, 0, 24)
+        refreshBtn.Position = UDim2.new(1, -38, 0.5, -12)
         refreshBtn.BackgroundColor3 = CONFIG.UI.MainColor
         refreshBtn.Text = "🔄"
         refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        refreshBtn.TextSize = 12
+        refreshBtn.TextSize = 14
         refreshBtn.Font = Enum.Font.GothamBold
         refreshBtn.Parent = frame
         
@@ -1182,20 +1238,21 @@ local function CreateUI()
         refreshCorner.CornerRadius = UDim.new(0, 5)
         refreshCorner.Parent = refreshBtn
         
-        -- SCROLLING FRAME
+        -- SCROLLING FRAME for dropdown options
         local scrollFrame = Instance.new("ScrollingFrame")
         scrollFrame.Name = "ScrollFrame"
-        scrollFrame.Size = UDim2.new(1, -8, 1, -36)
-        scrollFrame.Position = UDim2.new(0, 4, 0, 34)
+        scrollFrame.Size = UDim2.new(1, -10, 1, -40)
+        scrollFrame.Position = UDim2.new(0, 5, 0, 38)
         scrollFrame.BackgroundTransparency = 1
         scrollFrame.BorderSizePixel = 0
-        scrollFrame.ScrollBarThickness = 3
+        scrollFrame.ScrollBarThickness = 4
         scrollFrame.ScrollBarImageColor3 = CONFIG.UI.MainColor
         scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
         scrollFrame.Visible = false
         scrollFrame.ZIndex = 10
         scrollFrame.Parent = frame
         
+        -- Toggle function
         local function ToggleDropdown()
             if isTarget then
                 TargetExpanded = not TargetExpanded
@@ -1207,17 +1264,17 @@ local function CreateUI()
             
             if expanded then
                 scrollFrame.Visible = true
-                frame.Size = UDim2.new(1, 0, 0, 150)
-                dropBtn.Text = "▼"
+                frame.Size = UDim2.new(1, 0, 0, 200)
+                dropBtn.Text = isTarget and "▼ Close" or "▼ Close"
             else
                 scrollFrame.Visible = false
-                frame.Size = UDim2.new(1, 0, 0, 32)
+                frame.Size = UDim2.new(1, 0, 0, 36)
                 local count = isTarget and #CONFIG.Aimbot.TargetList or #CONFIG.Aimbot.AllyList
-                dropBtn.Text = count > 0 and tostring(count) or "Select"
+                dropBtn.Text = count > 0 and (count .. (isTarget and " selected" or " allies")) or (isTarget and "Select targets" or "Select allies")
             end
             
             TweenService:Create(frame, TweenInfo.new(0.2), {
-                Size = expanded and UDim2.new(1, 0, 0, 150) or UDim2.new(1, 0, 0, 32)
+                Size = expanded and UDim2.new(1, 0, 0, 200) or UDim2.new(1, 0, 0, 36)
             }):Play()
         end
         
@@ -1246,53 +1303,6 @@ local function CreateUI()
         return frame
     end
     
-    -- Color picker button (compact)
-    local function CreateColorButton(parent, text, defaultColor, callback)
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 32)
-        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        frame.BorderSizePixel = 0
-        frame.Parent = parent
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 5)
-        corner.Parent = frame
-        
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.6, 0, 1, 0)
-        label.Position = UDim2.new(0, 8, 0, 0)
-        label.BackgroundTransparency = 1
-        label.Text = text
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 11
-        label.Font = Enum.Font.Gotham
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = frame
-        
-        local colorBtn = Instance.new("TextButton")
-        colorBtn.Size = UDim2.new(0, 60, 0, 22)
-        colorBtn.Position = UDim2.new(1, -68, 0.5, -11)
-        colorBtn.BackgroundColor3 = defaultColor
-        colorBtn.Text = "Pick"
-        colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        colorBtn.TextSize = 10
-        colorBtn.Font = Enum.Font.GothamBold
-        colorBtn.Parent = frame
-        
-        local colorCorner = Instance.new("UICorner")
-        colorCorner.CornerRadius = UDim.new(0, 5)
-        colorCorner.Parent = colorBtn
-        
-        colorBtn.MouseButton1Click:Connect(function()
-            OpenColorPicker(text, colorBtn.BackgroundColor3, function(newColor)
-                colorBtn.BackgroundColor3 = newColor
-                callback(newColor)
-            end)
-        end)
-        
-        return frame
-    end
-    
     --// CREATE 5 TABS
     
     -- 1. AIMBOT TAB
@@ -1302,6 +1312,7 @@ local function CreateUI()
         CONFIG.Aimbot.Enabled = val
     end)
     
+    -- Target Mode Dropdown
     CreateDropdown(AimbotTab, "Mode", {"Normal", "Lock"}, CONFIG.Aimbot.Mode, function(val)
         CONFIG.Aimbot.Mode = val
     end)
@@ -1326,7 +1337,7 @@ local function CreateUI()
         CONFIG.Aimbot.MaxDistance = val
     end)
     
-    CreateDropdown(AimbotTab, "Target", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
+    CreateDropdown(AimbotTab, "Target Part", {"Head", "HumanoidRootPart", "Torso"}, CONFIG.Aimbot.TargetPart, function(val)
         CONFIG.Aimbot.TargetPart = val
     end)
     
@@ -1353,11 +1364,11 @@ local function CreateUI()
         CONFIG.ESP.Chams = val
     end)
     
-    CreateToggle(ESPTab, "Names", CONFIG.ESP.ShowName, function(val)
+    CreateToggle(ESPTab, "Show Names", CONFIG.ESP.ShowName, function(val)
         CONFIG.ESP.ShowName = val
     end)
     
-    CreateToggle(ESPTab, "Health", CONFIG.ESP.ShowHealth, function(val)
+    CreateToggle(ESPTab, "Show Health", CONFIG.ESP.ShowHealth, function(val)
         CONFIG.ESP.ShowHealth = val
     end)
     
@@ -1368,121 +1379,162 @@ local function CreateUI()
     -- 3. EXTRA TAB
     local ExtraTab = CreateTab("Extra", "✨")
     
-    local AimbotLabel = Instance.new("TextLabel")
-    AimbotLabel.Size = UDim2.new(1, 0, 0, 20)
-    AimbotLabel.BackgroundTransparency = 1
-    AimbotLabel.Text = "⚙️ AIMBOT"
-    AimbotLabel.TextColor3 = CONFIG.UI.MainColor
-    AimbotLabel.TextSize = 12
-    AimbotLabel.Font = Enum.Font.GothamBold
-    AimbotLabel.Parent = ExtraTab
+    local AimbotSettingsLabel = Instance.new("TextLabel")
+    AimbotSettingsLabel.Size = UDim2.new(1, 0, 0, 25)
+    AimbotSettingsLabel.BackgroundTransparency = 1
+    AimbotSettingsLabel.Text = "⚙️ AIMBOT SETTINGS"
+    AimbotSettingsLabel.TextColor3 = CONFIG.UI.MainColor
+    AimbotSettingsLabel.TextSize = 14
+    AimbotSettingsLabel.Font = Enum.Font.GothamBold
+    AimbotSettingsLabel.Parent = ExtraTab
     
-    CreateSlider(ExtraTab, "Smoothness", 0, 10, CONFIG.Aimbot.Smoothness, function(val)
+    CreateSlider(ExtraTab, "Smoothness (0-10)", 0, 10, CONFIG.Aimbot.Smoothness, function(val)
         CONFIG.Aimbot.Smoothness = val
     end)
     
-    local AllyLabel = Instance.new("TextLabel")
-    AllyLabel.Size = UDim2.new(1, 0, 0, 20)
-    AllyLabel.BackgroundTransparency = 1
-    AllyLabel.Text = "🛡️ PLAYERS"
-    AllyLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-    AllyLabel.TextSize = 12
-    AllyLabel.Font = Enum.Font.GothamBold
-    AllyLabel.Parent = ExtraTab
+    local Separator = Instance.new("Frame")
+    Separator.Size = UDim2.new(1, -20, 0, 2)
+    Separator.Position = UDim2.new(0, 10, 0, 0)
+    Separator.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Separator.BorderSizePixel = 0
+    Separator.Parent = ExtraTab
     
-    CreateToggle(ExtraTab, "Use Target", CONFIG.Aimbot.UseTargetList, function(val)
+    local SepCorner = Instance.new("UICorner")
+    SepCorner.CornerRadius = UDim.new(0, 1)
+    SepCorner.Parent = Separator
+    
+    local AllySectionLabel = Instance.new("TextLabel")
+    AllySectionLabel.Size = UDim2.new(1, 0, 0, 25)
+    AllySectionLabel.BackgroundTransparency = 1
+    AllySectionLabel.Text = "🛡️ ALLY & TARGET"
+    AllySectionLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+    AllySectionLabel.TextSize = 14
+    AllySectionLabel.Font = Enum.Font.GothamBold
+    AllySectionLabel.Parent = ExtraTab
+    
+    CreateToggle(ExtraTab, "Use Target List", CONFIG.Aimbot.UseTargetList, function(val)
         CONFIG.Aimbot.UseTargetList = val
     end)
     
-    CreateMultiDropdown(ExtraTab, "Target", true)
+    CreateMultiDropdown(ExtraTab, "Targets", true)
     
-    CreateToggle(ExtraTab, "Use Ally", CONFIG.Aimbot.UseAllyList, function(val)
+    CreateToggle(ExtraTab, "Use Ally List", CONFIG.Aimbot.UseAllyList, function(val)
         CONFIG.Aimbot.UseAllyList = val
     end)
     
-    CreateMultiDropdown(ExtraTab, "Ally", false)
+    CreateMultiDropdown(ExtraTab, "Allies", false)
     
-    -- 4. COLORS TAB
-    local ColorsTab = CreateTab("Colors", "🎨")
+    -- 4. SETTINGS TAB (UI, FOV, ESP Colors)
+    local SettingsTab = CreateTab("Settings", "⚙️")
     
-    local ESPColorLabel = Instance.new("TextLabel")
-    ESPColorLabel.Size = UDim2.new(1, 0, 0, 20)
-    ESPColorLabel.BackgroundTransparency = 1
-    ESPColorLabel.Text = "👁️ ESP COLORS"
-    ESPColorLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    ESPColorLabel.TextSize = 12
-    ESPColorLabel.Font = Enum.Font.GothamBold
-    ESPColorLabel.Parent = ColorsTab
+    -- UI Settings
+    local UILabel = Instance.new("TextLabel")
+    UILabel.Size = UDim2.new(1, 0, 0, 25)
+    UILabel.BackgroundTransparency = 1
+    UILabel.Text = "🎨 UI SETTINGS"
+    UILabel.TextColor3 = CONFIG.UI.MainColor
+    UILabel.TextSize = 14
+    UILabel.Font = Enum.Font.GothamBold
+    UILabel.Parent = SettingsTab
     
-    CreateToggle(ColorsTab, "ESP RGB", CONFIG.ESP.UseRGB, function(val)
-        CONFIG.ESP.UseRGB = val
-    end)
-    
-    CreateSlider(ColorsTab, "RGB Speed", 1, 20, CONFIG.ESP.RGBSpeed, function(val)
-        CONFIG.ESP.RGBSpeed = val
-    end)
-    
-    CreateColorButton(ColorsTab, "Enemy", CONFIG.ESP.TextColor, function(color)
-        CONFIG.ESP.TextColor = color
-    end)
-    
-    CreateColorButton(ColorsTab, "Ally", CONFIG.ESP.AllyColor, function(color)
-        CONFIG.ESP.AllyColor = color
-    end)
-    
-    CreateColorButton(ColorsTab, "Box", CONFIG.ESP.BoxColor, function(color)
-        CONFIG.ESP.BoxColor = color
-    end)
-    
-    local FOVColorLabel = Instance.new("TextLabel")
-    FOVColorLabel.Size = UDim2.new(1, 0, 0, 20)
-    FOVColorLabel.BackgroundTransparency = 1
-    FOVColorLabel.Text = "🎯 FOV COLORS"
-    FOVColorLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    FOVColorLabel.TextSize = 12
-    FOVColorLabel.Font = Enum.Font.GothamBold
-    FOVColorLabel.Parent = ColorsTab
-    
-    CreateToggle(ColorsTab, "FOV RGB", CONFIG.Aimbot.FOVUseRGB, function(val)
-        CONFIG.Aimbot.FOVUseRGB = val
-    end)
-    
-    CreateColorButton(ColorsTab, "FOV Circle", CONFIG.Aimbot.FOVColor, function(color)
-        CONFIG.Aimbot.FOVColor = color
-    end)
-    
-    local UIColorLabel = Instance.new("TextLabel")
-    UIColorLabel.Size = UDim2.new(1, 0, 0, 20)
-    UIColorLabel.BackgroundTransparency = 1
-    UIColorLabel.Text = "🎨 UI COLOR"
-    UIColorLabel.TextColor3 = CONFIG.UI.MainColor
-    UIColorLabel.TextSize = 12
-    UIColorLabel.Font = Enum.Font.GothamBold
-    UIColorLabel.Parent = ColorsTab
-    
-    CreateColorButton(ColorsTab, "Main UI", CONFIG.UI.MainColor, function(color)
+    CreateColorPicker(SettingsTab, "Main Color", CONFIG.UI.MainColor, function(color)
         CONFIG.UI.MainColor = color
         ToggleBtn.BackgroundColor3 = color
+        -- Update all UI elements with main color
         for _, tab in ipairs(Tabs) do
-            if tab.Content.Visible then
+            if tab.Button.BackgroundColor3 ~= Color3.fromRGB(40, 40, 40) then
                 tab.Button.BackgroundColor3 = color
             end
         end
     end)
     
-    -- 5. INFO TAB
-    local InfoTab = CreateTab("Info", "ℹ️")
+    local Separator1 = Instance.new("Frame")
+    Separator1.Size = UDim2.new(1, -20, 0, 2)
+    Separator1.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Separator1.BorderSizePixel = 0
+    Separator1.Parent = SettingsTab
     
-    local InfoText = Instance.new("TextLabel")
-    InfoText.Size = UDim2.new(1, 0, 0, 200)
-    InfoText.BackgroundTransparency = 1
-    InfoText.Text = "Combat System v3.0\n\n🎯 Aimbot:\n- Normal: Use FOV\n- Lock: No FOV limit\n\n👁️ ESP:\n- [ALLY] = Ally list or Team\n- [ENEMY] = Normal target\n\n🎨 Colors:\n- RGB mode for rainbow\n- Color picker for custom\n\nMade by Kimi"
-    InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    InfoText.TextSize = 10
-    InfoText.Font = Enum.Font.Gotham
-    InfoText.TextWrapped = true
-    InfoText.TextYAlignment = Enum.TextYAlignment.Top
-    InfoText.Parent = InfoTab
+    local SepCorner1 = Instance.new("UICorner")
+    SepCorner1.CornerRadius = UDim.new(0, 1)
+    SepCorner1.Parent = Separator1
+    
+    -- FOV Settings
+    local FOVLabel = Instance.new("TextLabel")
+    FOVLabel.Size = UDim2.new(1, 0, 0, 25)
+    FOVLabel.BackgroundTransparency = 1
+    FOVLabel.Text = "🎯 FOV SETTINGS"
+    FOVLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    FOVLabel.TextSize = 14
+    FOVLabel.Font = Enum.Font.GothamBold
+    FOVLabel.Parent = SettingsTab
+    
+    CreateColorPicker(SettingsTab, "FOV Color", Color3.fromRGB(0, 170, 255), function(color)
+        -- Update FOV circle color
+    end)
+    
+    local Separator2 = Instance.new("Frame")
+    Separator2.Size = UDim2.new(1, -20, 0, 2)
+    Separator2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Separator2.BorderSizePixel = 0
+    Separator2.Parent = SettingsTab
+    
+    local SepCorner2 = Instance.new("UICorner")
+    SepCorner2.CornerRadius = UDim.new(0, 1)
+    SepCorner2.Parent = Separator2
+    
+    -- ESP Settings
+    local ESPLabel = Instance.new("TextLabel")
+    ESPLabel.Size = UDim2.new(1, 0, 0, 25)
+    ESPLabel.BackgroundTransparency = 1
+    ESPLabel.Text = "👁️ ESP COLORS"
+    ESPLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    ESPLabel.TextSize = 14
+    ESPLabel.Font = Enum.Font.GothamBold
+    ESPLabel.Parent = SettingsTab
+    
+    CreateToggle(SettingsTab, "Use RGB Mode", CONFIG.ESP.UseRGB, function(val)
+        CONFIG.ESP.UseRGB = val
+    end)
+    
+    CreateSlider(SettingsTab, "RGB Speed", 1, 20, CONFIG.ESP.RGBSpeed, function(val)
+        CONFIG.ESP.RGBSpeed = val
+    end)
+    
+    CreateColorPicker(SettingsTab, "Enemy Color", CONFIG.ESP.TextColor, function(color)
+        CONFIG.ESP.TextColor = color
+    end)
+    
+    CreateColorPicker(SettingsTab, "Ally Color", CONFIG.ESP.AllyColor, function(color)
+        CONFIG.ESP.AllyColor = color
+    end)
+    
+    CreateColorPicker(SettingsTab, "Box Color", CONFIG.ESP.BoxColor, function(color)
+        CONFIG.ESP.BoxColor = color
+    end)
+    
+    -- Info
+    local InfoLabel = Instance.new("TextLabel")
+    InfoLabel.Size = UDim2.new(1, 0, 0, 40)
+    InfoLabel.BackgroundTransparency = 1
+    InfoLabel.Text = "Combat System v3.0\nMade by Kimi"
+    InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    InfoLabel.TextSize = 11
+    InfoLabel.Font = Enum.Font.Gotham
+    InfoLabel.TextWrapped = true
+    InfoLabel.Parent = SettingsTab
+    
+    -- 5. CONFIG TAB (Save/Load - placeholder)
+    local ConfigTab = CreateTab("Config", "💾")
+    
+    local ConfigLabel = Instance.new("TextLabel")
+    ConfigLabel.Size = UDim2.new(1, 0, 0, 60)
+    ConfigLabel.BackgroundTransparency = 1
+    ConfigLabel.Text = "Configuration\nComing Soon..."
+    ConfigLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ConfigLabel.TextSize = 12
+    ConfigLabel.Font = Enum.Font.Gotham
+    ConfigLabel.TextWrapped = true
+    ConfigLabel.Parent = ConfigTab
     
     --// INITIALIZE DROPDOWNS
     RefreshPlayerDropdowns()
@@ -1510,7 +1562,6 @@ local function CreateUI()
     
     EnableDragging(MainFrame, TitleBar)
     EnableDragging(ToggleBtn)
-    EnableDragging(ColorPickerContainer, pickerTitle)
     
     UserInputService.InputChanged:Connect(function(input)
         if Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
@@ -1537,8 +1588,6 @@ local function CreateUI()
         else
             AnimateOut(MainFrame)
             ToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-            -- Close color picker too
-            ColorPickerContainer.Visible = false
         end
     end)
     
@@ -1548,13 +1597,13 @@ local function CreateUI()
         AnimateOut(MainFrame)
         UIVisible = false
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-        ColorPickerContainer.Visible = false
     end)
     
     --// FOV CIRCLE
     local FOVCircle = Drawing.new("Circle")
     FOVCircle.Visible = false
     FOVCircle.Thickness = 1.5
+    FOVCircle.Color = Color3.fromRGB(0, 170, 255)
     FOVCircle.Filled = false
     FOVCircle.NumSides = 64
     
@@ -1564,14 +1613,6 @@ local function CreateUI()
     RunService.RenderStepped:Connect(function()
         local deltaTime = tick() - lastUpdate
         lastUpdate = tick()
-        
-        -- FOV RGB
-        if CONFIG.Aimbot.FOVUseRGB then
-            FOVHue = (FOVHue + deltaTime * 2) % 1
-            FOVCircle.Color = Color3.fromHSV(FOVHue, 1, 1)
-        else
-            FOVCircle.Color = CONFIG.Aimbot.FOVColor
-        end
         
         -- Update FOV Circle
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -1607,9 +1648,12 @@ local function CreateUI()
                 
                 if targetPart then
                     if CONFIG.Aimbot.Smoothness <= 0 then
+                        -- Instant snap
                         Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                     else
-                        local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1) * 0.5
+                        -- Smooth - higher = more smooth (slower)
+                        local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1)
+                        smoothFactor = smoothFactor * 0.5 -- Cap at 0.5 for stability
                         local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                         Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
                     end
@@ -1651,9 +1695,9 @@ local success, result = pcall(function()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     print("✅ Combat System v3.0 Loaded!")
-    print("📱 Mobile Optimized (250x350)")
-    print("🎨 Color Picker on top layer")
-    print("🎯 Separate FOV RGB and ESP RGB")
+    print("🎯 Modes: Normal (FOV) / Lock (No FOV limit)")
+    print("🎨 Settings: UI Colors, FOV Colors, ESP Colors + RGB")
+    print("🛡️ ESP: [ALLY] only shows when in Ally List or Team")
 end)
 
 if not success then
