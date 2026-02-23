@@ -413,11 +413,6 @@ local function GetPlayerNameFromDisplay(displayText)
     return username
 end
 
---// RAYFIELD INTEGRATION
--- สร้าง Rayfield UI ที่นี่ หรือใช้ existing Rayfield
-
---[[
-ตัวอย่างการใช้กับ Rayfield:
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
