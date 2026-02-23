@@ -21,7 +21,7 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- Aimbot Tab
-local AimbotTab = Window:CreateTab("Aimbot", "🎯")
+local AimbotTab = Window:CreateTab("Aimbot")
 
 AimbotTab:CreateToggle({
    Name = "Enable Aimbot",
@@ -112,7 +112,7 @@ AimbotTab:CreateToggle({
 })
 
 -- ESP Tab
-local ESPTab = Window:CreateTab("ESP", "👁️")
+local ESPTab = Window:CreateTab("ESP")
 
 ESPTab:CreateToggle({
    Name = "Enable ESP",
@@ -196,7 +196,7 @@ ESPTab:CreateColorPicker({
 })
 
 -- Extra Tab (Ally & Target)
-local ExtraTab = Window:CreateTab("Extra", "✨")
+local ExtraTab = Window:CreateTab("Extra")
 
 ExtraTab:CreateToggle({
    Name = "Use Target List",
