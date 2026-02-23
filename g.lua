@@ -7,6 +7,261 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Combat System",
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by Kimi",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "CombatConfig",
+      FileName = "Settings"
+   }
+})
+
+-- Aimbot Tab
+local AimbotTab = Window:CreateTab("Aimbot", "🎯")
+
+AimbotTab:CreateToggle({
+   Name = "Enable Aimbot",
+   CurrentValue = false,
+   Flag = "AimbotEnabled",
+   Callback = function(Value)
+       CONFIG.Aimbot.Enabled = Value
+   end
+})
+
+AimbotTab:CreateDropdown({
+   Name = "Mode",
+   Options = {"Normal", "Lock"},
+   CurrentOption = "Normal",
+   Flag = "AimbotMode",
+   Callback = function(Option)
+       CONFIG.Aimbot.Mode = Option
+   end
+})
+
+AimbotTab:CreateToggle({
+   Name = "Team Check",
+   CurrentValue = true,
+   Flag = "TeamCheck",
+   Callback = function(Value)
+       CONFIG.Aimbot.TeamCheck = Value
+   end
+})
+
+AimbotTab:CreateToggle({
+   Name = "Wall Check",
+   CurrentValue = true,
+   Flag = "WallCheck",
+   Callback = function(Value)
+       CONFIG.Aimbot.WallCheck = Value
+   end
+})
+
+AimbotTab:CreateSlider({
+   Name = "Smoothness",
+   Range = {0, 10},
+   Increment = 1,
+   Suffix = "",
+   CurrentValue = 0,
+   Flag = "Smoothness",
+   Callback = function(Value)
+       CONFIG.Aimbot.Smoothness = Value
+   end
+})
+
+AimbotTab:CreateSlider({
+   Name = "FOV Size",
+   Range = {50, 400},
+   Increment = 10,
+   Suffix = "",
+   CurrentValue = 150,
+   Flag = "FOV",
+   Callback = function(Value)
+       CONFIG.Aimbot.FOV = Value
+   end
+})
+
+AimbotTab:CreateToggle({
+   Name = "Show FOV",
+   CurrentValue = true,
+   Flag = "ShowFOV",
+   Callback = function(Value)
+       CONFIG.Aimbot.ShowFOV = Value
+   end
+})
+
+AimbotTab:CreateColorPicker({
+   Name = "FOV Color",
+   Color = Color3.fromRGB(0, 170, 255),
+   Flag = "FOVColor",
+   Callback = function(Value)
+       CONFIG.Aimbot.FOVColor = Value
+   end
+})
+
+AimbotTab:CreateToggle({
+   Name = "FOV RGB Mode",
+   CurrentValue = false,
+   Flag = "FOVRGB",
+   Callback = function(Value)
+       CONFIG.Aimbot.FOVUseRGB = Value
+   end
+})
+
+-- ESP Tab
+local ESPTab = Window:CreateTab("ESP", "👁️")
+
+ESPTab:CreateToggle({
+   Name = "Enable ESP",
+   CurrentValue = true,
+   Flag = "ESPEnabled",
+   Callback = function(Value)
+       CONFIG.ESP.Enabled = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "Box ESP",
+   CurrentValue = true,
+   Flag = "BoxESP",
+   Callback = function(Value)
+       CONFIG.ESP.BoxESP = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "Tracer ESP",
+   CurrentValue = true,
+   Flag = "TracerESP",
+   Callback = function(Value)
+       CONFIG.ESP.TracerESP = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "Chams",
+   CurrentValue = true,
+   Flag = "Chams",
+   Callback = function(Value)
+       CONFIG.ESP.Chams = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "Show Names",
+   CurrentValue = true,
+   Flag = "ShowNames",
+   Callback = function(Value)
+       CONFIG.ESP.ShowName = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "Show Health",
+   CurrentValue = true,
+   Flag = "ShowHealth",
+   Callback = function(Value)
+       CONFIG.ESP.ShowHealth = Value
+   end
+})
+
+ESPTab:CreateToggle({
+   Name = "ESP RGB Mode",
+   CurrentValue = false,
+   Flag = "ESPRGB",
+   Callback = function(Value)
+       CONFIG.ESP.UseRGB = Value
+   end
+})
+
+ESPTab:CreateColorPicker({
+   Name = "Enemy Color",
+   Color = Color3.fromRGB(255, 50, 50),
+   Flag = "EnemyColor",
+   Callback = function(Value)
+       CONFIG.ESP.TextColor = Value
+   end
+})
+
+ESPTab:CreateColorPicker({
+   Name = "Ally Color",
+   Color = Color3.fromRGB(50, 255, 50),
+   Flag = "AllyColor",
+   Callback = function(Value)
+       CONFIG.ESP.AllyColor = Value
+   end
+})
+
+-- Extra Tab (Ally & Target)
+local ExtraTab = Window:CreateTab("Extra", "✨")
+
+ExtraTab:CreateToggle({
+   Name = "Use Target List",
+   CurrentValue = false,
+   Flag = "UseTarget",
+   Callback = function(Value)
+       CONFIG.Aimbot.UseTargetList = Value
+   end
+})
+
+ExtraTab:CreateDropdown({
+   Name = "Target Players",
+   Options = GetPlayerList(),
+   CurrentOption = "",
+   MultipleOptions = true,
+   Flag = "TargetList",
+   Callback = function(Options)
+       CONFIG.Aimbot.TargetList = {}
+       for _, option in ipairs(Options) do
+           local name = GetPlayerNameFromDisplay(option)
+           if name then
+               table.insert(CONFIG.Aimbot.TargetList, name)
+           end
+       end
+   end
+})
+
+ExtraTab:CreateToggle({
+   Name = "Use Ally List",
+   CurrentValue = false,
+   Flag = "UseAlly",
+   Callback = function(Value)
+       CONFIG.Aimbot.UseAllyList = Value
+   end
+})
+
+ExtraTab:CreateDropdown({
+   Name = "Ally Players",
+   Options = GetPlayerList(),
+   CurrentOption = "",
+   MultipleOptions = true,
+   Flag = "AllyList",
+   Callback = function(Options)
+       CONFIG.Aimbot.AllyList = {}
+       for _, option in ipairs(Options) do
+           local name = GetPlayerNameFromDisplay(option)
+           if name then
+               table.insert(CONFIG.Aimbot.AllyList, name)
+           end
+       end
+   end
+})
+
+ExtraTab:CreateButton({
+   Name = "Refresh Player List",
+   Callback = function()
+       Rayfield:Notify({
+           Title = "Refreshed",
+           Content = "Player list updated!",
+           Duration = 2
+       })
+   end
+})
+
+
 --// CONFIGURATION (สำหรับ Rayfield)
 local CONFIG = {
     Aimbot = {
@@ -413,262 +668,6 @@ local function GetPlayerNameFromDisplay(displayText)
     return username
 end
 
-
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Combat System",
-   LoadingTitle = "Loading...",
-   LoadingSubtitle = "by Kimi",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "CombatConfig",
-      FileName = "Settings"
-   }
-})
-
--- Aimbot Tab
-local AimbotTab = Window:CreateTab("Aimbot", "🎯")
-
-AimbotTab:CreateToggle({
-   Name = "Enable Aimbot",
-   CurrentValue = false,
-   Flag = "AimbotEnabled",
-   Callback = function(Value)
-       CONFIG.Aimbot.Enabled = Value
-   end
-})
-
-AimbotTab:CreateDropdown({
-   Name = "Mode",
-   Options = {"Normal", "Lock"},
-   CurrentOption = "Normal",
-   Flag = "AimbotMode",
-   Callback = function(Option)
-       CONFIG.Aimbot.Mode = Option
-   end
-})
-
-AimbotTab:CreateToggle({
-   Name = "Team Check",
-   CurrentValue = true,
-   Flag = "TeamCheck",
-   Callback = function(Value)
-       CONFIG.Aimbot.TeamCheck = Value
-   end
-})
-
-AimbotTab:CreateToggle({
-   Name = "Wall Check",
-   CurrentValue = true,
-   Flag = "WallCheck",
-   Callback = function(Value)
-       CONFIG.Aimbot.WallCheck = Value
-   end
-})
-
-AimbotTab:CreateSlider({
-   Name = "Smoothness",
-   Range = {0, 10},
-   Increment = 1,
-   Suffix = "",
-   CurrentValue = 0,
-   Flag = "Smoothness",
-   Callback = function(Value)
-       CONFIG.Aimbot.Smoothness = Value
-   end
-})
-
-AimbotTab:CreateSlider({
-   Name = "FOV Size",
-   Range = {50, 400},
-   Increment = 10,
-   Suffix = "",
-   CurrentValue = 150,
-   Flag = "FOV",
-   Callback = function(Value)
-       CONFIG.Aimbot.FOV = Value
-   end
-})
-
-AimbotTab:CreateToggle({
-   Name = "Show FOV",
-   CurrentValue = true,
-   Flag = "ShowFOV",
-   Callback = function(Value)
-       CONFIG.Aimbot.ShowFOV = Value
-   end
-})
-
-AimbotTab:CreateColorPicker({
-   Name = "FOV Color",
-   Color = Color3.fromRGB(0, 170, 255),
-   Flag = "FOVColor",
-   Callback = function(Value)
-       CONFIG.Aimbot.FOVColor = Value
-   end
-})
-
-AimbotTab:CreateToggle({
-   Name = "FOV RGB Mode",
-   CurrentValue = false,
-   Flag = "FOVRGB",
-   Callback = function(Value)
-       CONFIG.Aimbot.FOVUseRGB = Value
-   end
-})
-
--- ESP Tab
-local ESPTab = Window:CreateTab("ESP", "👁️")
-
-ESPTab:CreateToggle({
-   Name = "Enable ESP",
-   CurrentValue = true,
-   Flag = "ESPEnabled",
-   Callback = function(Value)
-       CONFIG.ESP.Enabled = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "Box ESP",
-   CurrentValue = true,
-   Flag = "BoxESP",
-   Callback = function(Value)
-       CONFIG.ESP.BoxESP = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "Tracer ESP",
-   CurrentValue = true,
-   Flag = "TracerESP",
-   Callback = function(Value)
-       CONFIG.ESP.TracerESP = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "Chams",
-   CurrentValue = true,
-   Flag = "Chams",
-   Callback = function(Value)
-       CONFIG.ESP.Chams = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "Show Names",
-   CurrentValue = true,
-   Flag = "ShowNames",
-   Callback = function(Value)
-       CONFIG.ESP.ShowName = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "Show Health",
-   CurrentValue = true,
-   Flag = "ShowHealth",
-   Callback = function(Value)
-       CONFIG.ESP.ShowHealth = Value
-   end
-})
-
-ESPTab:CreateToggle({
-   Name = "ESP RGB Mode",
-   CurrentValue = false,
-   Flag = "ESPRGB",
-   Callback = function(Value)
-       CONFIG.ESP.UseRGB = Value
-   end
-})
-
-ESPTab:CreateColorPicker({
-   Name = "Enemy Color",
-   Color = Color3.fromRGB(255, 50, 50),
-   Flag = "EnemyColor",
-   Callback = function(Value)
-       CONFIG.ESP.TextColor = Value
-   end
-})
-
-ESPTab:CreateColorPicker({
-   Name = "Ally Color",
-   Color = Color3.fromRGB(50, 255, 50),
-   Flag = "AllyColor",
-   Callback = function(Value)
-       CONFIG.ESP.AllyColor = Value
-   end
-})
-
--- Extra Tab (Ally & Target)
-local ExtraTab = Window:CreateTab("Extra", "✨")
-
-ExtraTab:CreateToggle({
-   Name = "Use Target List",
-   CurrentValue = false,
-   Flag = "UseTarget",
-   Callback = function(Value)
-       CONFIG.Aimbot.UseTargetList = Value
-   end
-})
-
-ExtraTab:CreateDropdown({
-   Name = "Target Players",
-   Options = GetPlayerList(),
-   CurrentOption = "",
-   MultipleOptions = true,
-   Flag = "TargetList",
-   Callback = function(Options)
-       CONFIG.Aimbot.TargetList = {}
-       for _, option in ipairs(Options) do
-           local name = GetPlayerNameFromDisplay(option)
-           if name then
-               table.insert(CONFIG.Aimbot.TargetList, name)
-           end
-       end
-   end
-})
-
-ExtraTab:CreateToggle({
-   Name = "Use Ally List",
-   CurrentValue = false,
-   Flag = "UseAlly",
-   Callback = function(Value)
-       CONFIG.Aimbot.UseAllyList = Value
-   end
-})
-
-ExtraTab:CreateDropdown({
-   Name = "Ally Players",
-   Options = GetPlayerList(),
-   CurrentOption = "",
-   MultipleOptions = true,
-   Flag = "AllyList",
-   Callback = function(Options)
-       CONFIG.Aimbot.AllyList = {}
-       for _, option in ipairs(Options) do
-           local name = GetPlayerNameFromDisplay(option)
-           if name then
-               table.insert(CONFIG.Aimbot.AllyList, name)
-           end
-       end
-   end
-})
-
-ExtraTab:CreateButton({
-   Name = "Refresh Player List",
-   Callback = function()
-       -- Refresh dropdown options
-       Rayfield:Notify({
-           Title = "Refreshed",
-           Content = "Player list updated!",
-           Duration = 2
-       })
-   end
-})
---]]
 
 --// MAIN LOOP (ทำงานได้เลยไม่ต้องมี UI)
 local FOVCircle = Drawing.new("Circle")
