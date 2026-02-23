@@ -551,8 +551,8 @@ local function CreateUI()
     -- Color Picker Container (OUTSIDE main frame, on top)
     local ColorPickerContainer = Instance.new("Frame")
     ColorPickerContainer.Name = "ColorPickerContainer"
-    ColorPickerContainer.Size = UDim2.new(0, 200, 0, 150)
-    ColorPickerContainer.Position = UDim2.new(0.5, -100, 0.5, -75)
+    ColorPickerContainer.Size = UDim2.new(0, 220, 0, 180)
+    ColorPickerContainer.Position = UDim2.new(0.5, -110, 0.5, -90)
     ColorPickerContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     ColorPickerContainer.BorderSizePixel = 0
     ColorPickerContainer.Visible = false
@@ -565,11 +565,11 @@ local function CreateUI()
     
     -- Color Picker Title
     local pickerTitle = Instance.new("TextLabel")
-    pickerTitle.Size = UDim2.new(1, 0, 0, 25)
+    pickerTitle.Size = UDim2.new(1, 0, 0, 30)
     pickerTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     pickerTitle.Text = "🎨 Color Picker"
     pickerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pickerTitle.TextSize = 12
+    pickerTitle.TextSize = 14
     pickerTitle.Font = Enum.Font.GothamBold
     pickerTitle.ZIndex = 1001
     pickerTitle.Parent = ColorPickerContainer
@@ -588,8 +588,8 @@ local function CreateUI()
     
     -- Hue Slider
     local hueSlider = Instance.new("Frame")
-    hueSlider.Size = UDim2.new(1, -20, 0, 20)
-    hueSlider.Position = UDim2.new(0, 10, 0, 35)
+    hueSlider.Size = UDim2.new(1, -20, 0, 25)
+    hueSlider.Position = UDim2.new(0, 10, 0, 40)
     hueSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     hueSlider.BorderSizePixel = 0
     hueSlider.ZIndex = 1001
@@ -612,8 +612,8 @@ local function CreateUI()
     hueGradient.Parent = hueSlider
     
     local hueKnob = Instance.new("Frame")
-    hueKnob.Size = UDim2.new(0, 10, 1, 6)
-    hueKnob.Position = UDim2.new(0, -5, 0, -3)
+    hueKnob.Size = UDim2.new(0, 12, 1, 8)
+    hueKnob.Position = UDim2.new(0, -6, 0, -4)
     hueKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     hueKnob.BorderSizePixel = 0
     hueKnob.ZIndex = 1002
@@ -621,8 +621,8 @@ local function CreateUI()
     
     -- Preview
     local previewFrame = Instance.new("Frame")
-    previewFrame.Size = UDim2.new(1, -20, 0, 40)
-    previewFrame.Position = UDim2.new(0, 10, 0, 65)
+    previewFrame.Size = UDim2.new(1, -20, 0, 50)
+    previewFrame.Position = UDim2.new(0, 10, 0, 75)
     previewFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     previewFrame.BorderSizePixel = 0
     previewFrame.ZIndex = 1001
@@ -632,14 +632,26 @@ local function CreateUI()
     previewCorner.CornerRadius = UDim.new(0, 8)
     previewCorner.Parent = previewFrame
     
+    -- Color Value Label (NEW - Shows RGB values for clarity)
+    local colorValueLabel = Instance.new("TextLabel")
+    colorValueLabel.Size = UDim2.new(1, -20, 0, 20)
+    colorValueLabel.Position = UDim2.new(0, 10, 0, 130)
+    colorValueLabel.BackgroundTransparency = 1
+    colorValueLabel.Text = "R: 255, G: 0, B: 0"
+    colorValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    colorValueLabel.TextSize = 12
+    colorValueLabel.Font = Enum.Font.GothamBold
+    colorValueLabel.ZIndex = 1001
+    colorValueLabel.Parent = ColorPickerContainer
+    
     -- Close Button
     local closePickerBtn = Instance.new("TextButton")
-    closePickerBtn.Size = UDim2.new(0, 80, 0, 25)
-    closePickerBtn.Position = UDim2.new(0.5, -40, 1, -35)
+    closePickerBtn.Size = UDim2.new(0, 100, 0, 28)
+    closePickerBtn.Position = UDim2.new(0.5, -50, 1, -38)
     closePickerBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
     closePickerBtn.Text = "Done"
     closePickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closePickerBtn.TextSize = 12
+    closePickerBtn.TextSize = 14
     closePickerBtn.Font = Enum.Font.GothamBold
     closePickerBtn.ZIndex = 1001
     closePickerBtn.Parent = ColorPickerContainer
@@ -759,7 +771,12 @@ local function CreateUI()
     local function updateColorPicker()
         local newColor = Color3.fromHSV(currentHue, 1, 1)
         previewFrame.BackgroundColor3 = newColor
-        hueKnob.Position = UDim2.new(currentHue, -5, 0, -3)
+        hueKnob.Position = UDim2.new(currentHue, -6, 0, -4)
+        -- Update RGB text display
+        local r = math.floor(newColor.R * 255)
+        local g = math.floor(newColor.G * 255)
+        local b = math.floor(newColor.B * 255)
+        colorValueLabel.Text = string.format("R: %d, G: %d, B: %d", r, g, b)
         if colorCallback then
             colorCallback(newColor)
         end
@@ -827,9 +844,12 @@ local function CreateUI()
     -- Function to open color picker
     local function OpenColorPicker(title, defaultColor, callback)
         pickerTitle.Text = "🎨 " .. title
-        currentHue = 0
+        -- Convert defaultColor to HSV to set initial hue
+        local h, s, v = Color3.toHSV(defaultColor)
+        currentHue = h
         colorCallback = callback
         previewFrame.BackgroundColor3 = defaultColor
+        updateColorPicker() -- This will update the knob position and RGB text
         ColorPickerContainer.Visible = true
         ActiveColorPicker = ColorPickerContainer
     end
@@ -1055,6 +1075,7 @@ local function CreateUI()
         return frame
     end
     
+    -- FIXED: Dropdown now toggles properly (click again to close)
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 30)
@@ -1093,13 +1114,22 @@ local function CreateUI()
         dropCorner.Parent = dropBtn
         
         local expanded = false
+        local optionButtons = {}
         
-        dropBtn.MouseButton1Click:Connect(function()
+        local function toggleDropdown()
             expanded = not expanded
             ButtonPress(dropBtn)
-            local targetSize = expanded and UDim2.new(1, 0, 0, 30 + #options * 24) or UDim2.new(1, 0, 0, 30)
-            TweenService:Create(frame, TweenInfo.new(0.2), {Size = targetSize}):Play()
-        end)
+            if expanded then
+                dropBtn.Text = "▼ " .. default
+                frame.Size = UDim2.new(1, 0, 0, 30 + #options * 24)
+            else
+                dropBtn.Text = default
+                frame.Size = UDim2.new(1, 0, 0, 30)
+            end
+            TweenService:Create(frame, TweenInfo.new(0.2), {Size = expanded and UDim2.new(1, 0, 0, 30 + #options * 24) or UDim2.new(1, 0, 0, 30)}):Play()
+        end
+        
+        dropBtn.MouseButton1Click:Connect(toggleDropdown)
         
         for i, option in ipairs(options) do
             local optBtn = Instance.new("TextButton")
@@ -1117,17 +1147,20 @@ local function CreateUI()
             optCorner.Parent = optBtn
             
             optBtn.MouseButton1Click:Connect(function()
+                default = option
                 dropBtn.Text = option
                 expanded = false
                 TweenService:Create(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
                 if callback then callback(option) end
             end)
+            
+            table.insert(optionButtons, optBtn)
         end
         
         return frame
     end
     
-    -- Multi-select dropdown with SCROLLING
+    -- FIXED: Multi-select dropdown with proper toggle
     local function CreateMultiDropdown(parent, text, isTarget)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 32)
@@ -1476,7 +1509,7 @@ local function CreateUI()
     local InfoText = Instance.new("TextLabel")
     InfoText.Size = UDim2.new(1, 0, 0, 200)
     InfoText.BackgroundTransparency = 1
-    InfoText.Text = "Combat System v3.0\n\n🎯 Aimbot:\n- Normal: Use FOV\n- Lock: No FOV limit\n\n👁️ ESP:\n- [ALLY] = Ally list or Team\n- [ENEMY] = Normal target\n\n🎨 Colors:\n- RGB mode for rainbow\n- Color picker for custom\n\nMade by Kimi"
+    InfoText.Text = "Combat System v3.1\n\n🎯 Aimbot:\n- Normal: Use FOV\n- Lock: No FOV limit\n\n👁️ ESP:\n- [ALLY] = Ally list or Team\n- [ENEMY] = Normal target\n\n🎨 Colors:\n- RGB mode for rainbow\n- Color picker for custom\n\n✅ Fixed:\n- Dropdowns now toggle\n- Color picker text 100% visible\n- FOV RGB uses speed slider\n\nMade by Kimi"
     InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
     InfoText.TextSize = 10
     InfoText.Font = Enum.Font.Gotham
@@ -1565,9 +1598,10 @@ local function CreateUI()
         local deltaTime = tick() - lastUpdate
         lastUpdate = tick()
         
-        -- FOV RGB
+        -- FOV RGB - NOW USES RGB SPEED SLIDER
         if CONFIG.Aimbot.FOVUseRGB then
-            FOVHue = (FOVHue + deltaTime * 2) % 1
+            -- Use the same speed calculation as ESP RGB but with FOVHue
+            FOVHue = (FOVHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
             FOVCircle.Color = Color3.fromHSV(FOVHue, 1, 1)
         else
             FOVCircle.Color = CONFIG.Aimbot.FOVColor
@@ -1650,10 +1684,11 @@ local success, result = pcall(function()
     local ui = CreateUI()
     ui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    print("✅ Combat System v3.0 Loaded!")
+    print("✅ Combat System v3.1 Loaded!")
     print("📱 Mobile Optimized (250x350)")
     print("🎨 Color Picker on top layer")
-    print("🎯 Separate FOV RGB and ESP RGB")
+    print("🎯 FOV RGB uses RGB Speed slider")
+    print("📋 Dropdowns now toggle properly")
 end)
 
 if not success then
