@@ -1,3 +1,5 @@
+
+
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,7 +18,7 @@ local CONFIG = {
     Aimbot = {
         Enabled = false,
         Mode = "Normal", -- "Normal" or "Target"
-        TeamCheck = true,
+        TeamCheck = false,
         WallCheck = true,
         Smoothness = 0,
         FOV = 150,
@@ -32,21 +34,21 @@ local CONFIG = {
     },
     
     ESP = {
-        Enabled = true,
+        Enabled = false,
         MaxDistance = 1000,
         TextSize = 13,
         TextColor = Color3.fromRGB(255, 50, 50),
         AllyColor = Color3.fromRGB(50, 255, 50),
         BoxColor = Color3.fromRGB(255, 0, 0),
-        ShowName = true,
-        ShowHealth = true,
-        ShowDistance = true,
-        ShowWeapon = true,
-        TeamCheck = true,
-        BoxESP = true,
-        TracerESP = true,
+        ShowName = false,
+        ShowHealth = false,
+        ShowDistance = false,
+        ShowWeapon = false,
+        TeamCheck = false,
+        BoxESP = false,
+        TracerESP = false,
         TracerPosition = "Bottom",
-        Chams = true,
+        Chams = false,
         UseRGB = false,
         RGBSpeed = 5
     },
