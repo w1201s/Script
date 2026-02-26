@@ -525,7 +525,7 @@ AimbotTab:Slider({
 AimbotTab:Dropdown({
     Title = "Target Part",
     Desc = "Aim at body part",
-    Values = {"Head", "HumanoidRootPart", "Torso"},
+    Values = {"Head", "Torse",},
     Value = CONFIG.Aimbot.TargetPart,
     Callback = function(v) CONFIG.Aimbot.TargetPart = v end
 })
@@ -620,72 +620,6 @@ ESPTab:Slider({
 
 --// PLAYERS TAB - MOVEMENT FEATURES
 PlayersTab:Section({Title = "Movement", Opened = true})
-
--- Fly
-PlayersTab:Toggle({
-    Title = "Fly",
-    Desc = "Enable flying (use WASD + Space/Shift)",
-    Value = CONFIG.Player.Fly,
-    Callback = function(v)
-        CONFIG.Player.Fly = v
-        if v then
-            -- Start Fly
-            local char = GetCharacter(LocalPlayer)
-            if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    FlyConnection = RunService.RenderStepped:Connect(function()
-                        if not CONFIG.Player.Fly then return end
-                        local camCF = Camera.CFrame
-                        local moveDir = Vector3.new(0, 0, 0)
-                        
-                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                            moveDir = moveDir + camCF.LookVector
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                            moveDir = moveDir - camCF.LookVector
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                            moveDir = moveDir - camCF.RightVector
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                            moveDir = moveDir + camCF.RightVector
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                            moveDir = moveDir + Vector3.new(0, 1, 0)
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                            moveDir = moveDir - Vector3.new(0, 1, 0)
-                        end
-                        
-                        if moveDir.Magnitude > 0 then
-                            moveDir = moveDir.Unit * CONFIG.Player.FlySpeed
-                        end
-                        
-                        hrp.Velocity = moveDir
-                        hrp.CFrame = hrp.CFrame + moveDir * 0.01
-                    end)
-                end
-            end
-            WindUI:Notify({Title = "Fly Enabled", Content = "WASD to move, Space/Shift for up/down", Duration = 2, Icon = "plane"})
-        else
-            -- Stop Fly
-            if FlyConnection then
-                FlyConnection:Disconnect()
-                FlyConnection = nil
-            end
-            WindUI:Notify({Title = "Fly Disabled", Duration = 2, Icon = "x"})
-        end
-    end
-})
-
-PlayersTab:Slider({
-    Title = "Fly Speed",
-    Desc = "Flying speed",
-    Step = 5,
-    Value = {Min = 10, Max = 200, Default = CONFIG.Player.FlySpeed},
-    Callback = function(v) CONFIG.Player.FlySpeed = v end
-})
 
 -- Inf Jump
 PlayersTab:Toggle({
