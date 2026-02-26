@@ -525,7 +525,7 @@ AimbotTab:Slider({
 AimbotTab:Dropdown({
     Title = "Target Part",
     Desc = "Aim at body part",
-    Values = {"Head", "Torse",},
+    Values = {"Head", "HumanoidRootPart",},
     Value = CONFIG.Aimbot.TargetPart,
     Callback = function(v) CONFIG.Aimbot.TargetPart = v end
 })
