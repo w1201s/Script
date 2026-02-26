@@ -16,7 +16,7 @@ local CONFIG = {
     Aimbot = {
         Enabled = false,
         Mode = "Normal",
-        TeamCheck = false, -- CHANGED: false by default
+        TeamCheck = false,
         WallCheck = true,
         Smoothness = 0,
         FOV = 150,
@@ -32,21 +32,21 @@ local CONFIG = {
     },
     
     ESP = {
-        Enabled = false, -- CHANGED: false
+        Enabled = false,
         MaxDistance = 1000,
         TextSize = 13,
         TextColor = Color3.fromRGB(255, 50, 50),
         AllyColor = Color3.fromRGB(50, 255, 50),
         BoxColor = Color3.fromRGB(255, 0, 0),
-        ShowName = false, -- CHANGED: false
-        ShowHealth = false, -- CHANGED: false
-        ShowDistance = false, -- CHANGED: false
-        ShowWeapon = false, -- CHANGED: false
-        TeamCheck = false, -- CHANGED: false
-        BoxESP = false, -- CHANGED: false
-        TracerESP = false, -- CHANGED: false
+        ShowName = false,
+        ShowHealth = false,
+        ShowDistance = false,
+        ShowWeapon = false,
+        TeamCheck = false,
+        BoxESP = false,
+        TracerESP = false,
         TracerPosition = "Bottom",
-        Chams = false, -- CHANGED: false
+        Chams = false,
         UseRGB = false,
         RGBSpeed = 5
     },
@@ -428,10 +428,10 @@ end
 
 --// WINDUI SETUP
 local Window = WindUI:CreateWindow({
-    Title = "Combat System",
+    Title = "Venus x",
     Icon = "sword",
-    Author = "by Kimi",
-    Folder = "CombatSystem",
+    Author = "by w1201s",
+    Folder = "Aimbot",
     Size = UDim2.fromOffset(580, 460),
     MinSize = Vector2.new(400, 300),
     Theme = "Dark",
@@ -476,12 +476,6 @@ AimbotTab:Dropdown({
     Value = CONFIG.Aimbot.Mode,
     Callback = function(v) 
         CONFIG.Aimbot.Mode = v 
-        WindUI:Notify({
-            Title = "Mode: " .. v,
-            Content = v == "Target" and "🔒 HARD LOCK: Follows target everywhere!" or "📍 Normal: Uses FOV circle",
-            Duration = 3,
-            Icon = v == "Target" and "lock" or "target"
-        })
     end
 })
 
@@ -525,7 +519,7 @@ AimbotTab:Slider({
 AimbotTab:Dropdown({
     Title = "Target Part",
     Desc = "Aim at body part",
-    Values = {"Head", "HumanoidRootPart",},
+    Values = {"Head", "HumanoidRootPart"},
     Value = CONFIG.Aimbot.TargetPart,
     Callback = function(v) CONFIG.Aimbot.TargetPart = v end
 })
@@ -638,13 +632,11 @@ PlayersTab:Toggle({
                     end
                 end
             end)
-            WindUI:Notify({Title = "Inf Jump Enabled", Duration = 2, Icon = "arrow-up"})
         else
             if InfJumpConnection then
                 InfJumpConnection:Disconnect()
                 InfJumpConnection = nil
             end
-            WindUI:Notify({Title = "Inf Jump Disabled", Duration = 2, Icon = "x"})
         end
     end
 })
@@ -662,10 +654,8 @@ PlayersTab:Toggle({
             if humanoid then
                 if v then
                     humanoid.WalkSpeed = CONFIG.Player.WalkSpeed
-                    WindUI:Notify({Title = "WalkSpeed: " .. CONFIG.Player.WalkSpeed, Duration = 2, Icon = "zap"})
                 else
                     humanoid.WalkSpeed = 16
-                    WindUI:Notify({Title = "WalkSpeed Reset", Duration = 2, Icon = "rotate-ccw"})
                 end
             end
         end
@@ -704,10 +694,8 @@ PlayersTab:Toggle({
             if humanoid then
                 if v then
                     humanoid.JumpPower = CONFIG.Player.JumpPower
-                    WindUI:Notify({Title = "JumpPower: " .. CONFIG.Player.JumpPower, Duration = 2, Icon = "arrow-up"})
                 else
                     humanoid.JumpPower = 50
-                    WindUI:Notify({Title = "JumpPower Reset", Duration = 2, Icon = "rotate-ccw"})
                 end
             end
         end
@@ -741,12 +729,6 @@ PlayersTab:Toggle({
     Value = CONFIG.Aimbot.UseTargetList,
     Callback = function(v) 
         CONFIG.Aimbot.UseTargetList = v 
-        WindUI:Notify({
-            Title = "Target List " .. (v and "ON" or "OFF"),
-            Content = v and "Select targets below" or "Disabled",
-            Duration = 2,
-            Icon = v and "check" or "x"
-        })
     end
 })
 
@@ -949,15 +931,6 @@ task.spawn(function()
     end
     targetDropdown:Refresh(names)
     allyDropdown:Refresh(names)
-    
-    WindUI:Notify({
-        Title = "🔒 Combat System Loaded",
-        Content = "ESP: OFF | TeamCheck: OFF | Movement: Ready",
-        Duration = 3,
-        Icon = "zap"
-    })
 end)
 
-print("✅ Combat System Loaded!")
-print("🔧 Config: TeamCheck=false, All ESP=false")
-print("🏃 Movement: Fly, InfJump, WalkSpeed, JumpPower Ready")
+print("✅ Venus x Loaded!")
