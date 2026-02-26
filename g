@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -16,7 +15,7 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 local CONFIG = {
     Aimbot = {
         Enabled = false,
-        Mode = "Normal",
+        Mode = "Normal", -- "Normal" or "Target" (was "Lock")
         TeamCheck = true,
         WallCheck = true,
         Smoothness = 0,
@@ -26,11 +25,10 @@ local CONFIG = {
         FOVUseRGB = false,
         MaxDistance = 1000,
         TargetPart = "Head",
-        UseTargetList = false,
+        UseTargetList = false, -- Must be true to use Target mode
         UseAllyList = false,
-        TargetList = {},
-        AllyList = {},
-        InstantLock = nil
+        TargetList = {}, -- Array of player Names (strings)
+        AllyList = {}    -- Array of player Names (strings)
     },
     
     ESP = {
@@ -102,6 +100,14 @@ local function IsVisible(targetPart)
         return hitModel == targetPart.Parent
     end
     return true
+end
+
+-- Convert Name to Player object
+local function GetPlayerByName(name)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name == name then return p end
+    end
+    return nil
 end
 
 local function IsInTargetList(player)
@@ -213,18 +219,25 @@ local function CreateESP(player)
         local isAlly = CONFIG.Aimbot.UseAllyList and IsInAllyList(player)
         local isFriendly = isTeammate or isAlly
         
+        -- Check if player is in target list for special color
+        local isTargeted = CONFIG.Aimbot.UseTargetList and IsInTargetList(player)
+        
         local displayColor
         if CONFIG.ESP.UseRGB then
             ESPHue = (ESPHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
             displayColor = Color3.fromHSV(ESPHue, 1, 1)
         else
-            displayColor = isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
+            if isTargeted then
+                displayColor = Color3.fromRGB(255, 0, 255) -- Magenta for targets
+            else
+                displayColor = isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
+            end
         end
         
         espData.Drawings.Name.Color = displayColor
-        espData.Drawings.Box.Color = CONFIG.ESP.UseRGB and displayColor or (isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor)
-        espData.Drawings.FilledBox.Color = CONFIG.ESP.UseRGB and displayColor or (isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor)
-        espData.Drawings.Tracer.Color = CONFIG.ESP.UseRGB and displayColor or (isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor)
+        espData.Drawings.Box.Color = displayColor
+        espData.Drawings.FilledBox.Color = displayColor
+        espData.Drawings.Tracer.Color = displayColor
         
         local headPos, headOnScreen = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
         local rootPos, rootOnScreen = WorldToScreen(rootPart.Position - Vector3.new(0, 3, 0))
@@ -253,7 +266,9 @@ local function CreateESP(player)
         
         if CONFIG.ESP.ShowName then
             local tag = ""
-            if isAlly then
+            if isTargeted then
+                tag = " [TARGET]"
+            elseif isAlly then
                 tag = " [ALLY]"
             elseif isTeammate then
                 tag = " [TEAM]"
@@ -318,14 +333,14 @@ local function CreateESP(player)
             if not espData.Highlight or espData.Highlight.Parent ~= character then
                 if espData.Highlight then espData.Highlight:Destroy() end
                 espData.Highlight = Instance.new("Highlight")
-                espData.Highlight.FillColor = CONFIG.ESP.UseRGB and displayColor or (isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor)
+                espData.Highlight.FillColor = displayColor
                 espData.Highlight.OutlineColor = Color3.new(1, 1, 1)
                 espData.Highlight.FillTransparency = 0.5
                 espData.Highlight.OutlineTransparency = 0
                 espData.Highlight.Parent = character
             end
             espData.Highlight.Enabled = true
-            espData.Highlight.FillColor = CONFIG.ESP.UseRGB and displayColor or (isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.BoxColor)
+            espData.Highlight.FillColor = displayColor
         elseif espData.Highlight then
             espData.Highlight.Enabled = false
         end
@@ -349,67 +364,59 @@ local function RemoveESP(player)
     end
 end
 
---// AIMBOT LOGIC
+--// AIMBOT LOGIC - FIXED FOR TARGET MODE
 local function GetTarget()
-    -- Instant Lock Priority
-    if CONFIG.Aimbot.InstantLock and IsAlive(GetCharacter(CONFIG.Aimbot.InstantLock)) then
-        local character = GetCharacter(CONFIG.Aimbot.InstantLock)
-        local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
-        if targetPart and (not CONFIG.Aimbot.WallCheck or IsVisible(targetPart)) then
-            local _, onScreen, depth = WorldToScreen(targetPart.Position)
-            if onScreen and depth <= CONFIG.Aimbot.MaxDistance then
-                return CONFIG.Aimbot.InstantLock
+    -- Target Mode: Lock onto first available target in TargetList, ignore FOV
+    if CONFIG.Aimbot.Mode == "Target" and CONFIG.Aimbot.UseTargetList then
+        for _, targetName in ipairs(CONFIG.Aimbot.TargetList) do
+            local player = GetPlayerByName(targetName)
+            if player and player ~= LocalPlayer then
+                if IsAlive(GetCharacter(player)) then
+                    if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
+                    if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
+                    
+                    local character = GetCharacter(player)
+                    local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
+                    if targetPart then
+                        if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
+                        local _, onScreen, depth = WorldToScreen(targetPart.Position)
+                        if onScreen and depth <= CONFIG.Aimbot.MaxDistance then
+                            return player -- LOCKED - No FOV check!
+                        end
+                    end
+                end
             end
         end
+        return nil -- No targets available
     end
     
-    if CONFIG.Aimbot.Mode == "Lock" then
-        local closestPlayer = nil
-        local shortestDistance = math.huge
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            if not IsAlive(GetCharacter(player)) then continue end
-            if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
-            if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
-            if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
-            local character = GetCharacter(player)
-            local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
-            if not targetPart then continue end
-            if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
-            local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
-            if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
-            local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-            local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPlayer = player
-            end
+    -- Normal Mode: Use FOV
+    local closestPlayer = nil
+    local shortestDistance = CONFIG.Aimbot.FOV
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        if not IsAlive(GetCharacter(player)) then continue end
+        if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
+        if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
+        if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
+        
+        local character = GetCharacter(player)
+        local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
+        if not targetPart then continue end
+        if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
+        
+        local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
+        if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
+        
+        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+        if distance < shortestDistance then
+            shortestDistance = distance
+            closestPlayer = player
         end
-        return closestPlayer
-    else
-        local closestPlayer = nil
-        local shortestDistance = CONFIG.Aimbot.FOV
-        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            if not IsAlive(GetCharacter(player)) then continue end
-            if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
-            if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
-            if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
-            local character = GetCharacter(player)
-            local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
-            if not targetPart then continue end
-            if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
-            local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
-            if not onScreen or depth > CONFIG.Aimbot.MaxDistance then continue end
-            local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPlayer = player
-            end
-        end
-        return closestPlayer
     end
+    return closestPlayer
 end
 
 --// WINDUI SETUP
@@ -457,10 +464,18 @@ AimbotTab:Toggle({
 
 AimbotTab:Dropdown({
     Title = "Mode",
-    Desc = "Aimbot mode selection",
-    Values = {"Normal", "Lock"},
+    Desc = "Normal = Use FOV circle | Target = Lock onto Target List players (No FOV)",
+    Values = {"Normal", "Target"},
     Value = CONFIG.Aimbot.Mode,
-    Callback = function(v) CONFIG.Aimbot.Mode = v end
+    Callback = function(v) 
+        CONFIG.Aimbot.Mode = v 
+        WindUI:Notify({
+            Title = "Mode Changed",
+            Content = v == "Target" and "Will lock onto Target List players (No FOV needed)" or "Using FOV circle",
+            Duration = 3,
+            Icon = "info"
+        })
+    end
 })
 
 AimbotTab:Toggle({
@@ -479,14 +494,14 @@ AimbotTab:Toggle({
 
 AimbotTab:Toggle({
     Title = "Show FOV",
-    Desc = "Show FOV circle",
+    Desc = "Show FOV circle (only for Normal mode)",
     Value = CONFIG.Aimbot.ShowFOV,
     Callback = function(v) CONFIG.Aimbot.ShowFOV = v end
 })
 
 AimbotTab:Slider({
     Title = "FOV Size",
-    Desc = "Field of view radius",
+    Desc = "Field of view radius (only for Normal mode)",
     Step = 10,
     Value = {Min = 50, Max = 400, Default = CONFIG.Aimbot.FOV},
     Callback = function(v) CONFIG.Aimbot.FOV = v end
@@ -601,49 +616,55 @@ PlayersTab:Section({Title = "Target System", Opened = true})
 
 PlayersTab:Toggle({
     Title = "Use Target List",
-    Desc = "Only aim at selected targets",
+    Desc = "Enable Target List mode (required for Target mode)",
     Value = CONFIG.Aimbot.UseTargetList,
-    Callback = function(v) CONFIG.Aimbot.UseTargetList = v end
+    Callback = function(v) 
+        CONFIG.Aimbot.UseTargetList = v 
+        WindUI:Notify({
+            Title = "Target List " .. (v and "Enabled" or "Disabled"),
+            Content = v and "Select players from dropdown below" or "Target List disabled",
+            Duration = 2,
+            Icon = v and "check" or "x"
+        })
+    end
 })
 
--- Target List Dropdown with Instant Lock
+-- Target Dropdown
 local targetDropdown = PlayersTab:Dropdown({
-    Title = "Target List (Click to Instant Lock)",
-    Desc = "Select targets. Click name to INSTANT LOCK",
+    Title = "Target Players",
+    Desc = "Select players to target ( magenta [TARGET] in ESP )",
     Values = {},
     Value = {},
     Multi = true,
     AllowNone = true,
     Callback = function(selected)
         CONFIG.Aimbot.TargetList = selected
-        -- Check if we need to update instant lock
-        if #selected > 0 and not CONFIG.Aimbot.InstantLock then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p.Name == selected[#selected] then
-                    CONFIG.Aimbot.InstantLock = p
-                    WindUI:Notify({
-                        Title = "Instant Lock",
-                        Content = "Locked onto: " .. p.Name,
-                        Duration = 2,
-                        Icon = "crosshair"
-                    })
-                    break
-                end
-            end
-        end
+        WindUI:Notify({
+            Title = "Targets Updated",
+            Content = #selected .. " player(s) in target list",
+            Duration = 2,
+            Icon = "crosshair"
+        })
     end
 })
 
+-- Refresh Target Button
 PlayersTab:Button({
-    Title = "Clear Instant Lock",
-    Desc = "Remove instant lock target",
+    Title = "🔄 Refresh Target List",
+    Desc = "Update player list",
     Callback = function()
-        CONFIG.Aimbot.InstantLock = nil
+        local names = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                table.insert(names, p.Name)
+            end
+        end
+        targetDropdown:Refresh(names)
         WindUI:Notify({
-            Title = "Lock Cleared",
-            Content = "Instant lock removed",
+            Title = "Refreshed",
+            Content = #names .. " players found",
             Duration = 2,
-            Icon = "unlock"
+            Icon = "refresh-cw"
         })
     end
 })
@@ -657,8 +678,9 @@ PlayersTab:Toggle({
     Callback = function(v) CONFIG.Aimbot.UseAllyList = v end
 })
 
+-- Ally Dropdown
 local allyDropdown = PlayersTab:Dropdown({
-    Title = "Ally List",
+    Title = "Ally Players",
     Desc = "Select allies to ignore",
     Values = {},
     Value = {},
@@ -666,40 +688,35 @@ local allyDropdown = PlayersTab:Dropdown({
     AllowNone = true,
     Callback = function(selected)
         CONFIG.Aimbot.AllyList = selected
+        WindUI:Notify({
+            Title = "Allies Updated",
+            Content = #selected .. " player(s) in ally list",
+            Duration = 2,
+            Icon = "shield"
+        })
     end
 })
 
--- Refresh Player Lists
-local function RefreshPlayerLists()
-    local playerNames = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(playerNames, p.Name)
-        end
-    end
-    
-    -- Update target dropdown values
-    targetDropdown:Refresh(playerNames)
-    allyDropdown:Refresh(playerNames)
-end
-
+-- Refresh Ally Button
 PlayersTab:Button({
-    Title = "Refresh Player Lists",
-    Desc = "Update player lists",
+    Title = "🔄 Refresh Ally List",
+    Desc = "Update player list",
     Callback = function()
-        RefreshPlayerLists()
+        local names = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                table.insert(names, p.Name)
+            end
+        end
+        allyDropdown:Refresh(names)
         WindUI:Notify({
             Title = "Refreshed",
-            Content = "Player lists updated",
+            Content = #names .. " players found",
             Duration = 2,
             Icon = "refresh-cw"
         })
     end
 })
-
--- Auto refresh
-Players.PlayerAdded:Connect(function() task.delay(0.5, RefreshPlayerLists) end)
-Players.PlayerRemoving:Connect(function() task.delay(0.5, RefreshPlayerLists) end)
 
 --// COLORS TAB
 ColorsTab:Section({Title = "ESP Colors", Opened = true})
@@ -776,7 +793,7 @@ RunService.RenderStepped:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Position = screenCenter
     FOVCircle.Radius = CONFIG.Aimbot.FOV
-    FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV
+    FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV and CONFIG.Aimbot.Mode == "Normal"
     
     -- ESP
     for _, player in ipairs(Players:GetPlayers()) do
@@ -813,14 +830,25 @@ end)
 task.spawn(function()
     if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
     task.wait(1)
-    RefreshPlayerLists()
+    
+    -- Initial refresh
+    local names = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(names, p.Name)
+        end
+    end
+    targetDropdown:Refresh(names)
+    allyDropdown:Refresh(names)
     
     WindUI:Notify({
         Title = "Combat System Loaded",
-        Content = "WindUI Edition v4.0",
+        Content = "WindUI Edition v4.0 | Use Refresh buttons to update lists",
         Duration = 3,
         Icon = "zap"
     })
 end)
 
 print("✅ Combat System with WindUI Loaded!")
+print("🎯 Mode 'Target': Lock onto Target List without FOV")
+print("🔄 Use Refresh buttons to update player lists")
