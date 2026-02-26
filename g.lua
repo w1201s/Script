@@ -15,7 +15,7 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 local CONFIG = {
     Aimbot = {
         Enabled = false,
-        Mode = "Normal", -- "Normal" or "Target" (was "Lock")
+        Mode = "Normal", -- "Normal" or "Target"
         TeamCheck = true,
         WallCheck = true,
         Smoothness = 0,
@@ -25,10 +25,10 @@ local CONFIG = {
         FOVUseRGB = false,
         MaxDistance = 1000,
         TargetPart = "Head",
-        UseTargetList = false, -- Must be true to use Target mode
+        UseTargetList = false,
         UseAllyList = false,
-        TargetList = {}, -- Array of player Names (strings)
-        AllyList = {}    -- Array of player Names (strings)
+        TargetList = {},
+        AllyList = {}
     },
     
     ESP = {
@@ -102,7 +102,6 @@ local function IsVisible(targetPart)
     return true
 end
 
--- Convert Name to Player object
 local function GetPlayerByName(name)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Name == name then return p end
@@ -217,10 +216,8 @@ local function CreateESP(player)
         
         local isTeammate = CONFIG.ESP.TeamCheck and IsTeammate(player)
         local isAlly = CONFIG.Aimbot.UseAllyList and IsInAllyList(player)
-        local isFriendly = isTeammate or isAlly
-        
-        -- Check if player is in target list for special color
         local isTargeted = CONFIG.Aimbot.UseTargetList and IsInTargetList(player)
+        local isFriendly = isTeammate or isAlly
         
         local displayColor
         if CONFIG.ESP.UseRGB then
@@ -250,7 +247,6 @@ local function CreateESP(player)
             return
         end
         
-        -- Tracer Position Logic
         local tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
         if CONFIG.ESP.TracerPosition == "Top" then
             tracerStart = Vector2.new(Camera.ViewportSize.X / 2, 0)
@@ -364,9 +360,9 @@ local function RemoveESP(player)
     end
 end
 
---// AIMBOT LOGIC - FIXED FOR TARGET MODE
+--// AIMBOT LOGIC - HARD LOCK TARGET MODE
 local function GetTarget()
-    -- Target Mode: Lock onto first available target in TargetList, ignore FOV
+    -- TARGET MODE: Hard Lock - No FOV, No OnScreen, pure lock
     if CONFIG.Aimbot.Mode == "Target" and CONFIG.Aimbot.UseTargetList then
         for _, targetName in ipairs(CONFIG.Aimbot.TargetList) do
             local player = GetPlayerByName(targetName)
@@ -378,19 +374,21 @@ local function GetTarget()
                     local character = GetCharacter(player)
                     local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                     if targetPart then
+                        -- Only wall check and distance
                         if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
-                        local _, onScreen, depth = WorldToScreen(targetPart.Position)
-                        if onScreen and depth <= CONFIG.Aimbot.MaxDistance then
-                            return player -- LOCKED - No FOV check!
+                        
+                        local distance = (targetPart.Position - Camera.CFrame.Position).Magnitude
+                        if distance <= CONFIG.Aimbot.MaxDistance then
+                            return player -- LOCKED! No FOV, no OnScreen!
                         end
                     end
                 end
             end
         end
-        return nil -- No targets available
+        return nil
     end
     
-    -- Normal Mode: Use FOV
+    -- NORMAL MODE: Use FOV + OnScreen
     local closestPlayer = nil
     local shortestDistance = CONFIG.Aimbot.FOV
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -464,16 +462,16 @@ AimbotTab:Toggle({
 
 AimbotTab:Dropdown({
     Title = "Mode",
-    Desc = "Normal = Use FOV circle | Target = Lock onto Target List players (No FOV)",
+    Desc = "Normal = FOV circle | Target = Hard Lock (No FOV, follows everywhere)",
     Values = {"Normal", "Target"},
     Value = CONFIG.Aimbot.Mode,
     Callback = function(v) 
         CONFIG.Aimbot.Mode = v 
         WindUI:Notify({
-            Title = "Mode Changed",
-            Content = v == "Target" and "Will lock onto Target List players (No FOV needed)" or "Using FOV circle",
+            Title = "Mode: " .. v,
+            Content = v == "Target" and "🔒 HARD LOCK: Follows target everywhere!" or "📍 Normal: Uses FOV circle",
             Duration = 3,
-            Icon = "info"
+            Icon = v == "Target" and "lock" or "target"
         })
     end
 })
@@ -487,21 +485,21 @@ AimbotTab:Toggle({
 
 AimbotTab:Toggle({
     Title = "Wall Check",
-    Desc = "Check visibility",
+    Desc = "Check visibility (disable for true silent aim)",
     Value = CONFIG.Aimbot.WallCheck,
     Callback = function(v) CONFIG.Aimbot.WallCheck = v end
 })
 
 AimbotTab:Toggle({
     Title = "Show FOV",
-    Desc = "Show FOV circle (only for Normal mode)",
+    Desc = "Show FOV circle (Normal mode only)",
     Value = CONFIG.Aimbot.ShowFOV,
     Callback = function(v) CONFIG.Aimbot.ShowFOV = v end
 })
 
 AimbotTab:Slider({
     Title = "FOV Size",
-    Desc = "Field of view radius (only for Normal mode)",
+    Desc = "FOV radius (Normal mode only)",
     Step = 10,
     Value = {Min = 50, Max = 400, Default = CONFIG.Aimbot.FOV},
     Callback = function(v) CONFIG.Aimbot.FOV = v end
@@ -509,15 +507,15 @@ AimbotTab:Slider({
 
 AimbotTab:Slider({
     Title = "Max Distance",
-    Desc = "Maximum target distance",
+    Desc = "Maximum lock distance",
     Step = 50,
-    Value = {Min = 100, Max = 2000, Default = CONFIG.Aimbot.MaxDistance},
+    Value = {Min = 100, Max = 5000, Default = CONFIG.Aimbot.MaxDistance},
     Callback = function(v) CONFIG.Aimbot.MaxDistance = v end
 })
 
 AimbotTab:Dropdown({
     Title = "Target Part",
-    Desc = "Aim at specific body part",
+    Desc = "Aim at body part",
     Values = {"Head", "HumanoidRootPart", "Torso"},
     Value = CONFIG.Aimbot.TargetPart,
     Callback = function(v) CONFIG.Aimbot.TargetPart = v end
@@ -525,7 +523,7 @@ AimbotTab:Dropdown({
 
 AimbotTab:Slider({
     Title = "Smoothness",
-    Desc = "Aim smoothing (0 = instant)",
+    Desc = "Aim smoothing (0 = instant, only for Normal)",
     Step = 0.5,
     Value = {Min = 0, Max = 10, Default = CONFIG.Aimbot.Smoothness},
     Callback = function(v) CONFIG.Aimbot.Smoothness = v end
@@ -562,7 +560,7 @@ ESPTab:Toggle({
 
 ESPTab:Dropdown({
     Title = "Tracer Position",
-    Desc = "Where tracer line starts from",
+    Desc = "Where tracer starts",
     Values = {"Bottom", "Top", "Left", "Right"},
     Value = CONFIG.ESP.TracerPosition,
     Callback = function(v) CONFIG.ESP.TracerPosition = v end
@@ -570,7 +568,7 @@ ESPTab:Dropdown({
 
 ESPTab:Toggle({
     Title = "Chams",
-    Desc = "Highlight players through walls",
+    Desc = "Highlight through walls",
     Value = CONFIG.ESP.Chams,
     Callback = function(v) CONFIG.ESP.Chams = v end
 })
@@ -584,21 +582,21 @@ ESPTab:Toggle({
 
 ESPTab:Toggle({
     Title = "Show Health",
-    Desc = "Display health percentage",
+    Desc = "Display health",
     Value = CONFIG.ESP.ShowHealth,
     Callback = function(v) CONFIG.ESP.ShowHealth = v end
 })
 
 ESPTab:Toggle({
     Title = "Show Distance",
-    Desc = "Display distance to player",
+    Desc = "Display distance",
     Value = CONFIG.ESP.ShowDistance,
     Callback = function(v) CONFIG.ESP.ShowDistance = v end
 })
 
 ESPTab:Toggle({
     Title = "Show Weapon",
-    Desc = "Display current weapon",
+    Desc = "Display weapon",
     Value = CONFIG.ESP.ShowWeapon,
     Callback = function(v) CONFIG.ESP.ShowWeapon = v end
 })
@@ -607,62 +605,52 @@ ESPTab:Slider({
     Title = "Max Distance",
     Desc = "Maximum ESP distance",
     Step = 100,
-    Value = {Min = 100, Max = 3000, Default = CONFIG.ESP.MaxDistance},
+    Value = {Min = 100, Max = 5000, Default = CONFIG.ESP.MaxDistance},
     Callback = function(v) CONFIG.ESP.MaxDistance = v end
 })
 
---// PLAYERS TAB (Target & Ally System)
+--// PLAYERS TAB
 PlayersTab:Section({Title = "Target System", Opened = true})
 
 PlayersTab:Toggle({
     Title = "Use Target List",
-    Desc = "Enable Target List mode (required for Target mode)",
+    Desc = "Enable Target mode (required for Hard Lock)",
     Value = CONFIG.Aimbot.UseTargetList,
     Callback = function(v) 
         CONFIG.Aimbot.UseTargetList = v 
         WindUI:Notify({
-            Title = "Target List " .. (v and "Enabled" or "Disabled"),
-            Content = v and "Select players from dropdown below" or "Target List disabled",
+            Title = "Target List " .. (v and "ON" or "OFF"),
+            Content = v and "Select targets below for Hard Lock" or "Disabled",
             Duration = 2,
             Icon = v and "check" or "x"
         })
     end
 })
 
--- Target Dropdown
 local targetDropdown = PlayersTab:Dropdown({
     Title = "Target Players",
-    Desc = "Select players to target ( magenta [TARGET] in ESP )",
+    Desc = "Select for Hard Lock (magenta [TARGET] in ESP)",
     Values = {},
     Value = {},
     Multi = true,
     AllowNone = true,
     Callback = function(selected)
         CONFIG.Aimbot.TargetList = selected
-        WindUI:Notify({
-            Title = "Targets Updated",
-            Content = #selected .. " player(s) in target list",
-            Duration = 2,
-            Icon = "crosshair"
-        })
     end
 })
 
--- Refresh Target Button
 PlayersTab:Button({
     Title = "🔄 Refresh Target List",
     Desc = "Update player list",
     Callback = function()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                table.insert(names, p.Name)
-            end
+            if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         targetDropdown:Refresh(names)
         WindUI:Notify({
-            Title = "Refreshed",
-            Content = #names .. " players found",
+            Title = "Target List",
+            Content = #names .. " players",
             Duration = 2,
             Icon = "refresh-cw"
         })
@@ -678,40 +666,30 @@ PlayersTab:Toggle({
     Callback = function(v) CONFIG.Aimbot.UseAllyList = v end
 })
 
--- Ally Dropdown
 local allyDropdown = PlayersTab:Dropdown({
     Title = "Ally Players",
-    Desc = "Select allies to ignore",
+    Desc = "Select to ignore",
     Values = {},
     Value = {},
     Multi = true,
     AllowNone = true,
     Callback = function(selected)
         CONFIG.Aimbot.AllyList = selected
-        WindUI:Notify({
-            Title = "Allies Updated",
-            Content = #selected .. " player(s) in ally list",
-            Duration = 2,
-            Icon = "shield"
-        })
     end
 })
 
--- Refresh Ally Button
 PlayersTab:Button({
     Title = "🔄 Refresh Ally List",
     Desc = "Update player list",
     Callback = function()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                table.insert(names, p.Name)
-            end
+            if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         allyDropdown:Refresh(names)
         WindUI:Notify({
-            Title = "Refreshed",
-            Content = #names .. " players found",
+            Title = "Ally List",
+            Content = #names .. " players",
             Duration = 2,
             Icon = "refresh-cw"
         })
@@ -723,14 +701,14 @@ ColorsTab:Section({Title = "ESP Colors", Opened = true})
 
 ColorsTab:Toggle({
     Title = "ESP RGB Mode",
-    Desc = "Rainbow color cycling",
+    Desc = "Rainbow cycling",
     Value = CONFIG.ESP.UseRGB,
     Callback = function(v) CONFIG.ESP.UseRGB = v end
 })
 
 ColorsTab:Slider({
     Title = "RGB Speed",
-    Desc = "Color cycling speed",
+    Desc = "Cycling speed",
     Step = 0.5,
     Value = {Min = 1, Max = 20, Default = CONFIG.ESP.RGBSpeed},
     Callback = function(v) CONFIG.ESP.RGBSpeed = v end
@@ -738,21 +716,21 @@ ColorsTab:Slider({
 
 ColorsTab:Colorpicker({
     Title = "Enemy Color",
-    Desc = "Color for enemies",
+    Desc = "For enemies",
     Default = CONFIG.ESP.TextColor,
     Callback = function(c) CONFIG.ESP.TextColor = c end
 })
 
 ColorsTab:Colorpicker({
     Title = "Ally Color",
-    Desc = "Color for allies/friends",
+    Desc = "For allies",
     Default = CONFIG.ESP.AllyColor,
     Callback = function(c) CONFIG.ESP.AllyColor = c end
 })
 
 ColorsTab:Colorpicker({
     Title = "Box Color",
-    Desc = "ESP box color",
+    Desc = "Box color",
     Default = CONFIG.ESP.BoxColor,
     Callback = function(c) CONFIG.ESP.BoxColor = c end
 })
@@ -761,14 +739,14 @@ ColorsTab:Section({Title = "FOV Colors", Opened = false})
 
 ColorsTab:Toggle({
     Title = "FOV RGB Mode",
-    Desc = "Rainbow FOV circle",
+    Desc = "Rainbow FOV",
     Value = CONFIG.Aimbot.FOVUseRGB,
     Callback = function(v) CONFIG.Aimbot.FOVUseRGB = v end
 })
 
 ColorsTab:Colorpicker({
     Title = "FOV Circle Color",
-    Desc = "FOV circle color",
+    Desc = "FOV color",
     Default = CONFIG.Aimbot.FOVColor,
     Callback = function(c) CONFIG.Aimbot.FOVColor = c end
 })
@@ -790,6 +768,7 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Color = CONFIG.Aimbot.FOVColor
     end
     
+    -- FOV Circle (Normal mode only)
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Position = screenCenter
     FOVCircle.Radius = CONFIG.Aimbot.FOV
@@ -808,18 +787,24 @@ RunService.RenderStepped:Connect(function()
         if not player or not player.Parent then RemoveESP(player) end
     end
     
-    -- Aimbot
+    -- AIMBOT
     if CONFIG.Aimbot.Enabled then
         local target = GetTarget()
         if target then
             local character = GetCharacter(target)
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
             if targetPart then
-                if CONFIG.Aimbot.Smoothness <= 0 then
+                if CONFIG.Aimbot.Mode == "Target" then
+                    -- HARD LOCK: Instant, no smoothness, follows everywhere
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 else
-                    local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1) * 0.5
-                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), smoothFactor)
+                    -- Normal mode
+                    if CONFIG.Aimbot.Smoothness <= 0 then
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                    else
+                        local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1) * 0.5
+                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), smoothFactor)
+                    end
                 end
             end
         end
@@ -831,24 +816,20 @@ task.spawn(function()
     if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
     task.wait(1)
     
-    -- Initial refresh
     local names = {}
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(names, p.Name)
-        end
+        if p ~= LocalPlayer then table.insert(names, p.Name) end
     end
     targetDropdown:Refresh(names)
     allyDropdown:Refresh(names)
     
     WindUI:Notify({
-        Title = "Combat System Loaded",
-        Content = "WindUI Edition v4.0 | Use Refresh buttons to update lists",
+        Title = "🔒 Combat System Loaded",
+        Content = "Hard Lock Target Mode Ready!",
         Duration = 3,
         Icon = "zap"
     })
 end)
 
-print("✅ Combat System with WindUI Loaded!")
-print("🎯 Mode 'Target': Lock onto Target List without FOV")
-print("🔄 Use Refresh buttons to update player lists")
+print("✅ Combat System Loaded!")
+print("🔒 Target Mode = Hard Lock (No FOV, follows everywhere)")
