@@ -427,6 +427,7 @@ local function RefreshPlayerDropdowns()
                 optBtn.TextSize = 10
                 optBtn.Font = Enum.Font.Gotham
                 optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+                optBtn.ZIndex = 101
                 optBtn.Parent = scrollFrame
                 
                 local optCorner = Instance.new("UICorner")
@@ -453,7 +454,7 @@ local function RefreshPlayerDropdowns()
                     
                     local count = #CONFIG.Aimbot.TargetList
                     if not TargetExpanded then
-                        TargetDropdownBtn.Text = count > 0 and (count .. " selected") or "Select targets"
+                        TargetDropdownBtn.Text = "▼ " .. (count > 0 and tostring(count) or "Select")
                     end
                 end)
                 
@@ -489,6 +490,7 @@ local function RefreshPlayerDropdowns()
                 optBtn.TextSize = 10
                 optBtn.Font = Enum.Font.Gotham
                 optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+                optBtn.ZIndex = 101
                 optBtn.Parent = scrollFrame
                 
                 local optCorner = Instance.new("UICorner")
@@ -515,7 +517,7 @@ local function RefreshPlayerDropdowns()
                     
                     local count = #CONFIG.Aimbot.AllyList
                     if not AllyExpanded then
-                        AllyDropdownBtn.Text = count > 0 and (count .. " allies") or "Select allies"
+                        AllyDropdownBtn.Text = "▼ " .. (count > 0 and tostring(count) or "Select")
                     end
                 end)
                 
@@ -1075,13 +1077,14 @@ local function CreateUI()
         return frame
     end
     
-    -- FIXED: Dropdown now toggles properly (click again to close)
+    -- FIXED: Dropdown now toggles properly with arrow indicator and full width expansion
     local function CreateDropdown(parent, text, options, default, callback)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 30)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
+        frame.ZIndex = 5 -- ให้ dropdown อยู่บนสุดเมื่อเปิด
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
@@ -1103,7 +1106,7 @@ local function CreateUI()
         dropBtn.Size = UDim2.new(0, 110, 0, 22)
         dropBtn.Position = UDim2.new(1, -118, 0.5, -11)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        dropBtn.Text = default
+        dropBtn.Text = "▼ " .. default -- เริ่มต้นมีลูกศรลง
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         dropBtn.TextSize = 10
         dropBtn.Font = Enum.Font.GothamSemibold
@@ -1119,14 +1122,22 @@ local function CreateUI()
         local function toggleDropdown()
             expanded = not expanded
             ButtonPress(dropBtn)
+            
             if expanded then
-                dropBtn.Text = "▼ " .. default
-                frame.Size = UDim2.new(1, 0, 0, 30 + #options * 24)
+                -- เปิด: เปลี่ยนเป็นลูกศรขึ้น ▲ และขยายเต็มความกว้าง
+                dropBtn.Text = "▲ " .. default
+                frame.ZIndex = 100 -- ยกระดับขึ้นมาบนสุด
+                TweenService:Create(frame, TweenInfo.new(0.2), {
+                    Size = UDim2.new(1, 0, 0, 30 + #options * 24)
+                }):Play()
             else
-                dropBtn.Text = default
-                frame.Size = UDim2.new(1, 0, 0, 30)
+                -- ปิด: เปลี่ยนเป็นลูกศรลง ▼ และกลับขนาดเดิม
+                dropBtn.Text = "▼ " .. default
+                frame.ZIndex = 5 -- คืนค่าระดับเดิม
+                TweenService:Create(frame, TweenInfo.new(0.2), {
+                    Size = UDim2.new(1, 0, 0, 30)
+                }):Play()
             end
-            TweenService:Create(frame, TweenInfo.new(0.2), {Size = expanded and UDim2.new(1, 0, 0, 30 + #options * 24) or UDim2.new(1, 0, 0, 30)}):Play()
         end
         
         dropBtn.MouseButton1Click:Connect(toggleDropdown)
@@ -1140,6 +1151,7 @@ local function CreateUI()
             optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
             optBtn.TextSize = 10
             optBtn.Font = Enum.Font.Gotham
+            optBtn.ZIndex = 101 -- ปุ่มตัวเลือกต้องอยู่บนสุดด้วย
             optBtn.Parent = frame
             
             local optCorner = Instance.new("UICorner")
@@ -1148,8 +1160,9 @@ local function CreateUI()
             
             optBtn.MouseButton1Click:Connect(function()
                 default = option
-                dropBtn.Text = option
                 expanded = false
+                dropBtn.Text = "▼ " .. option -- เลือกแล้วกลับเป็นลูกศรลง
+                frame.ZIndex = 5
                 TweenService:Create(frame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
                 if callback then callback(option) end
             end)
@@ -1159,14 +1172,15 @@ local function CreateUI()
         
         return frame
     end
-    
-    -- FIXED: Multi-select dropdown with proper toggle
+
+    -- FIXED: Multi-select dropdown with proper toggle and arrow indicator
     local function CreateMultiDropdown(parent, text, isTarget)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 32)
         frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
         frame.BorderSizePixel = 0
         frame.ClipsDescendants = true
+        frame.ZIndex = 5 -- เริ่มต้นที่ระดับปกติ
         frame.Parent = parent
         
         local corner = Instance.new("UICorner")
@@ -1189,7 +1203,9 @@ local function CreateUI()
         dropBtn.Size = UDim2.new(0, 100, 0, 22)
         dropBtn.Position = UDim2.new(0.3, 0, 0.5, -11)
         dropBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        dropBtn.Text = isTarget and "Select" or "Select"
+        -- เริ่มต้นเป็นลูกศรลง ▼
+        local count = isTarget and #CONFIG.Aimbot.TargetList or #CONFIG.Aimbot.AllyList
+        dropBtn.Text = "▼ " .. (count > 0 and tostring(count) or "Select")
         dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         dropBtn.TextSize = 10
         dropBtn.Font = Enum.Font.GothamSemibold
@@ -1209,13 +1225,14 @@ local function CreateUI()
         refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         refreshBtn.TextSize = 12
         refreshBtn.Font = Enum.Font.GothamBold
+        refreshBtn.ZIndex = 6 -- refresh ต้องอยู่เหนือ frame เสมอ
         refreshBtn.Parent = frame
         
         local refreshCorner = Instance.new("UICorner")
         refreshCorner.CornerRadius = UDim.new(0, 5)
         refreshCorner.Parent = refreshBtn
         
-        -- SCROLLING FRAME
+        -- SCROLLING FRAME - ซ่อนไว้ก่อน
         local scrollFrame = Instance.new("ScrollingFrame")
         scrollFrame.Name = "ScrollFrame"
         scrollFrame.Size = UDim2.new(1, -8, 1, -36)
@@ -1226,7 +1243,7 @@ local function CreateUI()
         scrollFrame.ScrollBarImageColor3 = CONFIG.UI.MainColor
         scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
         scrollFrame.Visible = false
-        scrollFrame.ZIndex = 10
+        scrollFrame.ZIndex = 100 -- ยกระดับสูงสุดเมื่อเปิด
         scrollFrame.Parent = frame
         
         local function ToggleDropdown()
@@ -1239,19 +1256,27 @@ local function CreateUI()
             local expanded = isTarget and TargetExpanded or AllyExpanded
             
             if expanded then
+                -- เปิด: ลูกศรขึ้น ▲, ยกระดับ ZIndex, ขยายเต็มความกว้าง
                 scrollFrame.Visible = true
-                frame.Size = UDim2.new(1, 0, 0, 150)
-                dropBtn.Text = "▼"
+                frame.ZIndex = 100
+                scrollFrame.ZIndex = 101
+                refreshBtn.ZIndex = 102 -- refresh ต้องอยู่บนสุดเสมอ
+                dropBtn.Text = "▲"
+                TweenService:Create(frame, TweenInfo.new(0.2), {
+                    Size = UDim2.new(1, 0, 0, 150)
+                }):Play()
             else
+                -- ปิด: ลูกศรลง ▼, คืน ZIndex, ย่อกลับ
                 scrollFrame.Visible = false
-                frame.Size = UDim2.new(1, 0, 0, 32)
+                frame.ZIndex = 5
+                scrollFrame.ZIndex = 100
+                refreshBtn.ZIndex = 6
                 local count = isTarget and #CONFIG.Aimbot.TargetList or #CONFIG.Aimbot.AllyList
-                dropBtn.Text = count > 0 and tostring(count) or "Select"
+                dropBtn.Text = "▼ " .. (count > 0 and tostring(count) or "Select")
+                TweenService:Create(frame, TweenInfo.new(0.2), {
+                    Size = UDim2.new(1, 0, 0, 32)
+                }):Play()
             end
-            
-            TweenService:Create(frame, TweenInfo.new(0.2), {
-                Size = expanded and UDim2.new(1, 0, 0, 150) or UDim2.new(1, 0, 0, 32)
-            }):Play()
         end
         
         dropBtn.MouseButton1Click:Connect(function()
