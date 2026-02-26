@@ -1,5 +1,3 @@
-
-
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,12 +11,12 @@ local Camera = Workspace.CurrentCamera
 --// LOAD WINDUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
---// CONFIGURATION
+--// CONFIGURATION - ALL ESP FALSE, TEAMCHECK FALSE
 local CONFIG = {
     Aimbot = {
         Enabled = false,
-        Mode = "Normal", -- "Normal" or "Target"
-        TeamCheck = false,
+        Mode = "Normal",
+        TeamCheck = false, -- CHANGED: false by default
         WallCheck = true,
         Smoothness = 0,
         FOV = 150,
@@ -34,23 +32,33 @@ local CONFIG = {
     },
     
     ESP = {
-        Enabled = false,
+        Enabled = false, -- CHANGED: false
         MaxDistance = 1000,
         TextSize = 13,
         TextColor = Color3.fromRGB(255, 50, 50),
         AllyColor = Color3.fromRGB(50, 255, 50),
         BoxColor = Color3.fromRGB(255, 0, 0),
-        ShowName = false,
-        ShowHealth = false,
-        ShowDistance = false,
-        ShowWeapon = false,
-        TeamCheck = false,
-        BoxESP = false,
-        TracerESP = false,
+        ShowName = false, -- CHANGED: false
+        ShowHealth = false, -- CHANGED: false
+        ShowDistance = false, -- CHANGED: false
+        ShowWeapon = false, -- CHANGED: false
+        TeamCheck = false, -- CHANGED: false
+        BoxESP = false, -- CHANGED: false
+        TracerESP = false, -- CHANGED: false
         TracerPosition = "Bottom",
-        Chams = false,
+        Chams = false, -- CHANGED: false
         UseRGB = false,
         RGBSpeed = 5
+    },
+    
+    Player = {
+        Fly = false,
+        FlySpeed = 50,
+        InfJump = false,
+        WalkSpeed = 16,
+        WalkSpeedEnabled = false,
+        JumpPower = 50,
+        JumpPowerEnabled = false
     },
     
     UI = {
@@ -62,6 +70,8 @@ local CONFIG = {
 local ESPObjects = {}
 local FOVHue = 0
 local ESPHue = 0
+local FlyConnection = nil
+local InfJumpConnection = nil
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -227,7 +237,7 @@ local function CreateESP(player)
             displayColor = Color3.fromHSV(ESPHue, 1, 1)
         else
             if isTargeted then
-                displayColor = Color3.fromRGB(255, 0, 255) -- Magenta for targets
+                displayColor = Color3.fromRGB(255, 0, 255)
             else
                 displayColor = isFriendly and CONFIG.ESP.AllyColor or CONFIG.ESP.TextColor
             end
@@ -362,9 +372,8 @@ local function RemoveESP(player)
     end
 end
 
---// AIMBOT LOGIC - HARD LOCK TARGET MODE
+--// AIMBOT LOGIC
 local function GetTarget()
-    -- TARGET MODE: Hard Lock - No FOV, No OnScreen, pure lock
     if CONFIG.Aimbot.Mode == "Target" and CONFIG.Aimbot.UseTargetList then
         for _, targetName in ipairs(CONFIG.Aimbot.TargetList) do
             local player = GetPlayerByName(targetName)
@@ -376,12 +385,11 @@ local function GetTarget()
                     local character = GetCharacter(player)
                     local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
                     if targetPart then
-                        -- Only wall check and distance
                         if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
                         
                         local distance = (targetPart.Position - Camera.CFrame.Position).Magnitude
                         if distance <= CONFIG.Aimbot.MaxDistance then
-                            return player -- LOCKED! No FOV, no OnScreen!
+                            return player
                         end
                     end
                 end
@@ -390,7 +398,6 @@ local function GetTarget()
         return nil
     end
     
-    -- NORMAL MODE: Use FOV + OnScreen
     local closestPlayer = nil
     local shortestDistance = CONFIG.Aimbot.FOV
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -464,7 +471,7 @@ AimbotTab:Toggle({
 
 AimbotTab:Dropdown({
     Title = "Mode",
-    Desc = "Normal = FOV circle | Target = Hard Lock (No FOV, follows everywhere)",
+    Desc = "Normal = FOV circle | Target = Hard Lock",
     Values = {"Normal", "Target"},
     Value = CONFIG.Aimbot.Mode,
     Callback = function(v) 
@@ -487,7 +494,7 @@ AimbotTab:Toggle({
 
 AimbotTab:Toggle({
     Title = "Wall Check",
-    Desc = "Check visibility (disable for true silent aim)",
+    Desc = "Check visibility",
     Value = CONFIG.Aimbot.WallCheck,
     Callback = function(v) CONFIG.Aimbot.WallCheck = v end
 })
@@ -525,16 +532,16 @@ AimbotTab:Dropdown({
 
 AimbotTab:Slider({
     Title = "Smoothness",
-    Desc = "Aim smoothing (0 = instant, only for Normal)",
+    Desc = "Aim smoothing (0 = instant, Normal only)",
     Step = 0.5,
     Value = {Min = 0, Max = 10, Default = CONFIG.Aimbot.Smoothness},
     Callback = function(v) CONFIG.Aimbot.Smoothness = v end
 })
 
---// ESP TAB
+--// ESP TAB - ALL FALSE BY DEFAULT
 ESPTab:Toggle({
     Title = "Enable ESP",
-    Desc = "Toggle ESP on/off",
+    Desc = "Master ESP toggle",
     Value = CONFIG.ESP.Enabled,
     Callback = function(v) CONFIG.ESP.Enabled = v end
 })
@@ -611,18 +618,198 @@ ESPTab:Slider({
     Callback = function(v) CONFIG.ESP.MaxDistance = v end
 })
 
---// PLAYERS TAB
-PlayersTab:Section({Title = "Target System", Opened = true})
+--// PLAYERS TAB - MOVEMENT FEATURES
+PlayersTab:Section({Title = "Movement", Opened = true})
+
+-- Fly
+PlayersTab:Toggle({
+    Title = "Fly",
+    Desc = "Enable flying (use WASD + Space/Shift)",
+    Value = CONFIG.Player.Fly,
+    Callback = function(v)
+        CONFIG.Player.Fly = v
+        if v then
+            -- Start Fly
+            local char = GetCharacter(LocalPlayer)
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    FlyConnection = RunService.RenderStepped:Connect(function()
+                        if not CONFIG.Player.Fly then return end
+                        local camCF = Camera.CFrame
+                        local moveDir = Vector3.new(0, 0, 0)
+                        
+                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                            moveDir = moveDir + camCF.LookVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                            moveDir = moveDir - camCF.LookVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                            moveDir = moveDir - camCF.RightVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                            moveDir = moveDir + camCF.RightVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                            moveDir = moveDir + Vector3.new(0, 1, 0)
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                            moveDir = moveDir - Vector3.new(0, 1, 0)
+                        end
+                        
+                        if moveDir.Magnitude > 0 then
+                            moveDir = moveDir.Unit * CONFIG.Player.FlySpeed
+                        end
+                        
+                        hrp.Velocity = moveDir
+                        hrp.CFrame = hrp.CFrame + moveDir * 0.01
+                    end)
+                end
+            end
+            WindUI:Notify({Title = "Fly Enabled", Content = "WASD to move, Space/Shift for up/down", Duration = 2, Icon = "plane"})
+        else
+            -- Stop Fly
+            if FlyConnection then
+                FlyConnection:Disconnect()
+                FlyConnection = nil
+            end
+            WindUI:Notify({Title = "Fly Disabled", Duration = 2, Icon = "x"})
+        end
+    end
+})
+
+PlayersTab:Slider({
+    Title = "Fly Speed",
+    Desc = "Flying speed",
+    Step = 5,
+    Value = {Min = 10, Max = 200, Default = CONFIG.Player.FlySpeed},
+    Callback = function(v) CONFIG.Player.FlySpeed = v end
+})
+
+-- Inf Jump
+PlayersTab:Toggle({
+    Title = "Infinite Jump",
+    Desc = "Jump forever without touching ground",
+    Value = CONFIG.Player.InfJump,
+    Callback = function(v)
+        CONFIG.Player.InfJump = v
+        if v then
+            InfJumpConnection = UserInputService.JumpRequest:Connect(function()
+                local char = GetCharacter(LocalPlayer)
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end)
+            WindUI:Notify({Title = "Inf Jump Enabled", Duration = 2, Icon = "arrow-up"})
+        else
+            if InfJumpConnection then
+                InfJumpConnection:Disconnect()
+                InfJumpConnection = nil
+            end
+            WindUI:Notify({Title = "Inf Jump Disabled", Duration = 2, Icon = "x"})
+        end
+    end
+})
+
+-- WalkSpeed with Toggle
+PlayersTab:Toggle({
+    Title = "Enable WalkSpeed",
+    Desc = "Toggle custom walkspeed",
+    Value = CONFIG.Player.WalkSpeedEnabled,
+    Callback = function(v)
+        CONFIG.Player.WalkSpeedEnabled = v
+        local char = GetCharacter(LocalPlayer)
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if v then
+                    humanoid.WalkSpeed = CONFIG.Player.WalkSpeed
+                    WindUI:Notify({Title = "WalkSpeed: " .. CONFIG.Player.WalkSpeed, Duration = 2, Icon = "zap"})
+                else
+                    humanoid.WalkSpeed = 16
+                    WindUI:Notify({Title = "WalkSpeed Reset", Duration = 2, Icon = "rotate-ccw"})
+                end
+            end
+        end
+    end
+})
+
+PlayersTab:Slider({
+    Title = "WalkSpeed Value",
+    Desc = "Set walking speed",
+    Step = 1,
+    Value = {Min = 16, Max = 200, Default = CONFIG.Player.WalkSpeed},
+    Callback = function(v)
+        CONFIG.Player.WalkSpeed = v
+        if CONFIG.Player.WalkSpeedEnabled then
+            local char = GetCharacter(LocalPlayer)
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = v
+                end
+            end
+        end
+    end
+})
+
+-- JumpPower with Toggle
+PlayersTab:Toggle({
+    Title = "Enable JumpPower",
+    Desc = "Toggle custom jump power",
+    Value = CONFIG.Player.JumpPowerEnabled,
+    Callback = function(v)
+        CONFIG.Player.JumpPowerEnabled = v
+        local char = GetCharacter(LocalPlayer)
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if v then
+                    humanoid.JumpPower = CONFIG.Player.JumpPower
+                    WindUI:Notify({Title = "JumpPower: " .. CONFIG.Player.JumpPower, Duration = 2, Icon = "arrow-up"})
+                else
+                    humanoid.JumpPower = 50
+                    WindUI:Notify({Title = "JumpPower Reset", Duration = 2, Icon = "rotate-ccw"})
+                end
+            end
+        end
+    end
+})
+
+PlayersTab:Slider({
+    Title = "JumpPower Value",
+    Desc = "Set jump power",
+    Step = 1,
+    Value = {Min = 50, Max = 200, Default = CONFIG.Player.JumpPower},
+    Callback = function(v)
+        CONFIG.Player.JumpPower = v
+        if CONFIG.Player.JumpPowerEnabled then
+            local char = GetCharacter(LocalPlayer)
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = v
+                end
+            end
+        end
+    end
+})
+
+PlayersTab:Section({Title = "Target & Ally System", Opened = false})
 
 PlayersTab:Toggle({
     Title = "Use Target List",
-    Desc = "Enable Target mode (required for Hard Lock)",
+    Desc = "Enable for Hard Lock mode",
     Value = CONFIG.Aimbot.UseTargetList,
     Callback = function(v) 
         CONFIG.Aimbot.UseTargetList = v 
         WindUI:Notify({
             Title = "Target List " .. (v and "ON" or "OFF"),
-            Content = v and "Select targets below for Hard Lock" or "Disabled",
+            Content = v and "Select targets below" or "Disabled",
             Duration = 2,
             Icon = v and "check" or "x"
         })
@@ -631,7 +818,7 @@ PlayersTab:Toggle({
 
 local targetDropdown = PlayersTab:Dropdown({
     Title = "Target Players",
-    Desc = "Select for Hard Lock (magenta [TARGET] in ESP)",
+    Desc = "Select for Hard Lock",
     Values = {},
     Value = {},
     Multi = true,
@@ -650,16 +837,9 @@ PlayersTab:Button({
             if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         targetDropdown:Refresh(names)
-        WindUI:Notify({
-            Title = "Target List",
-            Content = #names .. " players",
-            Duration = 2,
-            Icon = "refresh-cw"
-        })
+        WindUI:Notify({Title = "Target List", Content = #names .. " players", Duration = 2, Icon = "refresh-cw"})
     end
 })
-
-PlayersTab:Section({Title = "Ally System", Opened = false})
 
 PlayersTab:Toggle({
     Title = "Use Ally List",
@@ -689,12 +869,7 @@ PlayersTab:Button({
             if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         allyDropdown:Refresh(names)
-        WindUI:Notify({
-            Title = "Ally List",
-            Content = #names .. " players",
-            Duration = 2,
-            Icon = "refresh-cw"
-        })
+        WindUI:Notify({Title = "Ally List", Content = #names .. " players", Duration = 2, Icon = "refresh-cw"})
     end
 })
 
@@ -797,7 +972,7 @@ RunService.RenderStepped:Connect(function()
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
             if targetPart then
                 if CONFIG.Aimbot.Mode == "Target" then
-                    -- HARD LOCK: Instant, no smoothness, follows everywhere
+                    -- HARD LOCK: Instant
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 else
                     -- Normal mode
@@ -807,6 +982,22 @@ RunService.RenderStepped:Connect(function()
                         local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1) * 0.5
                         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), smoothFactor)
                     end
+                end
+            end
+        end
+    end
+    
+    -- WalkSpeed & JumpPower auto-apply on respawn
+    if CONFIG.Player.WalkSpeedEnabled or CONFIG.Player.JumpPowerEnabled then
+        local char = GetCharacter(LocalPlayer)
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if CONFIG.Player.WalkSpeedEnabled and humanoid.WalkSpeed ~= CONFIG.Player.WalkSpeed then
+                    humanoid.WalkSpeed = CONFIG.Player.WalkSpeed
+                end
+                if CONFIG.Player.JumpPowerEnabled and humanoid.JumpPower ~= CONFIG.Player.JumpPower then
+                    humanoid.JumpPower = CONFIG.Player.JumpPower
                 end
             end
         end
@@ -827,11 +1018,12 @@ task.spawn(function()
     
     WindUI:Notify({
         Title = "🔒 Combat System Loaded",
-        Content = "Hard Lock Target Mode Ready!",
+        Content = "ESP: OFF | TeamCheck: OFF | Movement: Ready",
         Duration = 3,
         Icon = "zap"
     })
 end)
 
 print("✅ Combat System Loaded!")
-print("🔒 Target Mode = Hard Lock (No FOV, follows everywhere)")
+print("🔧 Config: TeamCheck=false, All ESP=false")
+print("🏃 Movement: Fly, InfJump, WalkSpeed, JumpPower Ready")
