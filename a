@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local Mouse = Players.LocalPlayer:GetMouse()
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -16,7 +17,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local CONFIG = {
     Aimbot = {
         Enabled = false,
-        Mode = "FOV", -- "FOV", "Nearest", "FOV+Nearest"
+        Mode = "FOV",
         TeamCheck = false,
         WallCheck = true,
         Smoothness = 0,
@@ -46,8 +47,7 @@ local CONFIG = {
         TeamCheck = false,
         BoxESP = false,
         TracerESP = false,
-        TracerPosition = "Bottom",
-        TracerOutOfScreen = true, -- NEW: Draw to screen edge when off-screen
+        TracerPosition = "Bottom", -- Bottom, Top, Left, Right, Center, Mouse
         Chams = false,
         UseRGB = false,
         RGBSpeed = 5
@@ -57,10 +57,10 @@ local CONFIG = {
         InfJump = false,
         WalkSpeed = 16,
         WalkSpeedEnabled = false,
-        JumpPower = 50, -- Actually JumpHeight
+        JumpPower = 50,
         JumpPowerEnabled = false,
         OrbitEnabled = false,
-        OrbitTarget = "All", -- "All" or specific player name
+        OrbitTarget = nil, -- nil = no target, player name = specific player
         OrbitDistance = 10,
         OrbitSpeed = 1
     },
@@ -77,7 +77,7 @@ local CONFIG = {
 
 --// VARIABLES
 local ESPObjects = {}
-local SharedHue = 0 -- Shared RGB hue for FOV and ESP
+local SharedHue = 0
 local FOVCircle = Drawing.new("Circle")
 local MobileLockButton = nil
 local OrbitConnection = nil
@@ -192,12 +192,6 @@ local function CreateESP(player)
     tracer.Visible = false
     espData.Drawings.Tracer = tracer
     
-    -- NEW: Tracer for out-of-screen targets
-    local edgeTracer = Drawing.new("Line")
-    edgeTracer.Thickness = 2
-    edgeTracer.Visible = false
-    espData.Drawings.EdgeTracer = edgeTracer
-    
     espData.Update = function(deltaTime)
         if not CONFIG.ESP.Enabled then
             for _, drawing in pairs(espData.Drawings) do
@@ -253,75 +247,45 @@ local function CreateESP(player)
             end
         end
         
-        for _, dr in pairs(espData.Drawings) do
-            if typeof(dr) == "table" and dr.Color then
-                dr.Color = displayColor
-            end
-        end
+        espData.Drawings.Name.Color = displayColor
+        espData.Drawings.Box.Color = displayColor
+        espData.Drawings.FilledBox.Color = displayColor
+        espData.Drawings.Tracer.Color = displayColor
         
         local headPos, headOnScreen = WorldToScreen(head.Position + Vector3.new(0, 0.5, 0))
         local rootPos, rootOnScreen = WorldToScreen(rootPart.Position - Vector3.new(0, 3, 0))
         
-        -- Handle off-screen tracer
-        if CONFIG.ESP.TracerOutOfScreen and not (headOnScreen or rootOnScreen) then
-            -- Calculate edge position
-            local screenSize = Camera.ViewportSize
-            local center = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
-            local dir = (rootPos - center)
-            if dir.Magnitude > 0 then
-                dir = dir.Unit
-                
-                -- Find intersection with screen edge
-                local edgePos = center + dir * math.min(screenSize.X, screenSize.Y) / 2
-                edgePos = Vector2.new(
-                    math.clamp(edgePos.X, 0, screenSize.X),
-                    math.clamp(edgePos.Y, 0, screenSize.Y)
-                )
-                
-                local tracerStart = center
-                if CONFIG.ESP.TracerPosition == "Top" then
-                    tracerStart = Vector2.new(screenSize.X / 2, 0)
-                elseif CONFIG.ESP.TracerPosition == "Left" then
-                    tracerStart = Vector2.new(0, screenSize.Y / 2)
-                elseif CONFIG.ESP.TracerPosition == "Right" then
-                    tracerStart = Vector2.new(screenSize.X, screenSize.Y / 2)
-                elseif CONFIG.ESP.TracerPosition == "Bottom" then
-                    tracerStart = Vector2.new(screenSize.X / 2, screenSize.Y)
-                end
-                
-                espData.Drawings.EdgeTracer.From = tracerStart
-                espData.Drawings.EdgeTracer.To = edgePos
-                espData.Drawings.EdgeTracer.Color = displayColor
-                espData.Drawings.EdgeTracer.Visible = CONFIG.ESP.TracerESP
+        if not headOnScreen and not rootOnScreen then
+            for _, drawing in pairs(espData.Drawings) do
+                drawing.Visible = false
             end
-            espData.Drawings.Tracer.Visible = false
-        else
-            espData.Drawings.EdgeTracer.Visible = false
-            
-            if headOnScreen or rootOnScreen then
-                local tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                if CONFIG.ESP.TracerPosition == "Top" then
-                    tracerStart = Vector2.new(Camera.ViewportSize.X / 2, 0)
-                elseif CONFIG.ESP.TracerPosition == "Left" then
-                    tracerStart = Vector2.new(0, Camera.ViewportSize.Y / 2)
-                elseif CONFIG.ESP.TracerPosition == "Right" then
-                    tracerStart = Vector2.new(Camera.ViewportSize.X, Camera.ViewportSize.Y / 2)
-                end
-                
-                espData.Drawings.Tracer.From = tracerStart
-                espData.Drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-                espData.Drawings.Tracer.Visible = CONFIG.ESP.TracerESP
-            else
-                espData.Drawings.Tracer.Visible = false
-            end
+            if espData.Highlight then espData.Highlight.Enabled = false end
+            return
         end
         
-        -- Rest of ESP (boxes, names, etc.)
+        -- Tracer Position
+        local tracerStart
+        local pos = CONFIG.ESP.TracerPosition
+        
+        if pos == "Center" then
+            tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        elseif pos == "Mouse" then
+            tracerStart = Vector2.new(Mouse.X, Mouse.Y)
+        elseif pos == "Top" then
+            tracerStart = Vector2.new(Camera.ViewportSize.X / 2, 0)
+        elseif pos == "Left" then
+            tracerStart = Vector2.new(0, Camera.ViewportSize.Y / 2)
+        elseif pos == "Right" then
+            tracerStart = Vector2.new(Camera.ViewportSize.X, Camera.ViewportSize.Y / 2)
+        else -- Bottom (default)
+            tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+        end
+        
         local boxHeight = math.abs(headPos.Y - rootPos.Y)
         local boxWidth = boxHeight * 0.6
         local boxPos = Vector2.new(headPos.X - boxWidth / 2, headPos.Y)
         
-        if CONFIG.ESP.ShowName and (headOnScreen or rootOnScreen) then
+        if CONFIG.ESP.ShowName then
             local tag = isTargeted and " [TARGET]" or isAlly and " [ALLY]" or isTeammate and " [TEAM]" or " [ENEMY]"
             espData.Drawings.Name.Text = player.Name .. tag
             espData.Drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 20)
@@ -330,7 +294,7 @@ local function CreateESP(player)
             espData.Drawings.Name.Visible = false
         end
         
-        if CONFIG.ESP.ShowHealth and (headOnScreen or rootOnScreen) then
+        if CONFIG.ESP.ShowHealth then
             local hpPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
             espData.Drawings.Health.Text = hpPercent .. " HP"
             espData.Drawings.Health.Color = Color3.fromRGB(255 - (hpPercent * 2.55), hpPercent * 2.55, 0)
@@ -340,7 +304,7 @@ local function CreateESP(player)
             espData.Drawings.Health.Visible = false
         end
         
-        if CONFIG.ESP.ShowDistance and (headOnScreen or rootOnScreen) then
+        if CONFIG.ESP.ShowDistance then
             espData.Drawings.Distance.Text = math.floor(distance) .. "m"
             espData.Drawings.Distance.Position = Vector2.new(headPos.X, rootPos.Y + 5)
             espData.Drawings.Distance.Visible = true
@@ -348,7 +312,16 @@ local function CreateESP(player)
             espData.Drawings.Distance.Visible = false
         end
         
-        if CONFIG.ESP.BoxESP and (headOnScreen or rootOnScreen) then
+        if CONFIG.ESP.ShowWeapon then
+            local tool = character:FindFirstChildOfClass("Tool")
+            espData.Drawings.Weapon.Text = tool and tool.Name or "None"
+            espData.Drawings.Weapon.Position = Vector2.new(headPos.X, rootPos.Y + 20)
+            espData.Drawings.Weapon.Visible = true
+        else
+            espData.Drawings.Weapon.Visible = false
+        end
+        
+        if CONFIG.ESP.BoxESP then
             espData.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
             espData.Drawings.Box.Position = boxPos
             espData.Drawings.Box.Visible = true
@@ -358,6 +331,14 @@ local function CreateESP(player)
         else
             espData.Drawings.Box.Visible = false
             espData.Drawings.FilledBox.Visible = false
+        end
+        
+        if CONFIG.ESP.TracerESP then
+            espData.Drawings.Tracer.From = tracerStart
+            espData.Drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
+            espData.Drawings.Tracer.Visible = true
+        else
+            espData.Drawings.Tracer.Visible = false
         end
         
         if CONFIG.ESP.Chams then
@@ -394,94 +375,101 @@ local function RemoveESP(player)
     end
 end
 
---// AIMBOT LOGIC - 3 MODES
-local function GetDistanceToMouse(player)
-    local character = GetCharacter(player)
-    if not character then return math.huge end
-    local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
-    if not targetPart then return math.huge end
-    
-    local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
-    if not onScreen then return math.huge end
-    
-    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    return (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude, depth
-end
-
+--// FIXED AIMBOT LOGIC
 local function GetTarget()
     local mode = CONFIG.Aimbot.Mode
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
-    -- Get valid targets first
+    -- Collect valid targets first
     local validTargets = {}
+    
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-        if not IsAlive(GetCharacter(player)) then continue end
+        
+        local character = GetCharacter(player)
+        if not IsAlive(character) then continue end
+        
         if CONFIG.Aimbot.TeamCheck and IsTeammate(player) then continue end
         if CONFIG.Aimbot.UseAllyList and IsInAllyList(player) then continue end
         if CONFIG.Aimbot.UseTargetList and not IsInTargetList(player) then continue end
         
-        local character = GetCharacter(player)
         local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
         if not targetPart then continue end
+        
+        -- Wall check
         if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
         
-        local distance = (targetPart.Position - Camera.CFrame.Position).Magnitude
-        if distance > CONFIG.Aimbot.MaxDistance then continue end
+        local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
+        
+        -- Distance check
+        local distance3D = (targetPart.Position - Camera.CFrame.Position).Magnitude
+        if distance3D > CONFIG.Aimbot.MaxDistance then continue end
+        
+        -- Calculate 2D distance from center
+        local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
         
         table.insert(validTargets, {
             Player = player,
             Part = targetPart,
-            Distance3D = distance,
-            ScreenPos, OnScreen, Depth = WorldToScreen(targetPart.Position)
+            Distance2D = dist2D,
+            Distance3D = distance3D,
+            OnScreen = onScreen,
+            ScreenPos = screenPos
         })
     end
     
     if #validTargets == 0 then return nil end
     
-    -- Mode: FOV (closest to center of screen within FOV)
+    -- MODE: FOV - Must be on screen and within FOV radius
     if mode == "FOV" then
-        local closest = nil
-        local shortest = CONFIG.Aimbot.FOV
+        local best = nil
+        local bestDist = CONFIG.Aimbot.FOV
+        
         for _, t in ipairs(validTargets) do
+            -- MUST be on screen AND within FOV
             if not t.OnScreen then continue end
-            local dist2D = (Vector2.new(t.ScreenPos.X, t.ScreenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-            if dist2D < shortest then
-                shortest = dist2D
-                closest = t.Player
-            end
-        end
-        return closest
-    end
-    
-    -- Mode: Nearest (closest 3D distance)
-    if mode == "Nearest" then
-        local nearest = nil
-        local shortestDist = math.huge
-        for _, t in ipairs(validTargets) do
-            if t.Distance3D < shortestDist then
-                shortestDist = t.Distance3D
-                nearest = t.Player
-            end
-        end
-        return nearest
-    end
-    
-    -- Mode: FOV+Nearest (must be in FOV, then pick nearest 3D)
-    if mode == "FOV+Nearest" then
-        local candidates = {}
-        for _, t in ipairs(validTargets) do
-            if not t.OnScreen then continue end
-            local dist2D = (Vector2.new(t.ScreenPos.X, t.ScreenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-            if dist2D <= CONFIG.Aimbot.FOV then
-                table.insert(candidates, t)
+            if t.Distance2D > CONFIG.Aimbot.FOV then continue end
+            
+            if t.Distance2D < bestDist then
+                bestDist = t.Distance2D
+                best = t
             end
         end
         
-        if #candidates == 0 then return nil end
+        return best and best.Player or nil
+    end
+    
+    -- MODE: Nearest - Closest 3D distance, no FOV needed
+    if mode == "Nearest" then
+        local best = nil
+        local bestDist = math.huge
+        
+        for _, t in ipairs(validTargets) do
+            if t.Distance3D < bestDist then
+                bestDist = t.Distance3D
+                best = t
+            end
+        end
+        
+        return best and best.Player or nil
+    end
+    
+    -- MODE: FOV+Nearest - Must be in FOV, then pick nearest 3D
+    if mode == "FOV+Nearest" then
+        local inFOV = {}
+        
+        for _, t in ipairs(validTargets) do
+            -- Must be on screen and in FOV
+            if not t.OnScreen then continue end
+            if t.Distance2D > CONFIG.Aimbot.FOV then continue end
+            table.insert(inFOV, t)
+        end
+        
+        if #inFOV == 0 then return nil end
         
         -- Sort by 3D distance
-        table.sort(candidates, function(a, b) return a.Distance3D < b.Distance3D end)
-        return candidates[1].Player
+        table.sort(inFOV, function(a, b) return a.Distance3D < b.Distance3D end)
+        return inFOV[1].Player
     end
     
     return nil
@@ -491,19 +479,19 @@ end
 local function CreateMobileButton()
     if MobileLockButton then MobileLockButton:Destroy() end
     
-    local button = Instance.new("ScreenGui")
-    button.Name = "MobileLockButton"
-    button.Parent = CoreGui
-    button.ResetOnSpawn = false
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "MobileLockButton"
+    gui.Parent = CoreGui
+    gui.ResetOnSpawn = false
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 60, 0, 60)
+    frame.Size = UDim2.new(0, 70, 0, 70)
     frame.Position = CONFIG.Mobile.LockButtonPosition
     frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     frame.BorderSizePixel = 0
     frame.Active = true
     frame.Draggable = true
-    frame.Parent = button
+    frame.Parent = gui
     
     Instance.new("UICorner", frame).CornerRadius = UDim.new(1, 0)
     
@@ -511,7 +499,7 @@ local function CreateMobileButton()
     label.Size = UDim2.new(1, 0, 1, 0)
     label.Text = "LOCK"
     label.TextColor3 = Color3.new(1, 1, 1)
-    label.TextSize = 14
+    label.TextSize = 12
     label.Font = Enum.Font.GothamBold
     label.BackgroundTransparency = 1
     label.Parent = frame
@@ -524,7 +512,6 @@ local function CreateMobileButton()
             locked = not locked
             
             if locked then
-                -- Lock onto nearest
                 lockTarget = GetTarget()
                 if lockTarget then
                     frame.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
@@ -540,14 +527,12 @@ local function CreateMobileButton()
         end
     end)
     
-    -- Update position to config when dragged
     frame:GetPropertyChangedSignal("Position"):Connect(function()
         CONFIG.Mobile.LockButtonPosition = frame.Position
     end)
     
-    MobileLockButton = button
+    MobileLockButton = gui
     
-    -- Return lock function
     return function()
         if locked and lockTarget then
             local char = GetCharacter(lockTarget)
@@ -557,6 +542,11 @@ local function CreateMobileButton()
                     return part.Position
                 end
             end
+            -- Target lost, reset
+            locked = false
+            frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            label.Text = "LOCK"
+            lockTarget = nil
         end
         return nil
     end
@@ -578,24 +568,7 @@ local function StartOrbit()
         
         local targetPos = nil
         
-        if CONFIG.Player.OrbitTarget == "All" then
-            -- Orbit around average position of all players
-            local totalPos = Vector3.new(0, 0, 0)
-            local count = 0
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then
-                    local char = GetCharacter(p)
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        totalPos = totalPos + char.HumanoidRootPart.Position
-                        count = count + 1
-                    end
-                end
-            end
-            if count > 0 then
-                targetPos = totalPos / count
-            end
-        else
-            -- Orbit specific player
+        if CONFIG.Player.OrbitTarget then
             local target = GetPlayerByName(CONFIG.Player.OrbitTarget)
             if target then
                 local char = GetCharacter(target)
@@ -608,9 +581,11 @@ local function StartOrbit()
         if targetPos then
             local time = tick() * CONFIG.Player.OrbitSpeed
             local dist = CONFIG.Player.OrbitDistance
+            local height = math.sin(time * 0.5) * dist * 0.3
+            
             local offset = Vector3.new(
                 math.cos(time) * dist,
-                math.sin(time * 0.5) * dist * 0.3 + 5, -- Slight up/down
+                height + 5,
                 math.sin(time) * dist
             )
             
@@ -636,13 +611,9 @@ local Window = Rayfield:CreateWindow({
         FolderName = "VenusX",
         FileName = "Config"
     },
-    Discord = {
-        Enabled = false
-    },
     KeySystem = false
 })
 
---// TABS
 local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
 local ESPTab = Window:CreateTab("ESP", 4483362458)
 local PlayersTab = Window:CreateTab("Players", 4483362458)
@@ -723,7 +694,6 @@ AimbotTab:CreateSlider({
     Callback = function(v) CONFIG.Aimbot.Smoothness = v end
 })
 
--- Mobile Button Toggle
 AimbotTab:CreateToggle({
     Name = "Mobile Lock Button",
     CurrentValue = CONFIG.Mobile.LockButtonEnabled,
@@ -767,16 +737,9 @@ ESPTab:CreateToggle({
     Callback = function(v) CONFIG.ESP.TracerESP = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Tracer When Off-Screen",
-    CurrentValue = CONFIG.ESP.TracerOutOfScreen,
-    Flag = "TracerOutOfScreen",
-    Callback = function(v) CONFIG.ESP.TracerOutOfScreen = v end
-})
-
 ESPTab:CreateDropdown({
     Name = "Tracer Position",
-    Options = {"Bottom", "Top", "Left", "Right"},
+    Options = {"Bottom", "Top", "Left", "Right", "Center", "Mouse"},
     CurrentOption = CONFIG.ESP.TracerPosition,
     Flag = "TracerPosition",
     Callback = function(v) CONFIG.ESP.TracerPosition = v end
@@ -902,8 +865,7 @@ PlayersTab:CreateToggle({
         if char then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                -- Use JumpHeight instead of deprecated JumpPower
-                humanoid.JumpHeight = v and CONFIG.Player.JumpPower / 10 or 5
+                humanoid.JumpHeight = v and (CONFIG.Player.JumpPower / 10) or 5
             end
         end
     end
@@ -946,12 +908,30 @@ PlayersTab:CreateToggle({
     end
 })
 
-PlayersTab:CreateDropdown({
+local orbitDropdown = PlayersTab:CreateDropdown({
     Name = "Orbit Target",
-    Options = {"All"},
-    CurrentOption = CONFIG.Player.OrbitTarget,
+    Options = {"None"},
+    CurrentOption = "None",
     Flag = "OrbitTarget",
-    Callback = function(v) CONFIG.Player.OrbitTarget = v end
+    Callback = function(v)
+        CONFIG.Player.OrbitTarget = v == "None" and nil or v
+    end
+})
+
+PlayersTab:CreateButton({
+    Name = "🔄 Refresh Orbit List",
+    Callback = function()
+        local names = {"None"}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then table.insert(names, p.Name) end
+        end
+        orbitDropdown:Refresh(names)
+        Rayfield:Notify({
+            Title = "Orbit List",
+            Content = #names - 1 .. " players",
+            Duration = 2
+        })
+    end
 })
 
 PlayersTab:CreateSlider({
@@ -1132,12 +1112,12 @@ RunService.RenderStepped:Connect(function()
     if CONFIG.Aimbot.Enabled then
         local target = nil
         
-        -- Check mobile button lock
+        -- Check mobile button lock first
         if MobileGetLock then
             local lockPos = MobileGetLock()
             if lockPos then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, lockPos)
-                return -- Skip normal aimbot if mobile locked
+                return
             end
         end
         
@@ -1146,11 +1126,12 @@ RunService.RenderStepped:Connect(function()
             local character = GetCharacter(target)
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
             if targetPart then
-                -- INSTANT LOCK - No delay, direct CFrame
+                -- INSTANT LOCK - True instant, no lerp when smoothness is 0
                 if CONFIG.Aimbot.Smoothness <= 0 then
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 else
-                    local smooth = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1)
+                    -- Smooth with actual smoothness value
+                    local smooth = math.clamp(CONFIG.Aimbot.Smoothness / 10, 0, 1)
                     Camera.CFrame = Camera.CFrame:Lerp(
                         CFrame.new(Camera.CFrame.Position, targetPart.Position), 
                         smooth
@@ -1160,7 +1141,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- Auto WalkSpeed/JumpHeight
+    -- Auto apply WalkSpeed/JumpHeight
     local char = GetCharacter(LocalPlayer)
     if char then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -1180,22 +1161,17 @@ task.spawn(function()
     if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
     task.wait(1)
     
-    -- Setup mobile button if enabled
     if CONFIG.Mobile.LockButtonEnabled then
         MobileGetLock = CreateMobileButton()
     end
     
-    -- Refresh dropdowns
     local names = {}
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then table.insert(names, p.Name) end
     end
     targetDropdown:Refresh(names)
     allyDropdown:Refresh(names)
-    
-    -- Update orbit target options
-    local orbitOptions = {"All"}
-    for _, n in ipairs(names) do table.insert(orbitOptions, n) end
+    orbitDropdown:Refresh({"None", table.unpack(names)})
     
     print("✅ Venus x Rayfield Loaded!")
 end)
