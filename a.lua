@@ -8,10 +8,10 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
---// LOAD RAYFIELD
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+--// LOAD WINDUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
---// CONFIGURATION
+--// CONFIGURATION - ALL ESP FALSE, TEAMCHECK FALSE
 local CONFIG = {
     Aimbot = {
         Enabled = false,
@@ -22,6 +22,7 @@ local CONFIG = {
         FOV = 150,
         ShowFOV = true,
         FOVColor = Color3.fromRGB(0, 170, 255),
+        FOVUseRGB = false,
         MaxDistance = 1000,
         TargetPart = "Head",
         UseTargetList = false,
@@ -51,19 +52,26 @@ local CONFIG = {
     },
     
     Player = {
+        Fly = false,
+        FlySpeed = 50,
         InfJump = false,
         WalkSpeed = 16,
         WalkSpeedEnabled = false,
         JumpPower = 50,
         JumpPowerEnabled = false
+    },
+    
+    UI = {
+        MainColor = Color3.fromRGB(0, 170, 255)
     }
 }
 
 --// VARIABLES
 local ESPObjects = {}
-local SharedHue = 0  -- Shared RGB hue for both FOV and ESP
+local FOVHue = 0
+local ESPHue = 0
+local FlyConnection = nil
 local InfJumpConnection = nil
-local FOVCircle = Drawing.new("Circle")
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -223,10 +231,10 @@ local function CreateESP(player)
         local isTargeted = CONFIG.Aimbot.UseTargetList and IsInTargetList(player)
         local isFriendly = isTeammate or isAlly
         
-        -- SHARED RGB COLOR
         local displayColor
         if CONFIG.ESP.UseRGB then
-            displayColor = Color3.fromHSV(SharedHue, 1, 1)
+            ESPHue = (ESPHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
+            displayColor = Color3.fromHSV(ESPHue, 1, 1)
         else
             if isTargeted then
                 displayColor = Color3.fromRGB(255, 0, 255)
@@ -418,188 +426,200 @@ local function GetTarget()
     return closestPlayer
 end
 
---// RAYFIELD UI
-local Window = Rayfield:CreateWindow({
-    Name = "Venus x",
-    LoadingTitle = "Venus x Loading",
-    LoadingSubtitle = "by w1201s",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "VenusX",
-        FileName = "Config"
-    },
-    KeySystem = false
+--// WINDUI SETUP
+local Window = WindUI:CreateWindow({
+    Title = "Venus x",
+    Icon = "sword",
+    Author = "by w1201s",
+    Folder = "Aimbot",
+    Size = UDim2.fromOffset(580, 460),
+    MinSize = Vector2.new(400, 300),
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 180,
+    Transparent = true
 })
 
-local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
-local ESPTab = Window:CreateTab("ESP", 4483362458)
-local PlayersTab = Window:CreateTab("Players", 4483362458)
-local ColorsTab = Window:CreateTab("Colors", 4483362458)
+--// TABS
+local AimbotTab = Window:Tab({
+    Title = "Aimbot",
+    Icon = "target"
+})
+
+local ESPTab = Window:Tab({
+    Title = "ESP",
+    Icon = "eye"
+})
+
+local PlayersTab = Window:Tab({
+    Title = "Players",
+    Icon = "users"
+})
+
+local ColorsTab = Window:Tab({
+    Title = "Colors",
+    Icon = "palette"
+})
 
 --// AIMBOT TAB
-AimbotTab:CreateToggle({
-    Name = "Enable Aimbot",
-    CurrentValue = CONFIG.Aimbot.Enabled,
-    Flag = "AimbotEnabled",
+AimbotTab:Toggle({
+    Title = "Enable Aimbot",
+    Desc = "Toggle aimbot on/off",
+    Value = CONFIG.Aimbot.Enabled,
     Callback = function(v) CONFIG.Aimbot.Enabled = v end
 })
 
-AimbotTab:CreateDropdown({
-    Name = "Mode",
-    Options = {"Normal", "Target"},
-    CurrentOption = CONFIG.Aimbot.Mode,
-    Flag = "AimbotMode",
-    Callback = function(v) CONFIG.Aimbot.Mode = v end
+AimbotTab:Dropdown({
+    Title = "Mode",
+    Desc = "Normal = FOV circle | Target = Hard Lock",
+    Values = {"Normal", "Target"},
+    Value = CONFIG.Aimbot.Mode,
+    Callback = function(v) 
+        CONFIG.Aimbot.Mode = v 
+    end
 })
 
-AimbotTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = CONFIG.Aimbot.TeamCheck,
-    Flag = "TeamCheck",
+AimbotTab:Toggle({
+    Title = "Team Check",
+    Desc = "Ignore teammates",
+    Value = CONFIG.Aimbot.TeamCheck,
     Callback = function(v) CONFIG.Aimbot.TeamCheck = v end
 })
 
-AimbotTab:CreateToggle({
-    Name = "Wall Check",
-    CurrentValue = CONFIG.Aimbot.WallCheck,
-    Flag = "WallCheck",
+AimbotTab:Toggle({
+    Title = "Wall Check",
+    Desc = "Check visibility",
+    Value = CONFIG.Aimbot.WallCheck,
     Callback = function(v) CONFIG.Aimbot.WallCheck = v end
 })
 
-AimbotTab:CreateToggle({
-    Name = "Show FOV",
-    CurrentValue = CONFIG.Aimbot.ShowFOV,
-    Flag = "ShowFOV",
+AimbotTab:Toggle({
+    Title = "Show FOV",
+    Desc = "Show FOV circle (Normal mode only)",
+    Value = CONFIG.Aimbot.ShowFOV,
     Callback = function(v) CONFIG.Aimbot.ShowFOV = v end
 })
 
-AimbotTab:CreateSlider({
-    Name = "FOV Size",
-    Range = {50, 400},
-    Increment = 10,
-    Suffix = "px",
-    CurrentValue = CONFIG.Aimbot.FOV,
-    Flag = "FOVSize",
+AimbotTab:Slider({
+    Title = "FOV Size",
+    Desc = "FOV radius (Normal mode only)",
+    Step = 10,
+    Value = {Min = 50, Max = 400, Default = CONFIG.Aimbot.FOV},
     Callback = function(v) CONFIG.Aimbot.FOV = v end
 })
 
-AimbotTab:CreateSlider({
-    Name = "Max Distance",
-    Range = {100, 5000},
-    Increment = 50,
-    Suffix = "m",
-    CurrentValue = CONFIG.Aimbot.MaxDistance,
-    Flag = "MaxDistance",
+AimbotTab:Slider({
+    Title = "Max Distance",
+    Desc = "Maximum lock distance",
+    Step = 50,
+    Value = {Min = 100, Max = 5000, Default = CONFIG.Aimbot.MaxDistance},
     Callback = function(v) CONFIG.Aimbot.MaxDistance = v end
 })
 
-AimbotTab:CreateDropdown({
-    Name = "Target Part",
-    Options = {"Head", "HumanoidRootPart"},
-    CurrentOption = CONFIG.Aimbot.TargetPart,
-    Flag = "TargetPart",
+AimbotTab:Dropdown({
+    Title = "Target Part",
+    Desc = "Aim at body part",
+    Values = {"Head", "HumanoidRootPart"},
+    Value = CONFIG.Aimbot.TargetPart,
     Callback = function(v) CONFIG.Aimbot.TargetPart = v end
 })
 
-AimbotTab:CreateSlider({
-    Name = "Smoothness",
-    Range = {0, 10},
-    Increment = 0.5,
-    Suffix = "",
-    CurrentValue = CONFIG.Aimbot.Smoothness,
-    Flag = "Smoothness",
+AimbotTab:Slider({
+    Title = "Smoothness",
+    Desc = "Aim smoothing (0 = instant, Normal only)",
+    Step = 0.5,
+    Value = {Min = 0, Max = 10, Default = CONFIG.Aimbot.Smoothness},
     Callback = function(v) CONFIG.Aimbot.Smoothness = v end
 })
 
---// ESP TAB
-ESPTab:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = CONFIG.ESP.Enabled,
-    Flag = "ESPEnabled",
+--// ESP TAB - ALL FALSE BY DEFAULT
+ESPTab:Toggle({
+    Title = "Enable ESP",
+    Desc = "Master ESP toggle",
+    Value = CONFIG.ESP.Enabled,
     Callback = function(v) CONFIG.ESP.Enabled = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = CONFIG.ESP.TeamCheck,
-    Flag = "ESPTeamCheck",
+ESPTab:Toggle({
+    Title = "Team Check",
+    Desc = "Different color for teammates",
+    Value = CONFIG.ESP.TeamCheck,
     Callback = function(v) CONFIG.ESP.TeamCheck = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Box ESP",
-    CurrentValue = CONFIG.ESP.BoxESP,
-    Flag = "BoxESP",
+ESPTab:Toggle({
+    Title = "Box ESP",
+    Desc = "Show box around players",
+    Value = CONFIG.ESP.BoxESP,
     Callback = function(v) CONFIG.ESP.BoxESP = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Tracer ESP",
-    CurrentValue = CONFIG.ESP.TracerESP,
-    Flag = "TracerESP",
+ESPTab:Toggle({
+    Title = "Tracer ESP",
+    Desc = "Show lines to players",
+    Value = CONFIG.ESP.TracerESP,
     Callback = function(v) CONFIG.ESP.TracerESP = v end
 })
 
-ESPTab:CreateDropdown({
-    Name = "Tracer Position",
-    Options = {"Bottom", "Top", "Left", "Right"},
-    CurrentOption = CONFIG.ESP.TracerPosition,
-    Flag = "TracerPosition",
+ESPTab:Dropdown({
+    Title = "Tracer Position",
+    Desc = "Where tracer starts",
+    Values = {"Bottom", "Top", "Left", "Right"},
+    Value = CONFIG.ESP.TracerPosition,
     Callback = function(v) CONFIG.ESP.TracerPosition = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Chams",
-    CurrentValue = CONFIG.ESP.Chams,
-    Flag = "Chams",
+ESPTab:Toggle({
+    Title = "Chams",
+    Desc = "Highlight through walls",
+    Value = CONFIG.ESP.Chams,
     Callback = function(v) CONFIG.ESP.Chams = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Show Names",
-    CurrentValue = CONFIG.ESP.ShowName,
-    Flag = "ShowNames",
+ESPTab:Toggle({
+    Title = "Show Names",
+    Desc = "Display player names",
+    Value = CONFIG.ESP.ShowName,
     Callback = function(v) CONFIG.ESP.ShowName = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Show Health",
-    CurrentValue = CONFIG.ESP.ShowHealth,
-    Flag = "ShowHealth",
+ESPTab:Toggle({
+    Title = "Show Health",
+    Desc = "Display health",
+    Value = CONFIG.ESP.ShowHealth,
     Callback = function(v) CONFIG.ESP.ShowHealth = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Show Distance",
-    CurrentValue = CONFIG.ESP.ShowDistance,
-    Flag = "ShowDistance",
+ESPTab:Toggle({
+    Title = "Show Distance",
+    Desc = "Display distance",
+    Value = CONFIG.ESP.ShowDistance,
     Callback = function(v) CONFIG.ESP.ShowDistance = v end
 })
 
-ESPTab:CreateToggle({
-    Name = "Show Weapon",
-    CurrentValue = CONFIG.ESP.ShowWeapon,
-    Flag = "ShowWeapon",
+ESPTab:Toggle({
+    Title = "Show Weapon",
+    Desc = "Display weapon",
+    Value = CONFIG.ESP.ShowWeapon,
     Callback = function(v) CONFIG.ESP.ShowWeapon = v end
 })
 
-ESPTab:CreateSlider({
-    Name = "Max Distance",
-    Range = {100, 5000},
-    Increment = 100,
-    Suffix = "m",
-    CurrentValue = CONFIG.ESP.MaxDistance,
-    Flag = "ESPMaxDistance",
+ESPTab:Slider({
+    Title = "Max Distance",
+    Desc = "Maximum ESP distance",
+    Step = 100,
+    Value = {Min = 100, Max = 5000, Default = CONFIG.ESP.MaxDistance},
     Callback = function(v) CONFIG.ESP.MaxDistance = v end
 })
 
---// PLAYERS TAB
-PlayersTab:CreateSection("Movement")
+--// PLAYERS TAB - MOVEMENT FEATURES
+PlayersTab:Section({Title = "Movement", Opened = true})
 
-PlayersTab:CreateToggle({
-    Name = "Infinite Jump",
-    CurrentValue = CONFIG.Player.InfJump,
-    Flag = "InfJump",
+-- Inf Jump
+PlayersTab:Toggle({
+    Title = "Infinite Jump",
+    Desc = "Jump forever without touching ground",
+    Value = CONFIG.Player.InfJump,
     Callback = function(v)
         CONFIG.Player.InfJump = v
         if v then
@@ -621,29 +641,32 @@ PlayersTab:CreateToggle({
     end
 })
 
-PlayersTab:CreateToggle({
-    Name = "Enable WalkSpeed",
-    CurrentValue = CONFIG.Player.WalkSpeedEnabled,
-    Flag = "WalkSpeedToggle",
+-- WalkSpeed with Toggle
+PlayersTab:Toggle({
+    Title = "Enable WalkSpeed",
+    Desc = "Toggle custom walkspeed",
+    Value = CONFIG.Player.WalkSpeedEnabled,
     Callback = function(v)
         CONFIG.Player.WalkSpeedEnabled = v
         local char = GetCharacter(LocalPlayer)
         if char then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                humanoid.WalkSpeed = v and CONFIG.Player.WalkSpeed or 16
+                if v then
+                    humanoid.WalkSpeed = CONFIG.Player.WalkSpeed
+                else
+                    humanoid.WalkSpeed = 16
+                end
             end
         end
     end
 })
 
-PlayersTab:CreateSlider({
-    Name = "WalkSpeed",
-    Range = {16, 200},
-    Increment = 1,
-    Suffix = "",
-    CurrentValue = CONFIG.Player.WalkSpeed,
-    Flag = "WalkSpeed",
+PlayersTab:Slider({
+    Title = "WalkSpeed Value",
+    Desc = "Set walking speed",
+    Step = 1,
+    Value = {Min = 16, Max = 200, Default = CONFIG.Player.WalkSpeed},
     Callback = function(v)
         CONFIG.Player.WalkSpeed = v
         if CONFIG.Player.WalkSpeedEnabled then
@@ -658,29 +681,32 @@ PlayersTab:CreateSlider({
     end
 })
 
-PlayersTab:CreateToggle({
-    Name = "Enable JumpPower",
-    CurrentValue = CONFIG.Player.JumpPowerEnabled,
-    Flag = "JumpPowerToggle",
+-- JumpPower with Toggle
+PlayersTab:Toggle({
+    Title = "Enable JumpPower",
+    Desc = "Toggle custom jump power",
+    Value = CONFIG.Player.JumpPowerEnabled,
     Callback = function(v)
         CONFIG.Player.JumpPowerEnabled = v
         local char = GetCharacter(LocalPlayer)
         if char then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                humanoid.JumpPower = v and CONFIG.Player.JumpPower or 50
+                if v then
+                    humanoid.JumpPower = CONFIG.Player.JumpPower
+                else
+                    humanoid.JumpPower = 50
+                end
             end
         end
     end
 })
 
-PlayersTab:CreateSlider({
-    Name = "JumpPower",
-    Range = {50, 200},
-    Increment = 1,
-    Suffix = "",
-    CurrentValue = CONFIG.Player.JumpPower,
-    Flag = "JumpPower",
+PlayersTab:Slider({
+    Title = "JumpPower Value",
+    Desc = "Set jump power",
+    Step = 1,
+    Value = {Min = 50, Max = 200, Default = CONFIG.Player.JumpPower},
     Callback = function(v)
         CONFIG.Player.JumpPower = v
         if CONFIG.Player.JumpPowerEnabled then
@@ -695,131 +721,131 @@ PlayersTab:CreateSlider({
     end
 })
 
-PlayersTab:CreateSection("Target & Ally")
+PlayersTab:Section({Title = "Target & Ally System", Opened = false})
 
-PlayersTab:CreateToggle({
-    Name = "Use Target List",
-    CurrentValue = CONFIG.Aimbot.UseTargetList,
-    Flag = "UseTargetList",
-    Callback = function(v) CONFIG.Aimbot.UseTargetList = v end
-})
-
-local targetDropdown = PlayersTab:CreateDropdown({
-    Name = "Target Players",
-    Options = {},
-    CurrentOption = {},
-    MultipleOptions = true,
-    Flag = "TargetDropdown",
-    Callback = function(v)
-        CONFIG.Aimbot.TargetList = v
+PlayersTab:Toggle({
+    Title = "Use Target List",
+    Desc = "Enable for Hard Lock mode",
+    Value = CONFIG.Aimbot.UseTargetList,
+    Callback = function(v) 
+        CONFIG.Aimbot.UseTargetList = v 
     end
 })
 
-PlayersTab:CreateButton({
-    Name = "🔄 Refresh Target List",
+local targetDropdown = PlayersTab:Dropdown({
+    Title = "Target Players",
+    Desc = "Select for Hard Lock",
+    Values = {},
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(selected)
+        CONFIG.Aimbot.TargetList = selected
+    end
+})
+
+PlayersTab:Button({
+    Title = "🔄 Refresh Target List",
+    Desc = "Update player list",
     Callback = function()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         targetDropdown:Refresh(names)
-        Rayfield:Notify({
-            Title = "Target List",
-            Content = #names .. " players",
-            Duration = 2
-        })
+        WindUI:Notify({Title = "Target List", Content = #names .. " players", Duration = 2, Icon = "refresh-cw"})
     end
 })
 
-PlayersTab:CreateToggle({
-    Name = "Use Ally List",
-    CurrentValue = CONFIG.Aimbot.UseAllyList,
-    Flag = "UseAllyList",
+PlayersTab:Toggle({
+    Title = "Use Ally List",
+    Desc = "Ignore selected allies",
+    Value = CONFIG.Aimbot.UseAllyList,
     Callback = function(v) CONFIG.Aimbot.UseAllyList = v end
 })
 
-local allyDropdown = PlayersTab:CreateDropdown({
-    Name = "Ally Players",
-    Options = {},
-    CurrentOption = {},
-    MultipleOptions = true,
-    Flag = "AllyDropdown",
-    Callback = function(v)
-        CONFIG.Aimbot.AllyList = v
+local allyDropdown = PlayersTab:Dropdown({
+    Title = "Ally Players",
+    Desc = "Select to ignore",
+    Values = {},
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(selected)
+        CONFIG.Aimbot.AllyList = selected
     end
 })
 
-PlayersTab:CreateButton({
-    Name = "🔄 Refresh Ally List",
+PlayersTab:Button({
+    Title = "🔄 Refresh Ally List",
+    Desc = "Update player list",
     Callback = function()
         local names = {}
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer then table.insert(names, p.Name) end
         end
         allyDropdown:Refresh(names)
-        Rayfield:Notify({
-            Title = "Ally List",
-            Content = #names .. " players",
-            Duration = 2
-        })
+        WindUI:Notify({Title = "Ally List", Content = #names .. " players", Duration = 2, Icon = "refresh-cw"})
     end
 })
 
---// COLORS TAB - SYNCHRONIZED RGB
-ColorsTab:CreateSection("RGB Settings")
+--// COLORS TAB
+ColorsTab:Section({Title = "ESP Colors", Opened = true})
 
-ColorsTab:CreateToggle({
-    Name = "Enable RGB Mode",
-    Desc = "Sync FOV + ESP colors",
-    CurrentValue = CONFIG.ESP.UseRGB,
-    Flag = "SyncRGB",
-    Callback = function(v)
-        CONFIG.ESP.UseRGB = v
-    end
+ColorsTab:Toggle({
+    Title = "ESP RGB Mode",
+    Desc = "Rainbow cycling",
+    Value = CONFIG.ESP.UseRGB,
+    Callback = function(v) CONFIG.ESP.UseRGB = v end
 })
 
-ColorsTab:CreateSlider({
-    Name = "RGB Speed",
-    Desc = "Shared speed for FOV and ESP",
-    Range = {1, 20},
-    Increment = 0.5,
-    Suffix = "",
-    CurrentValue = CONFIG.ESP.RGBSpeed,
-    Flag = "RGBSpeed",
+ColorsTab:Slider({
+    Title = "RGB Speed",
+    Desc = "Cycling speed",
+    Step = 0.5,
+    Value = {Min = 1, Max = 20, Default = CONFIG.ESP.RGBSpeed},
     Callback = function(v) CONFIG.ESP.RGBSpeed = v end
 })
 
-ColorsTab:CreateSection("Static Colors")
-
-ColorsTab:CreateColorPicker({
-    Name = "Enemy Color",
-    Color = CONFIG.ESP.TextColor,
-    Flag = "EnemyColor",
+ColorsTab:Colorpicker({
+    Title = "Enemy Color",
+    Desc = "For enemies",
+    Default = CONFIG.ESP.TextColor,
     Callback = function(c) CONFIG.ESP.TextColor = c end
 })
 
-ColorsTab:CreateColorPicker({
-    Name = "Ally Color",
-    Color = CONFIG.ESP.AllyColor,
-    Flag = "AllyColor",
+ColorsTab:Colorpicker({
+    Title = "Ally Color",
+    Desc = "For allies",
+    Default = CONFIG.ESP.AllyColor,
     Callback = function(c) CONFIG.ESP.AllyColor = c end
 })
 
-ColorsTab:CreateColorPicker({
-    Name = "Box Color",
-    Color = CONFIG.ESP.BoxColor,
-    Flag = "BoxColor",
+ColorsTab:Colorpicker({
+    Title = "Box Color",
+    Desc = "Box color",
+    Default = CONFIG.ESP.BoxColor,
     Callback = function(c) CONFIG.ESP.BoxColor = c end
 })
 
-ColorsTab:CreateColorPicker({
-    Name = "FOV Circle Color",
-    Color = CONFIG.Aimbot.FOVColor,
-    Flag = "FOVColor",
+ColorsTab:Section({Title = "FOV Colors", Opened = false})
+
+ColorsTab:Toggle({
+    Title = "FOV RGB Mode",
+    Desc = "Rainbow FOV",
+    Value = CONFIG.Aimbot.FOVUseRGB,
+    Callback = function(v) CONFIG.Aimbot.FOVUseRGB = v end
+})
+
+ColorsTab:Colorpicker({
+    Title = "FOV Circle Color",
+    Desc = "FOV color",
+    Default = CONFIG.Aimbot.FOVColor,
     Callback = function(c) CONFIG.Aimbot.FOVColor = c end
 })
 
 --// MAIN LOOP
+local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
 FOVCircle.Filled = false
 FOVCircle.NumSides = 64
@@ -827,11 +853,10 @@ FOVCircle.NumSides = 64
 RunService.RenderStepped:Connect(function()
     local deltaTime = task.wait()
     
-    -- SHARED RGB - Both FOV and ESP use same hue
-    if CONFIG.ESP.UseRGB then
-        SharedHue = (SharedHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
-        local color = Color3.fromHSV(SharedHue, 1, 1)
-        FOVCircle.Color = color
+    -- FOV RGB
+    if CONFIG.Aimbot.FOVUseRGB then
+        FOVHue = (FOVHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
+        FOVCircle.Color = Color3.fromHSV(FOVHue, 1, 1)
     else
         FOVCircle.Color = CONFIG.Aimbot.FOVColor
     end
@@ -870,7 +895,7 @@ RunService.RenderStepped:Connect(function()
                     if CONFIG.Aimbot.Smoothness <= 0 then
                         Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                     else
-                        local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1)
+                        local smoothFactor = math.clamp(1 - (CONFIG.Aimbot.Smoothness / 10), 0.01, 1) * 0.5
                         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), smoothFactor)
                     end
                 end
@@ -878,7 +903,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- WalkSpeed & JumpPower auto-apply
+    -- WalkSpeed & JumpPower auto-apply on respawn
     if CONFIG.Player.WalkSpeedEnabled or CONFIG.Player.JumpPowerEnabled then
         local char = GetCharacter(LocalPlayer)
         if char then
@@ -906,6 +931,6 @@ task.spawn(function()
     end
     targetDropdown:Refresh(names)
     allyDropdown:Refresh(names)
-    
-    print("✅ Venus x Rayfield Loaded!")
 end)
+
+print("✅ Venus x Loaded!")
