@@ -47,7 +47,7 @@ local CONFIG = {
         TeamCheck = false,
         BoxESP = false,
         TracerESP = false,
-        TracerPosition = "Bottom", -- Bottom, Top, Left, Right, Center, Mouse
+        TracerPosition = "Bottom",
         Chams = false,
         UseRGB = false,
         RGBSpeed = 5
@@ -60,7 +60,7 @@ local CONFIG = {
         JumpPower = 50,
         JumpPowerEnabled = false,
         OrbitEnabled = false,
-        OrbitTarget = nil, -- nil = no target, player name = specific player
+        OrbitTarget = nil,
         OrbitDistance = 10,
         OrbitSpeed = 1
     },
@@ -82,6 +82,8 @@ local FOVCircle = Drawing.new("Circle")
 local MobileLockButton = nil
 local OrbitConnection = nil
 local InfJumpConnection = nil
+local CurrentTarget = nil
+local IsLocked = false
 
 --// UTILITY FUNCTIONS
 local function GetCharacter(player)
@@ -263,7 +265,6 @@ local function CreateESP(player)
             return
         end
         
-        -- Tracer Position
         local tracerStart
         local pos = CONFIG.ESP.TracerPosition
         
@@ -277,7 +278,7 @@ local function CreateESP(player)
             tracerStart = Vector2.new(0, Camera.ViewportSize.Y / 2)
         elseif pos == "Right" then
             tracerStart = Vector2.new(Camera.ViewportSize.X, Camera.ViewportSize.Y / 2)
-        else -- Bottom (default)
+        else
             tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
         end
         
@@ -380,7 +381,6 @@ local function GetTarget()
     local mode = CONFIG.Aimbot.Mode
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
-    -- Collect valid targets first
     local validTargets = {}
     
     for _, player in ipairs(Players:GetPlayers()) do
@@ -396,16 +396,12 @@ local function GetTarget()
         local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
         if not targetPart then continue end
         
-        -- Wall check
         if CONFIG.Aimbot.WallCheck and not IsVisible(targetPart) then continue end
         
         local screenPos, onScreen, depth = WorldToScreen(targetPart.Position)
-        
-        -- Distance check
         local distance3D = (targetPart.Position - Camera.CFrame.Position).Magnitude
         if distance3D > CONFIG.Aimbot.MaxDistance then continue end
         
-        -- Calculate 2D distance from center
         local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
         
         table.insert(validTargets, {
@@ -420,13 +416,11 @@ local function GetTarget()
     
     if #validTargets == 0 then return nil end
     
-    -- MODE: FOV - Must be on screen and within FOV radius
     if mode == "FOV" then
         local best = nil
         local bestDist = CONFIG.Aimbot.FOV
         
         for _, t in ipairs(validTargets) do
-            -- MUST be on screen AND within FOV
             if not t.OnScreen then continue end
             if t.Distance2D > CONFIG.Aimbot.FOV then continue end
             
@@ -439,7 +433,6 @@ local function GetTarget()
         return best and best.Player or nil
     end
     
-    -- MODE: Nearest - Closest 3D distance, no FOV needed
     if mode == "Nearest" then
         local best = nil
         local bestDist = math.huge
@@ -452,24 +445,6 @@ local function GetTarget()
         end
         
         return best and best.Player or nil
-    end
-    
-    -- MODE: FOV+Nearest - Must be in FOV, then pick nearest 3D
-    if mode == "FOV+Nearest" then
-        local inFOV = {}
-        
-        for _, t in ipairs(validTargets) do
-            -- Must be on screen and in FOV
-            if not t.OnScreen then continue end
-            if t.Distance2D > CONFIG.Aimbot.FOV then continue end
-            table.insert(inFOV, t)
-        end
-        
-        if #inFOV == 0 then return nil end
-        
-        -- Sort by 3D distance
-        table.sort(inFOV, function(a, b) return a.Distance3D < b.Distance3D end)
-        return inFOV[1].Player
     end
     
     return nil
@@ -504,25 +479,40 @@ local function CreateMobileButton()
     label.BackgroundTransparency = 1
     label.Parent = frame
     
-    local locked = false
-    local lockTarget = nil
-    
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            locked = not locked
-            
-            if locked then
-                lockTarget = GetTarget()
-                if lockTarget then
-                    frame.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-                    label.Text = "UNLOCK"
+            if CONFIG.Aimbot.Mode == "FOV" then
+                -- FOV Mode: Toggle lock/unlock
+                if IsLocked then
+                    IsLocked = false
+                    CurrentTarget = nil
+                    frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                    label.Text = "LOCK"
                 else
-                    locked = false
+                    local target = GetTarget()
+                    if target then
+                        IsLocked = true
+                        CurrentTarget = target
+                        frame.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+                        label.Text = "UNLOCK"
+                    end
                 end
             else
-                lockTarget = nil
-                frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-                label.Text = "LOCK"
+                -- Nearest Mode: Toggle lock on nearest target
+                if IsLocked then
+                    IsLocked = false
+                    CurrentTarget = nil
+                    frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                    label.Text = "LOCK"
+                else
+                    local target = GetTarget()
+                    if target then
+                        IsLocked = true
+                        CurrentTarget = target
+                        frame.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+                        label.Text = "UNLOCK"
+                    end
+                end
             end
         end
     end)
@@ -532,24 +522,6 @@ local function CreateMobileButton()
     end)
     
     MobileLockButton = gui
-    
-    return function()
-        if locked and lockTarget then
-            local char = GetCharacter(lockTarget)
-            if char then
-                local part = char:FindFirstChild(CONFIG.Aimbot.TargetPart)
-                if part then
-                    return part.Position
-                end
-            end
-            -- Target lost, reset
-            locked = false
-            frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            label.Text = "LOCK"
-            lockTarget = nil
-        end
-        return nil
-    end
 end
 
 local function DestroyMobileButton()
@@ -627,12 +599,25 @@ AimbotTab:CreateToggle({
     Callback = function(v) CONFIG.Aimbot.Enabled = v end
 })
 
-AimbotTab:CreateDropdown({
+local modeDropdown = AimbotTab:CreateDropdown({
     Name = "Mode",
-    Options = {"FOV", "Nearest", "FOV+Nearest"},
+    Options = {"FOV", "Nearest"},
     CurrentOption = CONFIG.Aimbot.Mode,
     Flag = "AimbotMode",
-    Callback = function(v) CONFIG.Aimbot.Mode = v end
+    Callback = function(v) 
+        CONFIG.Aimbot.Mode = v
+        -- Reset lock when switching modes
+        IsLocked = false
+        CurrentTarget = nil
+        if MobileLockButton then
+            local frame = MobileLockButton:FindFirstChildOfClass("Frame")
+            if frame then
+                frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                local label = frame:FindFirstChildOfClass("TextLabel")
+                if label then label.Text = "LOCK" end
+            end
+        end
+    end
 })
 
 AimbotTab:CreateToggle({
@@ -1075,14 +1060,12 @@ FOVCircle.Thickness = 1.5
 FOVCircle.Filled = false
 FOVCircle.NumSides = 64
 
-local MobileGetLock = nil
-
 RunService.RenderStepped:Connect(function()
     local deltaTime = task.wait()
     
-    -- Shared RGB
+    -- Shared RGB - Fixed to use RGBSpeed properly
     if CONFIG.ESP.UseRGB or CONFIG.Aimbot.FOVUseRGB then
-        SharedHue = (SharedHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.1) % 1
+        SharedHue = (SharedHue + deltaTime * CONFIG.ESP.RGBSpeed * 0.05) % 1
         local color = Color3.fromHSV(SharedHue, 1, 1)
         FOVCircle.Color = color
     else
@@ -1093,8 +1076,7 @@ RunService.RenderStepped:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Position = screenCenter
     FOVCircle.Radius = CONFIG.Aimbot.FOV
-    FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV and 
-        (CONFIG.Aimbot.Mode == "FOV" or CONFIG.Aimbot.Mode == "FOV+Nearest")
+    FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV and CONFIG.Aimbot.Mode == "FOV"
     
     -- ESP
     for _, player in ipairs(Players:GetPlayers()) do
@@ -1108,30 +1090,84 @@ RunService.RenderStepped:Connect(function()
         if not player or not player.Parent then RemoveESP(player) end
     end
     
-    -- AIMBOT
+    -- AIMBOT - Fixed logic
     if CONFIG.Aimbot.Enabled then
         local target = nil
         
-        -- Check mobile button lock first
-        if MobileGetLock then
-            local lockPos = MobileGetLock()
-            if lockPos then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, lockPos)
-                return
+        -- If locked (via mobile button), use locked target
+        if IsLocked and CurrentTarget then
+            local char = GetCharacter(CurrentTarget)
+            if char then
+                local part = char:FindFirstChild(CONFIG.Aimbot.TargetPart)
+                if part then
+                    -- Check if still valid based on mode
+                    if CONFIG.Aimbot.Mode == "FOV" then
+                        local screenPos, onScreen = WorldToScreen(part.Position)
+                        local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if onScreen and dist2D <= CONFIG.Aimbot.FOV then
+                            target = CurrentTarget
+                        else
+                            -- Target left FOV, unlock
+                            IsLocked = false
+                            CurrentTarget = nil
+                            if MobileLockButton then
+                                local frame = MobileLockButton:FindFirstChildOfClass("Frame")
+                                if frame then
+                                    frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                                    local label = frame:FindFirstChildOfClass("TextLabel")
+                                    if label then label.Text = "LOCK" end
+                                end
+                            end
+                        end
+                    else
+                        -- Nearest mode - just check if still alive
+                        target = CurrentTarget
+                    end
+                else
+                    -- Target died or lost part
+                    IsLocked = false
+                    CurrentTarget = nil
+                    if MobileLockButton then
+                        local frame = MobileLockButton:FindFirstChildOfClass("Frame")
+                        if frame then
+                            frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                            local label = frame:FindFirstChildOfClass("TextLabel")
+                            if label then label.Text = "LOCK" end
+                        end
+                    end
+                end
+            else
+                -- Target left game
+                IsLocked = false
+                CurrentTarget = nil
+                if MobileLockButton then
+                    local frame = MobileLockButton:FindFirstChildOfClass("Frame")
+                    if frame then
+                        frame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                        local label = frame:FindFirstChildOfClass("TextLabel")
+                        if label then label.Text = "LOCK" end
+                    end
+                end
             end
         end
         
-        target = GetTarget()
+        -- If not locked, find new target
+        if not target then
+            target = GetTarget()
+            -- Auto-lock in FOV mode if button is active but not locked
+            if CONFIG.Aimbot.Mode == "FOV" and target and CONFIG.Mobile.LockButtonEnabled and not IsLocked then
+                -- Don't auto-lock, wait for button press
+            end
+        end
+        
         if target then
             local character = GetCharacter(target)
             local targetPart = character:FindFirstChild(CONFIG.Aimbot.TargetPart)
             if targetPart then
-                -- INSTANT LOCK - True instant, no lerp when smoothness is 0
                 if CONFIG.Aimbot.Smoothness <= 0 then
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 else
-                    -- Smooth with actual smoothness value
-                    local smooth = math.clamp(CONFIG.Aimbot.Smoothness / 10, 0, 1)
+                    local smooth = math.clamp(CONFIG.Aimbot.Smoothness / 10, 0.01, 1)
                     Camera.CFrame = Camera.CFrame:Lerp(
                         CFrame.new(Camera.CFrame.Position, targetPart.Position), 
                         smooth
@@ -1162,7 +1198,7 @@ task.spawn(function()
     task.wait(1)
     
     if CONFIG.Mobile.LockButtonEnabled then
-        MobileGetLock = CreateMobileButton()
+        CreateMobileButton()
     end
     
     local names = {}
