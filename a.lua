@@ -67,7 +67,7 @@ local CONFIG = {
 
 --// VARIABLES
 local ESPObjects = {}
-local SharedRGBHue = 0  -- Shared RGB hue for both ESP and FOV
+local SharedRGBHue = 0
 local FlyConnection = nil
 local InfJumpConnection = nil
 
@@ -256,13 +256,22 @@ local function CreateESP(player)
             return
         end
         
-        local tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-        if CONFIG.ESP.TracerPosition == "Top" then
-            tracerStart = Vector2.new(Camera.ViewportSize.X / 2, 0)
+        -- FIXED TRACER POSITIONS
+        local tracerStart
+        local screenSize = Camera.ViewportSize
+        
+        if CONFIG.ESP.TracerPosition == "Bottom" then
+            tracerStart = Vector2.new(screenSize.X / 2, screenSize.Y)
+        elseif CONFIG.ESP.TracerPosition == "Top" then
+            tracerStart = Vector2.new(screenSize.X / 2, 0)
         elseif CONFIG.ESP.TracerPosition == "Left" then
-            tracerStart = Vector2.new(0, Camera.ViewportSize.Y / 2)
+            tracerStart = Vector2.new(0, screenSize.Y / 2)
         elseif CONFIG.ESP.TracerPosition == "Right" then
-            tracerStart = Vector2.new(Camera.ViewportSize.X, Camera.ViewportSize.Y / 2)
+            tracerStart = Vector2.new(screenSize.X, screenSize.Y / 2)
+        elseif CONFIG.ESP.TracerPosition == "Center" then
+            tracerStart = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
+        else
+            tracerStart = Vector2.new(screenSize.X / 2, screenSize.Y) -- Default to bottom
         end
         
         local boxHeight = math.abs(headPos.Y - rootPos.Y)
@@ -455,13 +464,16 @@ AimbotTab:CreateToggle({
     Callback = function(v) CONFIG.Aimbot.Enabled = v end
 })
 
+-- FIXED: Dropdown now properly handles the selected option
 AimbotTab:CreateDropdown({
     Name = "Mode",
     Options = {"Normal", "Target"},
-    CurrentOption = CONFIG.Aimbot.Mode,
+    CurrentOption = {CONFIG.Aimbot.Mode},
+    MultipleOptions = false,
     Flag = "AimbotMode",
-    Callback = function(v) 
-        CONFIG.Aimbot.Mode = v 
+    Callback = function(Options)
+        -- Options is a table, get the first element
+        CONFIG.Aimbot.Mode = Options[1] or "Normal"
     end
 })
 
@@ -506,12 +518,16 @@ AimbotTab:CreateSlider({
     Callback = function(v) CONFIG.Aimbot.MaxDistance = v end
 })
 
+-- FIXED: Target Part dropdown
 AimbotTab:CreateDropdown({
     Name = "Target Part",
     Options = {"Head", "HumanoidRootPart"},
-    CurrentOption = CONFIG.Aimbot.TargetPart,
+    CurrentOption = {CONFIG.Aimbot.TargetPart},
+    MultipleOptions = false,
     Flag = "AimbotTargetPart",
-    Callback = function(v) CONFIG.Aimbot.TargetPart = v end
+    Callback = function(Options)
+        CONFIG.Aimbot.TargetPart = Options[1] or "Head"
+    end
 })
 
 AimbotTab:CreateSlider({
@@ -553,12 +569,16 @@ ESPTab:CreateToggle({
     Callback = function(v) CONFIG.ESP.TracerESP = v end
 })
 
+-- FIXED: Tracer Position dropdown with Center option
 ESPTab:CreateDropdown({
     Name = "Tracer Position",
-    Options = {"Bottom", "Top", "Left", "Right"},
-    CurrentOption = CONFIG.ESP.TracerPosition,
+    Options = {"Bottom", "Top", "Left", "Right", "Center"},
+    CurrentOption = {CONFIG.ESP.TracerPosition},
+    MultipleOptions = false,
     Flag = "ESPTracerPos",
-    Callback = function(v) CONFIG.ESP.TracerPosition = v end
+    Callback = function(Options)
+        CONFIG.ESP.TracerPosition = Options[1] or "Bottom"
+    end
 })
 
 ESPTab:CreateToggle({
@@ -739,8 +759,8 @@ local targetDropdown = PlayersTab:CreateDropdown({
     CurrentOption = {},
     MultipleOptions = true,
     Flag = "TargetDropdown",
-    Callback = function(selected)
-        CONFIG.Aimbot.TargetList = selected
+    Callback = function(Options)
+        CONFIG.Aimbot.TargetList = Options
     end
 })
 
@@ -774,8 +794,8 @@ local allyDropdown = PlayersTab:CreateDropdown({
     CurrentOption = {},
     MultipleOptions = true,
     Flag = "AllyDropdown",
-    Callback = function(selected)
-        CONFIG.Aimbot.AllyList = selected
+    Callback = function(Options)
+        CONFIG.Aimbot.AllyList = Options
     end
 })
 
@@ -849,6 +869,7 @@ local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
 FOVCircle.Filled = false
 FOVCircle.NumSides = 64
+FOVCircle.Visible = false -- Start hidden
 
 RunService.RenderStepped:Connect(function(deltaTime)
     -- Update shared RGB hue for both ESP and FOV
@@ -859,11 +880,14 @@ RunService.RenderStepped:Connect(function(deltaTime)
         FOVCircle.Color = CONFIG.Aimbot.FOVColor
     end
     
-    -- FOV Circle (Normal mode only)
+    -- FIXED FOV CIRCLE VISIBILITY LOGIC
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Position = screenCenter
     FOVCircle.Radius = CONFIG.Aimbot.FOV
-    FOVCircle.Visible = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV and CONFIG.Aimbot.Mode == "Normal"
+    
+    -- Show FOV if: Aimbot is enabled AND ShowFOV is enabled AND Mode is Normal
+    local shouldShowFOV = CONFIG.Aimbot.Enabled and CONFIG.Aimbot.ShowFOV and (CONFIG.Aimbot.Mode == "Normal")
+    FOVCircle.Visible = shouldShowFOV
     
     -- ESP
     for _, player in ipairs(Players:GetPlayers()) do
