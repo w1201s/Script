@@ -435,14 +435,14 @@ end
 --// WINDUI SETUP
 local Window = WindUI:CreateWindow({
     Title = "Venus x",
-    Icon = "sword", -- lucide icon
+    Icon = "sword",
     Author = "by w1201s",
     Folder = "venus x",
-    
-    -- ↓ This all is Optional. You can remove it.
+
     Size = UDim2.fromOffset(580, 460),
     MinSize = Vector2.new(560, 350),
     MaxSize = Vector2.new(850, 560),
+
     Transparent = true,
     Theme = "Dark",
     Resizable = true,
@@ -450,19 +450,18 @@ local Window = WindUI:CreateWindow({
     BackgroundImageTransparency = 0.42,
     HideSearchBar = true,
     ScrollBarEnabled = false,
-        
-    KeySystem = {                                                   
-        Note = "Do the keysystem now for op script trust discord link soon",              
-        API = {                                                     
-            { -- PlatoBoost
-                Type = "platoboost",                                
-                ServiceId = 1234, -- service id
-                Secret = "platoboost-secret", -- platoboost secret
 
-                SaveKey = True, -- automatically save and load the key.
-        
-        -- ↓ Optional. You can remove it.
-        -- API = {} ← Services. Read about it below ↓
+    SaveKey = true,
+
+    KeySystem = {
+        Note = "press get key and selete platoboost then place in google,chrome,another broswer to start keysystem",
+        API = {
+            {
+                Type = "platoboost",
+                ServiceId = 16008,
+                Secret = "7693a2f6-72dc-4c53-b421-2676a8e26740",
+            },
+        },
     },
 })
 
