@@ -458,13 +458,8 @@ local Window = WindUI:CreateWindow({
                 Type = "platoboost",                                
                 ServiceId = 1234, -- service id
                 Secret = "platoboost-secret", -- platoboost secret
-            },                                                      
-        },                                                          
-    },                                                              
-})
-        
-        -- ↓ Optional. You can remove it.
-        SaveKey = True, -- automatically save and load the key.
+
+                SaveKey = True, -- automatically save and load the key.
         
         -- ↓ Optional. You can remove it.
         -- API = {} ← Services. Read about it below ↓
