@@ -450,10 +450,7 @@ local Window = WindUI:CreateWindow({
     BackgroundImageTransparency = 0.42,
     HideSearchBar = true,
     ScrollBarEnabled = false,
-    
-local Window = WindUI:CreateWindow({
-    -- ...
-    
+        
     KeySystem = {                                                   
         Note = "Do the keysystem now for op script trust discord link soon",              
         API = {                                                     
