@@ -6,21 +6,38 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
 --// UI Setup
 local Window = WindUI:CreateWindow({
-    Title = "Muscle Legends",
-    Size = UDim2.fromOffset(600, 400),
-    Position = UDim2.fromOffset(200, 200)
+    Title = "Muscle Legends Pro",
+    Icon = "dumbbell", -- Lucide icon
+    Author = "by WindUI",
 })
 
---// Tabs
-local MainTab = Window:CreateTab("Main", "rbxassetid://7733965386")
-local AutoKillTab = Window:CreateTab("Auto Kill", "rbxassetid://7733964640")
-local StatTab = Window:CreateTab("Stat Player", "rbxassetid://7733970521")
-local TeleportTab = Window:CreateTab("Teleport", "rbxassetid://7733974992")
+--// Tabs with Lucide Icons
+local MainTab = Window:Tab({
+    Title = "Main",
+    Icon = "home", -- Lucide icon
+    Locked = false,
+})
+
+local AutoKillTab = Window:Tab({
+    Title = "Auto Kill",
+    Icon = "sword", -- Lucide icon
+    Locked = false,
+})
+
+local StatTab = Window:Tab({
+    Title = "Stat Player",
+    Icon = "bar-chart-3", -- Lucide icon
+    Locked = false,
+})
+
+local TeleportTab = Window:Tab({
+    Title = "Teleport",
+    Icon = "map-pin", -- Lucide icon
+    Locked = false,
+})
 
 --// Variables
 local AutoRep = false
@@ -65,6 +82,24 @@ local Chests = {
     "Magma Chest",
     "Jungle Chest"
 }
+
+--// Function: Get Rock Names for Dropdown
+local function GetRockNames()
+    local names = {}
+    for name, _ in pairs(Rocks) do
+        table.insert(names, name)
+    end
+    return names
+end
+
+--// Function: Get Island Names for Dropdown
+local function GetIslandNames()
+    local names = {}
+    for name, _ in pairs(Islands) do
+        table.insert(names, name)
+    end
+    return names
+end
 
 --// Function: Auto Rep Farm
 local function DoRep()
@@ -143,22 +178,27 @@ end
 
 --// Function: Auto Kill Player
 local function AutoKillLoop()
+    -- สร้างแพลตฟอร์มก่อน
+    local platformPos = Vector3.new(50000, 50000, 50000)
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(50, 5, 50)
+    platform.Position = platformPos
+    platform.Anchored = true
+    platform.Parent = workspace
+    
     while AutoKillPlayer do
-        -- สร้างแพลตฟอร์มที่ 50K studs จาก spawn (0,0,0)
-        local platformPos = Vector3.new(50000, 50000, 50000)
-        
         -- หาเป้าหมายที่ใกล้ที่สุด
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHRP = player.Character.HumanoidRootPart
                 
                 -- TP เป้าหมายไปแพลตฟอร์ม
-                targetHRP.CFrame = CFrame.new(platformPos + Vector3.new(0, 5, 0))
+                targetHRP.CFrame = CFrame.new(platformPos + Vector3.new(0, 10, 0))
                 
                 -- TP ตัวเองไปด้วย
                 local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if myHRP then
-                    myHRP.CFrame = CFrame.new(platformPos + Vector3.new(10, 5, 0))
+                    myHRP.CFrame = CFrame.new(platformPos + Vector3.new(15, 10, 0))
                     
                     -- หันหน้าเข้าหาเป้าหมาย
                     myHRP.CFrame = CFrame.lookAt(myHRP.Position, targetHRP.Position)
@@ -170,15 +210,24 @@ local function AutoKillLoop()
         end
         task.wait()
     end
+    
+    -- ลบแพลตฟอร์มเมื่อปิด
+    platform:Destroy()
 end
 
 --// ==================== MAIN TAB ====================
 
+-- Section: Auto Rep
+local RepSection = MainTab:Section({
+    Title = "Auto Reputation Farm"
+})
+
 -- Style Dropdown
-MainTab:CreateDropdown({
-    Name = "Select Style",
-    Options = Styles,
-    CurrentOption = SelectedStyle,
+MainTab:Dropdown({
+    Title = "Select Style",
+    Desc = "Choose training style",
+    Values = Styles,
+    Value = SelectedStyle,
     Callback = function(option)
         SelectedStyle = option
         EquipStyle(SelectedStyle)
@@ -186,11 +235,14 @@ MainTab:CreateDropdown({
 })
 
 -- Auto Rep Toggle
-MainTab:CreateToggle({
-    Name = "Auto Rep Farm (No Delay)",
-    CurrentValue = false,
-    Callback = function(value)
-        AutoRep = value
+MainTab:Toggle({
+    Title = "Auto Rep Farm (No Delay)",
+    Desc = "Loop reputation farming with selected style",
+    Icon = "zap",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoRep = state
         if AutoRep then
             EquipStyle(SelectedStyle)
             task.spawn(DoRep)
@@ -198,46 +250,51 @@ MainTab:CreateToggle({
     end
 })
 
--- Divider
-MainTab:CreateSection("Durability Farm")
+-- Section: Durability Farm
+local DurabilitySection = MainTab:Section({
+    Title = "Durability Farm"
+})
 
 -- Rock Dropdown
-MainTab:CreateDropdown({
-    Name = "Select Rock",
-    Options = (function()
-        local names = {}
-        for name, _ in pairs(Rocks) do
-            table.insert(names, name)
-        end
-        return names
-    end)(),
-    CurrentOption = SelectedRock,
+MainTab:Dropdown({
+    Title = "Select Rock",
+    Desc = "Choose rock to farm durability",
+    Values = GetRockNames(),
+    Value = SelectedRock,
     Callback = function(option)
         SelectedRock = option
     end
 })
 
 -- Auto Farm Rock Toggle
-MainTab:CreateToggle({
-    Name = "Auto Farm Rock (Face & Move Close)",
-    CurrentValue = false,
-    Callback = function(value)
-        AutoFarmRock = value
+MainTab:Toggle({
+    Title = "Auto Farm Rock",
+    Desc = "Face rock, move close (6 studs), and punch every 0.4s",
+    Icon = "pickaxe",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoFarmRock = state
         if AutoFarmRock then
             task.spawn(AutoFarmRockLoop)
         end
     end
 })
 
--- Divider
-MainTab:CreateSection("Auto Redeem Chest")
+-- Section: Auto Redeem Chest
+local ChestSection = MainTab:Section({
+    Title = "Auto Redeem Chests"
+})
 
 -- Auto Redeem Chest Toggle
-MainTab:CreateToggle({
-    Name = "Auto Redeem All Chests (Delay 1s)",
-    CurrentValue = false,
-    Callback = function(value)
-        AutoRedeemChest = value
+MainTab:Toggle({
+    Title = "Auto Redeem All Chests",
+    Desc = "Redeem all chests with 1 second delay",
+    Icon = "gift",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoRedeemChest = state
         if AutoRedeemChest then
             task.spawn(RedeemAllChests)
         end
@@ -246,11 +303,14 @@ MainTab:CreateToggle({
 
 --// ==================== AUTO KILL TAB ====================
 
-AutoKillTab:CreateToggle({
-    Name = "Auto Kill Player (50K Studs Platform)",
-    CurrentValue = false,
-    Callback = function(value)
-        AutoKillPlayer = value
+AutoKillTab:Toggle({
+    Title = "Auto Kill Player",
+    Desc = "Build platform at 50K studs, TP target there, auto punch",
+    Icon = "skull",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillPlayer = state
         if AutoKillPlayer then
             task.spawn(AutoKillLoop)
         end
@@ -260,33 +320,36 @@ AutoKillTab:CreateToggle({
 --// ==================== STAT PLAYER TAB ====================
 
 local SelectedStatPlayer = nil
-local PlayerDropdown
+local PlayerList = {}
 
 local function RefreshPlayerList()
-    local playerNames = {}
+    PlayerList = {}
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            table.insert(playerNames, player.Name)
+            table.insert(PlayerList, player.Name)
         end
     end
-    
-    -- อัปเดต dropdown (ต้องสร้างใหม่หรืออัปเดต options)
-    return playerNames
+    return PlayerList
 end
 
-StatTab:CreateDropdown({
-    Name = "Select Player",
-    Options = RefreshPlayerList(),
-    CurrentOption = "",
+-- Player Dropdown
+StatTab:Dropdown({
+    Title = "Select Player",
+    Desc = "Choose player to view stats",
+    Values = RefreshPlayerList(),
+    Value = "",
     Callback = function(option)
         SelectedStatPlayer = option
     end
 })
 
-StatTab:CreateButton({
-    Name = "🔄 Refresh Player List",
+-- Refresh Button
+StatTab:Button({
+    Title = "Refresh Player List",
+    Desc = "Update online players list",
+    Locked = false,
     Callback = function()
-        -- รีเฟรชรายชื่อผู้เล่น
+        RefreshPlayerList()
         WindUI:Notify({
             Title = "Refreshed",
             Content = "Player list updated!",
@@ -295,36 +358,61 @@ StatTab:CreateButton({
     end
 })
 
-StatTab:CreateButton({
-    Name = "👁️ View Selected Player Stats",
+-- View Stats Button
+StatTab:Button({
+    Title = "View Selected Player Stats",
+    Desc = "Show gems, rebirth, playtime, strength, durability",
+    Locked = false,
     Callback = function()
         local targetPlayer = Players:FindFirstChild(SelectedStatPlayer)
         if targetPlayer then
-            -- ดึงข้อมูลสถิติ (ตัวอย่าง)
+            local leaderstats = targetPlayer:FindFirstChild("leaderstats")
             local stats = {
                 ["Player"] = targetPlayer.Name,
-                ["Gems"] = targetPlayer:FindFirstChild("Gems") and targetPlayer.Gems.Value or "N/A",
-                ["Rebirth"] = targetPlayer:FindFirstChild("Rebirth") and targetPlayer.Rebirth.Value or "N/A",
-                ["Play Time"] = targetPlayer:FindFirstChild("PlayTime") and targetPlayer.PlayTime.Value or "N/A",
-                ["Strength"] = targetPlayer:FindFirstChild("Strength") and targetPlayer.Strength.Value or "N/A",
-                ["Durability"] = targetPlayer:FindFirstChild("Durability") and targetPlayer.Durability.Value or "N/A"
+                ["Gems"] = "N/A",
+                ["Rebirth"] = "N/A",
+                ["Play Time"] = "N/A",
+                ["Strength"] = "N/A",
+                ["Durability"] = "N/A"
             }
             
-            -- แสดงใน UI หรือ Notify
+            -- ดึงข้อมูลจาก leaderstats หรือ values ต่างๆ
+            if leaderstats then
+                for _, stat in ipairs(leaderstats:GetChildren()) do
+                    if stats[stat.Name] then
+                        stats[stat.Name] = stat.Value
+                    end
+                end
+            end
+            
+            -- ดึงจาก Values อื่นๆ ถ้ามี
+            local gems = targetPlayer:FindFirstChild("Gems")
+            if gems then stats["Gems"] = gems.Value end
+            
+            local rebirth = targetPlayer:FindFirstChild("Rebirth")
+            if rebirth then stats["Rebirth"] = rebirth.Value end
+            
+            local strength = targetPlayer:FindFirstChild("Strength")
+            if strength then stats["Strength"] = strength.Value end
+            
+            local durability = targetPlayer:FindFirstChild("Durability")
+            if durability then stats["Durability"] = durability.Value end
+            
+            -- แสดงผล
             local statText = ""
             for stat, value in pairs(stats) do
                 statText = statText .. stat .. ": " .. tostring(value) .. "\n"
             end
             
             WindUI:Notify({
-                Title = "Stats: " .. targetPlayer.Name,
+                Title = "📊 Stats: " .. targetPlayer.Name,
                 Content = statText,
                 Duration = 5
             })
         else
             WindUI:Notify({
-                Title = "Error",
-                Content = "Player not found!",
+                Title = "❌ Error",
+                Content = "Player not found or left the game!",
                 Duration = 2
             })
         end
@@ -333,44 +421,47 @@ StatTab:CreateButton({
 
 --// ==================== TELEPORT TAB ====================
 
--- TP to Kill Platform
-TeleportTab:CreateButton({
-    Name = "🎯 Teleport to Kill Platform (50K)",
+-- TP to Kill Platform Button
+TeleportTab:Button({
+    Title = "Teleport to Kill Platform (50K)",
+    Desc = "Go to 50K studs platform",
+    Locked = false,
     Callback = function()
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            hrp.CFrame = CFrame.new(50000, 50000, 50000)
+            hrp.CFrame = CFrame.new(50000, 50010, 50000)
             WindUI:Notify({
                 Title = "Teleported",
-                Content = "Moved to kill platform!",
+                Content = "Moved to kill platform at 50K studs!",
                 Duration = 2
             })
         end
     end
 })
 
-TeleportTab:CreateSection("Island Teleport")
+-- Island Section
+local IslandSection = TeleportTab:Section({
+    Title = "Island Teleport"
+})
+
+local SelectedIsland = "Tiny Island"
 
 -- Island Dropdown
-local SelectedIsland = "Tiny Island"
-TeleportTab:CreateDropdown({
-    Name = "Select Island/Gym",
-    Options = (function()
-        local names = {}
-        for name, _ in pairs(Islands) do
-            table.insert(names, name)
-        end
-        return names
-    end)(),
-    CurrentOption = SelectedIsland,
+TeleportTab:Dropdown({
+    Title = "Select Island/Gym",
+    Desc = "Choose destination",
+    Values = GetIslandNames(),
+    Value = SelectedIsland,
     Callback = function(option)
         SelectedIsland = option
     end
 })
 
 -- TP to Island Button
-TeleportTab:CreateButton({
-    Name = "🌴 Teleport to Selected Island",
+TeleportTab:Button({
+    Title = "Teleport to Selected Island",
+    Desc = "Instant travel to chosen location",
+    Locked = false,
     Callback = function()
         local pos = Islands[SelectedIsland]
         if pos then
@@ -379,7 +470,7 @@ TeleportTab:CreateButton({
                 hrp.CFrame = CFrame.new(pos)
                 WindUI:Notify({
                     Title = "Teleported",
-                    Content = "Moved to " .. SelectedIsland,
+                    Content = "Arrived at " .. SelectedIsland .. "!",
                     Duration = 2
                 })
             end
@@ -389,7 +480,7 @@ TeleportTab:CreateButton({
 
 --// Initial Notification
 WindUI:Notify({
-    Title = "Muscle Legends Script",
-    Content = "Loaded successfully! Made with WindUI",
+    Title = "Muscle Legends Pro",
+    Content = "Script loaded successfully with WindUI! 💪",
     Duration = 3
 })
