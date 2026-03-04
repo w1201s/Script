@@ -13,7 +13,7 @@ local Window = WindUI:CreateWindow({
     Author = "by WindUI",
 })
 
---// Tabs with Lucide Icons
+--// Tabs
 local MainTab = Window:Tab({
     Title = "Main",
     Icon = "home",
@@ -22,7 +22,7 @@ local MainTab = Window:Tab({
 
 local AutoKillTab = Window:Tab({
     Title = "Auto Kill",
-    Icon = "sword",
+    Icon = "skull",
     Locked = false,
 })
 
@@ -42,11 +42,21 @@ local TeleportTab = Window:Tab({
 local AutoRep = false
 local SelectedStyle = "Handstands"
 local AutoFarmRock = false
+local AutoPunchRock = false
 local SelectedRock = "Tiny Rock"
 local AutoRedeemChest = false
 local AutoKillPlayer = false
 
---// Styles & Rocks Data
+-- Auto Kill Styles
+local AutoKillStyles = {
+    Handstands = false,
+    Punch = false,
+    Pushups = false,
+    Situps = false,
+    Weight = false
+}
+
+--// Data
 local Styles = {"Handstands", "Pushup", "Situp", "Weight"}
 local Rocks = {
     ["Tiny Rock"] = Vector3.new(24, 4, 2097),
@@ -61,7 +71,6 @@ local Rocks = {
     ["Ancient Jungle Rock"] = Vector3.new(-7524, 1, 2927)
 }
 
---// Islands Data
 local Islands = {
     ["Tiny Island"] = Vector3.new(-38, 4, 1884),
     ["Legends Beach"] = Vector3.new(-8, 4, -262),
@@ -73,7 +82,6 @@ local Islands = {
     ["Jungle Gym"] = Vector3.new(-8670, 3, 2494)
 }
 
---// Chests List
 local Chests = {
     "Enchanted Chest",
     "Golden Chest",
@@ -82,7 +90,7 @@ local Chests = {
     "Jungle Chest"
 }
 
---// Platform (สร้างครั้งเดียว ไม่ลบ)
+--// Platform
 local KillPlatform = nil
 local function GetOrCreatePlatform()
     if not KillPlatform or not KillPlatform.Parent then
@@ -99,7 +107,7 @@ local function GetOrCreatePlatform()
     return KillPlatform
 end
 
---// Function: Get Rock Names
+--// Helper Functions
 local function GetRockNames()
     local names = {}
     for name, _ in pairs(Rocks) do
@@ -108,7 +116,6 @@ local function GetRockNames()
     return names
 end
 
---// Function: Get Island Names
 local function GetIslandNames()
     local names = {}
     for name, _ in pairs(Islands) do
@@ -117,13 +124,20 @@ local function GetIslandNames()
     return names
 end
 
---// Function: Equip Style (ใช้ remote ที่ถูกต้อง)
+local function GetHRP()
+    local char = LocalPlayer.Character
+    if char then
+        return char:FindFirstChild("HumanoidRootPart")
+    end
+    return nil
+end
+
+--// Remote Functions
 local function EquipStyle(style)
     local args = {style}
     LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(args))
 end
 
---// Function: Do Rep
 local function DoRep()
     while AutoRep do
         local args = {"rep"}
@@ -132,28 +146,33 @@ local function DoRep()
     end
 end
 
---// Function: Punch
 local function Punch()
     local args = {"punch", "leftHand"}
     LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(args))
 end
 
---// Function: Auto Farm Rock (TP รัวๆ เข้าไปใกล้สัสๆ ล็อกหน้า)
+local function DoStyle(style)
+    local args = {style}
+    LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(args))
+end
+
+--// Auto Farm Rock (TP + Face + ต่อย)
 local function AutoFarmRockLoop()
     while AutoFarmRock do
         local rockPos = Rocks[SelectedRock]
         if rockPos then
-            local char = LocalPlayer.Character
-            if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    -- เข้าไปใกล้สัสๆ (2 studs จากหิน)
-                    local targetPos = rockPos + Vector3.new(0, 0, 2)
-                    
-                    -- TP รัวๆ ไม่ใช้ Tween
-                    hrp.CFrame = CFrame.new(targetPos, rockPos) -- หันหน้าเข้าหาหิน + ล็อก
-                    
-                    -- ต่อยทันที
+            local hrp = GetHRP()
+            if hrp then
+                -- เข้าไปใกล้สัสๆ (3 studs จากหิน)
+                local direction = (hrp.Position - rockPos).Unit
+                local targetPos = rockPos + (direction * 3)
+                targetPos = Vector3.new(targetPos.X, rockPos.Y, targetPos.Z) -- ให้ Y เท่ากับหิน
+                
+                -- TP รัวๆ + หันหน้าเข้าหาหิน
+                hrp.CFrame = CFrame.new(targetPos, rockPos)
+                
+                -- Auto Punch ถ้าเปิด
+                if AutoPunchRock then
                     Punch()
                 end
             end
@@ -162,24 +181,19 @@ local function AutoFarmRockLoop()
     end
 end
 
---// Function: Redeem All Chests
+--// Auto Redeem
 local function RedeemAllChests()
     while AutoRedeemChest do
-        -- Group Rewards
         ReplicatedStorage:WaitForChild("rEvents"):WaitForChild("groupRemote"):InvokeServer("groupRewards")
-        
-        -- All Chests
         for _, chestName in ipairs(Chests) do
             ReplicatedStorage:WaitForChild("rEvents"):WaitForChild("checkChestRemote"):InvokeServer(chestName)
         end
-        
         task.wait(1)
     end
 end
 
---// Function: Auto Kill
+--// Auto Kill (เข้าไกล้ 6 studs + ทำท่าตามที่เลือก)
 local function AutoKillLoop()
-    -- สร้างแพลตฟอร์ม (ไม่ลบ)
     GetOrCreatePlatform()
     local platformPos = Vector3.new(50000, 50002, 50000)
     
@@ -187,21 +201,33 @@ local function AutoKillLoop()
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHRP = player.Character.HumanoidRootPart
-                local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local myHRP = GetHRP()
                 
                 if myHRP then
                     -- TP เป้าหมายไปแพลตฟอร์ม
                     targetHRP.CFrame = CFrame.new(platformPos + Vector3.new(0, 5, 0))
-                    targetHRP.Velocity = Vector3.new(0, 0, 0) -- หยุดความเร็ว
+                    targetHRP.Velocity = Vector3.new(0, 0, 0)
                     
-                    -- TP ตัวเองไปด้วย ห่างจากเป้าหมายนิดหน่อย
-                    myHRP.CFrame = CFrame.new(platformPos + Vector3.new(8, 5, 0))
+                    -- TP ตัวเองไปใกล้ๆ อีก 2 studs (รวม 6 studs จากเป้าหมายเดิม)
+                    local myPos = platformPos + Vector3.new(6, 5, 0) -- เข้าไปอีก 2 studs
+                    myHRP.CFrame = CFrame.new(myPos, targetHRP.Position)
                     
-                    -- หันหน้าเข้าหาเป้าหมาย + ล็อก
-                    myHRP.CFrame = CFrame.lookAt(myHRP.Position, targetHRP.Position)
-                    
-                    -- ต่อยรัวๆ
-                    Punch()
+                    -- ทำท่าตามที่เลือก (หลายท่าพร้อมกันได้)
+                    if AutoKillStyles.Handstands then
+                        DoStyle("Handstands")
+                    end
+                    if AutoKillStyles.Punch then
+                        Punch()
+                    end
+                    if AutoKillStyles.Pushups then
+                        DoStyle("Pushup")
+                    end
+                    if AutoKillStyles.Situps then
+                        DoStyle("Situp")
+                    end
+                    if AutoKillStyles.Weight then
+                        DoStyle("Weight")
+                    end
                 end
             end
         end
@@ -213,7 +239,6 @@ end
 
 MainTab:Section({Title = "Auto Reputation Farm"})
 
--- Style Dropdown
 MainTab:Dropdown({
     Title = "Select Style",
     Desc = "Choose training style",
@@ -224,17 +249,15 @@ MainTab:Dropdown({
     end
 })
 
--- Auto Rep Toggle (แก้ให้ Equip จริงๆ)
 MainTab:Toggle({
-    Title = "Auto Rep Farm (No Delay)",
-    Desc = "Equip style and loop rep",
+    Title = "Auto Rep Farm",
+    Desc = "Equip style and loop rep no delay",
     Icon = "zap",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
         AutoRep = state
         if AutoRep then
-            -- Equip ก่อนแล้วค่อยเริ่ม loop
             EquipStyle(SelectedStyle)
             task.wait(0.1)
             task.spawn(DoRep)
@@ -242,13 +265,11 @@ MainTab:Toggle({
     end
 })
 
--- Section: Durability Farm
 MainTab:Section({Title = "Durability Farm"})
 
--- Rock Dropdown
 MainTab:Dropdown({
     Title = "Select Rock",
-    Desc = "Choose rock to punch",
+    Desc = "Choose rock to farm",
     Values = GetRockNames(),
     Value = SelectedRock,
     Callback = function(option)
@@ -256,11 +277,11 @@ MainTab:Dropdown({
     end
 })
 
--- Auto Farm Rock Toggle (TP รัวๆ เข้าไกล้สัสๆ)
+-- Toggle: Auto TP to Rock (แยกจาก punch)
 MainTab:Toggle({
-    Title = "Auto Farm Rock",
-    Desc = "TP fast, close as fuck (2 studs), face locked",
-    Icon = "pickaxe",
+    Title = "Auto TP to Rock",
+    Desc = "Auto teleport close to rock (3 studs) and face it",
+    Icon = "locate",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
@@ -271,12 +292,22 @@ MainTab:Toggle({
     end
 })
 
--- Section: Auto Redeem
+-- Toggle: Auto Punch (แยก)
+MainTab:Toggle({
+    Title = "Auto Punch Rock",
+    Desc = "Auto punch when near rock (need Auto TP on)",
+    Icon = "hammer",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoPunchRock = state
+    end
+})
+
 MainTab:Section({Title = "Auto Redeem Chests"})
 
--- Auto Redeem Chest Toggle
 MainTab:Toggle({
-    Title = "Auto Redeem All Chests",
+    Title = "Auto Redeem All",
     Desc = "All chests + group rewards, delay 1s",
     Icon = "gift",
     Type = "Checkbox",
@@ -291,10 +322,12 @@ MainTab:Toggle({
 
 --// ==================== AUTO KILL TAB ====================
 
+AutoKillTab:Section({Title = "Auto Kill Settings"})
+
 AutoKillTab:Toggle({
-    Title = "Auto Kill Player",
-    Desc = "TP to 50K platform, lock face, spam punch",
-    Icon = "skull",
+    Title = "Enable Auto Kill",
+    Desc = "TP target to 50K platform and attack",
+    Icon = "sword",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
@@ -305,7 +338,64 @@ AutoKillTab:Toggle({
     end
 })
 
---// ==================== STAT PLAYER TAB ====================
+AutoKillTab:Section({Title = "Select Attack Styles (Multi)"})
+
+AutoKillTab:Toggle({
+    Title = "Handstands",
+    Desc = "Do handstands on target",
+    Icon = "hand",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillStyles.Handstands = state
+    end
+})
+
+AutoKillTab:Toggle({
+    Title = "Punch",
+    Desc = "Punch target",
+    Icon = "fist",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillStyles.Punch = state
+    end
+})
+
+AutoKillTab:Toggle({
+    Title = "Pushups",
+    Desc = "Do pushups on target",
+    Icon = "arrow-down",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillStyles.Pushups = state
+    end
+})
+
+AutoKillTab:Toggle({
+    Title = "Situps",
+    Desc = "Do situps on target",
+    Icon = "user",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillStyles.Situps = state
+    end
+})
+
+AutoKillTab:Toggle({
+    Title = "Weight",
+    Desc = "Lift weights on target",
+    Icon = "dumbbell",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        AutoKillStyles.Weight = state
+    end
+})
+
+--// ==================== STAT TAB ====================
 
 local SelectedStatPlayer = nil
 
@@ -330,7 +420,7 @@ StatTab:Dropdown({
 })
 
 StatTab:Button({
-    Title = "Refresh Player List",
+    Title = "Refresh List",
     Desc = "Update online players",
     Locked = false,
     Callback = function()
@@ -344,67 +434,54 @@ StatTab:Button({
 
 StatTab:Button({
     Title = "View Stats",
-    Desc = "Show gems, rebirth, playtime, strength, durability",
+    Desc = "Show all player statistics",
     Locked = false,
     Callback = function()
         local target = Players:FindFirstChild(SelectedStatPlayer)
-        if target then
-            local stats = {["Player"] = target.Name}
-            
-            -- ดึงจาก leaderstats
-            local leaderstats = target:FindFirstChild("leaderstats")
-            if leaderstats then
-                for _, stat in ipairs(leaderstats:GetChildren()) do
-                    stats[stat.Name] = stat.Value
-                end
-            end
-            
-            -- ดึงจาก Values อื่นๆ
-            local values = {"Gems", "Rebirth", "Strength", "Durability", "PlayTime"}
-            for _, name in ipairs(values) do
-                local val = target:FindFirstChild(name)
-                if val then
-                    stats[name] = val.Value
-                end
-            end
-            
-            local text = ""
-            for k, v in pairs(stats) do
-                text = text .. k .. ": " .. tostring(v) .. "\n"
-            end
-            
-            WindUI:Notify({
-                Title = "📊 " .. target.Name,
-                Content = text,
-                Duration = 5
-            })
-        else
-            WindUI:Notify({
-                Title = "❌ Error",
-                Content = "Player not found!",
-                Duration = 2
-            })
+        if not target then
+            WindUI:Notify({Title = "Error", Content = "Player not found!", Duration = 2})
+            return
         end
+        
+        local stats = {["Player"] = target.Name}
+        local leaderstats = target:FindFirstChild("leaderstats")
+        
+        if leaderstats then
+            for _, stat in ipairs(leaderstats:GetChildren()) do
+                stats[stat.Name] = stat.Value
+            end
+        end
+        
+        for _, name in ipairs({"Gems", "Rebirth", "Strength", "Durability", "PlayTime"}) do
+            local val = target:FindFirstChild(name)
+            if val then stats[name] = val.Value end
+        end
+        
+        local text = ""
+        for k, v in pairs(stats) do
+            text = text .. k .. ": " .. tostring(v) .. "\n"
+        end
+        
+        WindUI:Notify({
+            Title = "📊 " .. target.Name,
+            Content = text,
+            Duration = 5
+        })
     end
 })
 
 --// ==================== TELEPORT TAB ====================
 
--- Rename: TP to Platform
 TeleportTab:Button({
     Title = "TP to Platform",
-    Desc = "Teleport to 50K studs kill platform",
+    Desc = "Teleport to 50K studs platform",
     Locked = false,
     Callback = function()
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local hrp = GetHRP()
         if hrp then
             GetOrCreatePlatform()
             hrp.CFrame = CFrame.new(50000, 50005, 50000)
-            WindUI:Notify({
-                Title = "Teleported",
-                Content = "At 50K platform!",
-                Duration = 2
-            })
+            WindUI:Notify({Title = "Teleported", Content = "At 50K platform!", Duration = 2})
         end
     end
 })
@@ -414,7 +491,7 @@ TeleportTab:Section({Title = "Island Teleport"})
 local SelectedIsland = "Tiny Island"
 
 TeleportTab:Dropdown({
-    Title = "Select Island/Gym",
+    Title = "Select Island",
     Desc = "Choose destination",
     Values = GetIslandNames(),
     Value = SelectedIsland,
@@ -424,20 +501,16 @@ TeleportTab:Dropdown({
 })
 
 TeleportTab:Button({
-    Title = "Teleport to Island",
+    Title = "TP to Island",
     Desc = "Instant travel",
     Locked = false,
     Callback = function()
         local pos = Islands[SelectedIsland]
         if pos then
-            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local hrp = GetHRP()
             if hrp then
                 hrp.CFrame = CFrame.new(pos)
-                WindUI:Notify({
-                    Title = "Teleported",
-                    Content = "At " .. SelectedIsland .. "!",
-                    Duration = 2
-                })
+                WindUI:Notify({Title = "Teleported", Content = "At " .. SelectedIsland .. "!", Duration = 2})
             end
         end
     end
