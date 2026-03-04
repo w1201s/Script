@@ -1,26 +1,26 @@
--- Wind UI Script for Muscle Legends
--- Load Wind UI Library
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- Wind UI Fixed Script for Muscle Legends
+-- ใช้ loadstring ที่ถูกต้อง
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
--- Create Window
+-- สร้าง Window
 local Window = WindUI:CreateWindow({
     Title = "Muscle Legends Hub",
     Icon = "dumbbell",
-    Author = "Custom Script",
-    Folder = "MuscleLegendsHub",
-    Size = UDim2.fromOffset(580, 400),
+    Author = "Fixed Script",
+    Size = UDim2.fromOffset(600, 450),
     Transparent = true,
     Theme = "Dark",
-    SideBarWidth = 160,
+    SideBarWidth = 180,
     HasOutline = false
 })
 
--- Variables
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
--- States
+-- Variables
 local AutoRep = false
 local AutoDurability = false
 local AutoChest = false
@@ -30,7 +30,7 @@ local SelectedRock = "Tiny Rock (0+)"
 local SelectedIsland = "Tiny Island"
 local SelectedPlayer = nil
 
--- Rock Data with formatted durability
+-- Rock Data
 local Rocks = {
     ["Tiny Rock (0+)"] = {Position = Vector3.new(24, 4, 2097), Durability = 0},
     ["Punching Rock (10+)"] = {Position = Vector3.new(-163, 4, 430), Durability = 10},
@@ -62,35 +62,99 @@ local Styles = {"Handstands", "Pushup", "Situp", "Weight"}
 -- Chests
 local Chests = {"Enchanted Chest", "Golden Chest", "Legends Chest", "Magma Chest", "Jungle Chest"}
 
--- Auto Rep Function
+-- Function to Equip Style (ต้องหาวิธี equip ที่ถูกต้อง)
+local function EquipStyle(styleName)
+    -- วิธีที่ 1: ใช้ remote event ถ้ามี
+    local styleRemote = ReplicatedStorage:FindFirstChild("styleEvent") or ReplicatedStorage:FindFirstChild("equipStyle")
+    if styleRemote then
+        styleRemote:FireServer(styleName)
+    end
+    
+    -- วิธีที่ 2: หา tool ใน backpack และ equip
+    local tool = LocalPlayer.Backpack:FindFirstChild(styleName)
+    if tool then
+        LocalPlayer.Character.Humanoid:EquipTool(tool)
+    end
+end
+
+-- Function to Punch (กด E หรือใช้ remote)
+local function Punch()
+    -- วิธีที่ 1: ใช้ remote ที่ถูกต้อง
+    local muscleEvent = LocalPlayer:FindFirstChild("muscleEvent")
+    if muscleEvent then
+        muscleEvent:FireServer("punch", "leftHand")
+    end
+    
+    -- วิธีที่ 2: กด E ถ้า remote ไม่ work
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+end
+
+-- Function to Rep (กดตาม style ที่เลือก)
+local function DoRep()
+    if SelectedStyle == "Handstands" then
+        -- กด Q สำหรับ Handstands
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+    elseif SelectedStyle == "Pushup" then
+        -- กด R สำหรับ Pushup
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+    elseif SelectedStyle == "Situp" then
+        -- กด T สำหรับ Situp
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
+    elseif SelectedStyle == "Weight" then
+        -- กด Y สำหรับ Weight
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+    end
+    
+    -- หรือใช้ remote ถ้ามี
+    local muscleEvent = LocalPlayer:FindFirstChild("muscleEvent")
+    if muscleEvent then
+        muscleEvent:FireServer("rep")
+    end
+end
+
+-- Auto Rep Loop
 task.spawn(function()
     while true do
         if AutoRep then
-            local args = {"rep"}
-            LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(args))
+            DoRep()
         end
-        task.wait()
+        task.wait(0.1) -- ลด delay ให้เร็วขึ้น
     end
 end)
 
--- Auto Durability Function
+-- Auto Durability Loop (แก้ให้หันหน้าเข้าหาหิน)
 task.spawn(function()
     while true do
         if AutoDurability and Rocks[SelectedRock] then
             local rockData = Rocks[SelectedRock]
             local character = LocalPlayer.Character
             if character and character:FindFirstChild("HumanoidRootPart") then
-                character.HumanoidRootPart.CFrame = CFrame.new(rockData.Position)
-                task.wait(0.4)
-                local punchArgs = {"punch", "leftHand"}
-                LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(punchArgs))
+                -- TP ไปที่หิน + หันหน้าเข้าหาหิน
+                local rockPosition = rockData.Position
+                local lookAtPosition = rockPosition + Vector3.new(0, 0, 5) -- หันหน้าเข้าหาหิน
+                character.HumanoidRootPart.CFrame = CFrame.lookAt(rockPosition + Vector3.new(0, 5, -5), rockPosition)
+                
+                task.wait(0)
+                
+                -- ต่อย
+                Punch()
             end
         end
-        task.wait()
+        task.wait(0.1)
     end
 end)
 
--- Auto Chest Function
+-- Auto Chest Loop
 task.spawn(function()
     while true do
         if AutoChest then
@@ -103,91 +167,60 @@ task.spawn(function()
             ReplicatedStorage:WaitForChild("rEvents"):WaitForChild("groupRemote"):InvokeServer(unpack(groupArgs))
             task.wait(1)
         else
-            task.wait(0.1)
+            task.wait(0.5)
         end
     end
 end)
 
 -- Auto Kill Variables
 local KillPlatform = nil
-local KillLoopRunning = false
 
--- Create Kill Platform Function
+-- Create Kill Platform
 local function CreateKillPlatform()
     if KillPlatform then KillPlatform:Destroy() end
     
     local platform = Instance.new("Part")
     platform.Name = "KillPlatform"
-    platform.Size = Vector3.new(50, 5, 50)
-    platform.Position = Vector3.new(50000, 50000, 50000) -- 50K studs away
+    platform.Size = Vector3.new(100, 10, 100)
+    platform.Position = Vector3.new(50000, 50000, 50000)
     platform.Anchored = true
     platform.CanCollide = true
-    platform.Parent = workspace
-    
-    -- Make it invisible but functional
-    local invisibleMaterial = Enum.Material.SmoothPlastic
-    platform.Material = invisibleMaterial
     platform.Transparency = 1
-    
+    platform.Parent = workspace
     KillPlatform = platform
     return platform
 end
 
--- Auto Kill Function
+-- Auto Kill Loop
 task.spawn(function()
     CreateKillPlatform()
     
     while true do
         if AutoKill and KillPlatform then
-            -- Find target player
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
                     local localChar = LocalPlayer.Character
                     
                     if targetHRP and localChar and localChar:FindFirstChild("HumanoidRootPart") then
-                        -- Teleport target to platform
-                        targetHRP.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(0, 10, 0))
+                        -- TP เป้าหมายไปบนแพลตฟอร์ม
+                        targetHRP.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(0, 15, 0))
+                        targetHRP.Velocity = Vector3.new(0, 0, 0) -- รีเซ็ตความเร็ว
                         
-                        -- Teleport local player to platform to punch
-                        localChar.HumanoidRootPart.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(0, 10, 10))
+                        -- TP ตัวเองไปใกล้ๆ
+                        localChar.HumanoidRootPart.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(20, 15, 0))
                         
-                        -- Punch
-                        local punchArgs = {"punch", "leftHand"}
-                        LocalPlayer:WaitForChild("muscleEvent"):FireServer(unpack(punchArgs))
+                        -- ต่อย
+                        Punch()
                         
-                        task.wait(0.1)
+                        task.wait(0.2)
                     end
                 end
             end
         end
-        task.wait()
+        task.wait(0.1)
     end
 end)
-
--- Get Player Stats Function
-local function GetPlayerStats(player)
-    local stats = {}
-    local leaderstats = player:FindFirstChild("leaderstats")
-    
-    if leaderstats then
-        for _, stat in ipairs(leaderstats:GetChildren()) do
-            table.insert(stats, {Name = stat.Name, Value = stat.Value})
-        end
-    end
-    
-    -- Additional stats
-    local gems = player:FindFirstChild("Gems") and player.Gems.Value or "N/A"
-    local rebirths = player:FindFirstChild("Rebirths") and player.Rebirths.Value or "N/A"
-    local playTime = player:FindFirstChild("PlayTime") and player.PlayTime.Value or "N/A"
-    
-    return {
-        Stats = stats,
-        Gems = gems,
-        Rebirths = rebirths,
-        PlayTime = playTime
-    }
-end
 
 -- ==================== MAIN TAB ====================
 local MainTab = Window:Tab({
@@ -196,17 +229,18 @@ local MainTab = Window:Tab({
     Selected = true
 })
 
--- UI Setup Section
 MainTab:Section({Title = "UI Setup"})
 
 -- Style Dropdown
 local StyleDropdown = MainTab:Dropdown({
     Title = "Select Style",
-    Values = Styles,
+    Multi = false,
     Value = SelectedStyle,
+    Options = Styles,
     Callback = function(value)
         SelectedStyle = value
-        -- Equip style logic here (you may need to adjust based on game mechanics)
+        EquipStyle(value)
+        print("Selected Style:", value)
     end
 })
 
@@ -216,16 +250,20 @@ MainTab:Toggle({
     Default = false,
     Callback = function(value)
         AutoRep = value
+        if value then
+            EquipStyle(SelectedStyle)
+        end
     end
 })
 
--- Durability Farm Section
 MainTab:Section({Title = "Durability Farm"})
 
--- Rock Dropdown with formatted names
+-- Rock Dropdown
 local RockDropdown = MainTab:Dropdown({
     Title = "Select Rock",
-    Values = {
+    Multi = false,
+    Value = SelectedRock,
+    Options = {
         "Tiny Rock (0+)",
         "Punching Rock (10+)",
         "Large Rock (100+)",
@@ -237,9 +275,9 @@ local RockDropdown = MainTab:Dropdown({
         "Muscle King Mountain (5M+)",
         "Ancient Jungle Rock (10M+)"
     },
-    Value = SelectedRock,
     Callback = function(value)
         SelectedRock = value
+        print("Selected Rock:", value)
     end
 })
 
@@ -252,9 +290,9 @@ MainTab:Toggle({
     end
 })
 
--- Auto Chest Section
 MainTab:Section({Title = "Auto Redeem Chest"})
 
+-- Auto Chest Toggle
 MainTab:Toggle({
     Title = "Auto Redeem All Chests (1s Delay)",
     Default = false,
@@ -272,106 +310,29 @@ local AutoKillTab = Window:Tab({
 AutoKillTab:Section({Title = "Auto Kill Setup"})
 
 AutoKillTab:Label({
-    Title = "Platform Location: 50K studs from spawn",
-    Description = "X: 50000, Y: 50000, Z: 50000"
+    Title = "Platform: 50K studs away",
+    Text = "Safe killing platform"
 })
 
--- Create Platform Button
 AutoKillTab:Button({
-    Title = "Create/Reset Kill Platform",
+    Title = "Create/Reset Platform",
     Callback = function()
         CreateKillPlatform()
-        WindUI:Notify({
-            Title = "Platform Created",
-            Content = "Kill platform created at 50K studs away",
+        Window:Notify({
+            Title = "Success",
+            Content = "Kill platform created!",
             Duration = 3
         })
     end
 })
 
--- Auto Kill Toggle
 AutoKillTab:Toggle({
     Title = "Auto Kill Players",
-    Description = "TP players to platform & punch (No delay)",
     Default = false,
     Callback = function(value)
         AutoKill = value
         if value then
             CreateKillPlatform()
-        end
-    end
-})
-
--- ==================== STAT TAB ====================
-local StatTab = Window:Tab({
-    Title = "Player Stats",
-    Icon = "bar-chart-2"
-})
-
-StatTab:Section({Title = "View Player Statistics"})
-
--- Player Dropdown
-local PlayerDropdown = StatTab:Dropdown({
-    Title = "Select Player",
-    Values = {},
-    Value = "Select a player...",
-    Callback = function(value)
-        SelectedPlayer = value
-    end
-})
-
--- Refresh Button
-StatTab:Button({
-    Title = "Refresh Player List",
-    Callback = function()
-        local playerNames = {}
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                table.insert(playerNames, player.Name)
-            end
-        end
-        PlayerDropdown:Refresh(playerNames)
-        WindUI:Notify({
-            Title = "Refreshed",
-            Content = "Player list updated",
-            Duration = 2
-        })
-    end
-})
-
--- Stats Display
-local StatsLabel = StatTab:Label({
-    Title = "No player selected",
-    Description = "Select a player and click 'View Stats'"
-})
-
--- View Stats Button
-StatTab:Button({
-    Title = "View Selected Player Stats",
-    Callback = function()
-        if SelectedPlayer and SelectedPlayer ~= "Select a player..." then
-            local targetPlayer = Players:FindFirstChild(SelectedPlayer)
-            if targetPlayer then
-                local stats = GetPlayerStats(targetPlayer)
-                local statText = "Player: " .. targetPlayer.Name .. "\n\n"
-                statText = statText .. "Gems: " .. tostring(stats.Gems) .. "\n"
-                statText = statText .. "Rebirths: " .. tostring(stats.Rebirths) .. "\n"
-                statText = statText .. "Play Time: " .. tostring(stats.PlayTime) .. "\n\n"
-                statText = statText .. "Leaderstats:\n"
-                
-                for _, stat in ipairs(stats.Stats) do
-                    statText = statText .. "• " .. stat.Name .. ": " .. tostring(stat.Value) .. "\n"
-                end
-                
-                StatsLabel:SetTitle(targetPlayer.Name .. " Stats")
-                StatsLabel:SetDescription(statText)
-            end
-        else
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Please select a player first",
-                Duration = 3
-            })
         end
     end
 })
@@ -384,36 +345,31 @@ local TeleportTab = Window:Tab({
 
 TeleportTab:Section({Title = "Teleport Options"})
 
--- TP to Platform Button
 TeleportTab:Button({
-    Title = "Teleport to Kill Platform",
+    Title = "TP to Kill Platform",
     Callback = function()
         if KillPlatform then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(0, 10, 0))
-                WindUI:Notify({
-                    Title = "Teleported",
-                    Content = "Moved to kill platform",
-                    Duration = 2
-                })
+                char.HumanoidRootPart.CFrame = CFrame.new(KillPlatform.Position + Vector3.new(0, 15, 0))
             end
         else
-            WindUI:Notify({
+            Window:Notify({
                 Title = "Error",
-                Content = "Platform not created yet",
+                Content = "Create platform first!",
                 Duration = 3
             })
         end
     end
 })
 
-TeleportTab:Section({Title = "Island/Gym Teleport"})
+TeleportTab:Section({Title = "Islands & Gyms"})
 
--- Island Dropdown
 local IslandDropdown = TeleportTab:Dropdown({
-    Title = "Select Island/Gym",
-    Values = {
+    Title = "Select Location",
+    Multi = false,
+    Value = SelectedIsland,
+    Options = {
         "Tiny Island",
         "Legends Beach",
         "Frost Gym",
@@ -423,22 +379,20 @@ local IslandDropdown = TeleportTab:Dropdown({
         "Muscle King Gym",
         "Jungle Gym"
     },
-    Value = SelectedIsland,
     Callback = function(value)
         SelectedIsland = value
     end
 })
 
--- TP to Island Button
 TeleportTab:Button({
-    Title = "Teleport to Selected Island/Gym",
+    Title = "Teleport to Selected",
     Callback = function()
         local position = Islands[SelectedIsland]
         if position then
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 char.HumanoidRootPart.CFrame = CFrame.new(position)
-                WindUI:Notify({
+                Window:Notify({
                     Title = "Teleported",
                     Content = "Moved to " .. SelectedIsland,
                     Duration = 2
@@ -448,45 +402,11 @@ TeleportTab:Button({
     end
 })
 
--- Initialize player list
-task.spawn(function()
-    task.wait(1)
-    local playerNames = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(playerNames, player.Name)
-        end
-    end
-    if #playerNames > 0 then
-        PlayerDropdown:Refresh(playerNames)
-    end
-end)
-
--- Handle new players
-Players.PlayerAdded:Connect(function(player)
-    task.wait(1)
-    local currentPlayers = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(currentPlayers, p.Name)
-        end
-    end
-    PlayerDropdown:Refresh(currentPlayers)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    task.wait(0.5)
-    local currentPlayers = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(currentPlayers, p.Name)
-        end
-    end
-    PlayerDropdown:Refresh(currentPlayers)
-end)
-
-WindUI:Notify({
+-- Notify when loaded
+Window:Notify({
     Title = "Script Loaded",
-    Content = "Muscle Legends Hub is ready!",
+    Content = "Muscle Legends Hub Ready!",
     Duration = 3
 })
+
+print("Script Loaded Successfully!")
