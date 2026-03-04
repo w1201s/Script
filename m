@@ -8,9 +8,9 @@ local LocalPlayer = Players.LocalPlayer
 
 --// UI Setup
 local Window = WindUI:CreateWindow({
-    Title = "Muscle Legends Pro",
+    Title = "Muscle Legends Pro max",
     Icon = "dumbbell",
-    Author = "by WindUI",
+    Author = "by w1201s",
 })
 
 --// Tabs
@@ -177,7 +177,7 @@ local function AutoFarmRockLoop()
                 end
             end
         end
-        task.wait(0.4)
+        task.wait()
     end
 end
 
@@ -209,7 +209,7 @@ local function AutoKillLoop()
                     targetHRP.Velocity = Vector3.new(0, 0, 0)
                     
                     -- TP ตัวเองไปใกล้ๆ อีก 2 studs (รวม 6 studs จากเป้าหมายเดิม)
-                    local myPos = platformPos + Vector3.new(6, 5, 0) -- เข้าไปอีก 2 studs
+                    local myPos = platformPos + Vector3.new(5, 5, 0) -- เข้าไปอีก 2 studs
                     myHRP.CFrame = CFrame.new(myPos, targetHRP.Position)
                     
                     -- ทำท่าตามที่เลือก (หลายท่าพร้อมกันได้)
@@ -259,7 +259,7 @@ MainTab:Toggle({
         AutoRep = state
         if AutoRep then
             EquipStyle(SelectedStyle)
-            task.wait(0.1)
+            task.wait()
             task.spawn(DoRep)
         end
     end
@@ -338,18 +338,6 @@ AutoKillTab:Toggle({
     end
 })
 
-AutoKillTab:Section({Title = "Select Attack Styles (Multi)"})
-
-AutoKillTab:Toggle({
-    Title = "Handstands",
-    Desc = "Do handstands on target",
-    Icon = "hand",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        AutoKillStyles.Handstands = state
-    end
-})
 
 AutoKillTab:Toggle({
     Title = "Punch",
@@ -362,38 +350,6 @@ AutoKillTab:Toggle({
     end
 })
 
-AutoKillTab:Toggle({
-    Title = "Pushups",
-    Desc = "Do pushups on target",
-    Icon = "arrow-down",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        AutoKillStyles.Pushups = state
-    end
-})
-
-AutoKillTab:Toggle({
-    Title = "Situps",
-    Desc = "Do situps on target",
-    Icon = "user",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        AutoKillStyles.Situps = state
-    end
-})
-
-AutoKillTab:Toggle({
-    Title = "Weight",
-    Desc = "Lift weights on target",
-    Icon = "dumbbell",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        AutoKillStyles.Weight = state
-    end
-})
 
 --// ==================== STAT TAB ====================
 
@@ -514,11 +470,4 @@ TeleportTab:Button({
             end
         end
     end
-})
-
---// Init
-WindUI:Notify({
-    Title = "Muscle Legends Pro",
-    Content = "Loaded! 💪",
-    Duration = 3
 })
