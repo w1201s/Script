@@ -1,6 +1,6 @@
 -- Wind UI Script for Muscle Legends
 -- Load Wind UI Library
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/v1.0.0/WindUI.lua"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- Create Window
 local Window = WindUI:CreateWindow({
