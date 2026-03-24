@@ -1,7 +1,7 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Smart Farm + Anti Void",
+    Name = "Ultimate Farm",
     LoadingTitle = "Loading...",
     LoadingSubtitle = "by you",
 })
@@ -31,15 +31,17 @@ local function CreateVoid()
 end
 
 -- =====================
--- 🤖 Auto Farm
+-- ⚙️ SETTINGS
 -- =====================
 local AutoFarm = false
 local Mode = "Behind"
 local Distance = 5
 local TweenSleep = 0.1
-
 local ToolSpam = false
 
+-- =====================
+-- 📍 OFFSET
+-- =====================
 local function GetOffset(cf)
     if Mode == "Behind" then
         return cf * CFrame.new(0, 0, Distance)
@@ -50,25 +52,59 @@ local function GetOffset(cf)
     end
 end
 
-local function TweenTo(pos)
+-- =====================
+-- 🔥 SAFE TWEEN (FIX BUG)
+-- =====================
+local function SafeTweenToTarget(hrp)
     local char = LocalPlayer.Character
     if not char then return end
 
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local dist = (root.Position - pos.Position).Magnitude
+    if not hrp or not hrp.Parent then return end
+
+    local hum = hrp.Parent:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    if hrp.Position.Y <= -50 then return end
+
+    local targetCF = GetOffset(hrp.CFrame)
+
+    local dist = (root.Position - targetCF.Position).Magnitude
+    if dist < 1 then return end
+
     local time = dist / 60
 
-    local tween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {
-        CFrame = pos
-    })
+    local tween = TweenService:Create(
+        root,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = targetCF}
+    )
 
     tween:Play()
-    tween.Completed:Wait()
+
+    local start = tick()
+
+    while tick() - start < time do
+        task.wait(0.05)
+
+        if not hrp.Parent then break end
+        if hum.Health <= 0 then break end
+        if hrp.Position.Y <= -50 then break end
+
+        if (hrp.Position - targetCF.Position).Magnitude > 100 then
+            tween:Cancel()
+            break
+        end
+    end
+
+    tween:Cancel()
 end
 
--- 🔥 spam tool ตลอด
+-- =====================
+-- 🔥 TOOL SPAM (NO REQUIREMENT)
+-- =====================
 task.spawn(function()
     while true do
         task.wait(0.05)
@@ -87,7 +123,9 @@ task.spawn(function()
     end
 end)
 
--- 🔁 main farm (ล็อคเป้า)
+-- =====================
+-- 🤖 AUTO FARM (LOCK TARGET)
+-- =====================
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -95,20 +133,16 @@ task.spawn(function()
         if AutoFarm then
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("Model")
-                and v.Name ~= "R6n_w1201s"
-                and v:FindFirstChildOfClass("Humanoid") then
+                and v.Name ~= "R6n_w1201s" then
 
                     local hum = v:FindFirstChildOfClass("Humanoid")
                     local hrp = v:FindFirstChild("HumanoidRootPart")
 
                     if hum and hrp and hum.Health > 0 and hrp.Position.Y > -50 then
                         
-                        -- 🎯 ล็อคตัวนี้จนตายหรือหลุดแมพ
+                        -- 🎯 ล็อคจนตาย / หลุดแมพ
                         while hum.Health > 0 and hrp.Position.Y > -50 and AutoFarm do
-                            
-                            local targetCF = GetOffset(hrp.CFrame)
-                            TweenTo(targetCF)
-
+                            SafeTweenToTarget(hrp)
                             task.wait(TweenSleep)
                         end
                     end
@@ -127,11 +161,7 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AntiVoidEnabled = v
-        if v then
-            CreateVoid()
-        else
-            if VoidPart then VoidPart:Destroy() end
-        end
+        if v then CreateVoid() else if VoidPart then VoidPart:Destroy() end end
     end,
 })
 
@@ -142,9 +172,7 @@ Tab:CreateSlider({
     CurrentValue = 5,
     Callback = function(v)
         VoidThickness = v
-        if AntiVoidEnabled then
-            CreateVoid()
-        end
+        if AntiVoidEnabled then CreateVoid() end
     end,
 })
 
@@ -175,10 +203,9 @@ Tab:CreateSlider({
     end,
 })
 
--- 💤 Tween Sleep
 Tab:CreateSlider({
     Name = "Tween Sleep",
-    Range = {0.01, 1},
+    Range = {0.01,1},
     Increment = 0.01,
     CurrentValue = 0.1,
     Callback = function(v)
@@ -186,9 +213,8 @@ Tab:CreateSlider({
     end,
 })
 
--- 🔥 Tool Spam
 Tab:CreateToggle({
-    Name = "Auto Tool Activate (Spam)",
+    Name = "Auto Tool Activate",
     CurrentValue = false,
     Callback = function(v)
         ToolSpam = v
