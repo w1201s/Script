@@ -1,7 +1,7 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Farm + Anti Void (Updated)",
+    Name = "Smart Farm + Anti Void",
     LoadingTitle = "Loading...",
     LoadingSubtitle = "by you",
 })
@@ -27,8 +27,6 @@ local function CreateVoid()
     VoidPart.Position = Vector3.new(0, -50, 0)
     VoidPart.Anchored = true
     VoidPart.Transparency = 0.5
-    VoidPart.Color = Color3.fromRGB(0,0,0)
-    VoidPart.Name = "AntiVoid"
     VoidPart.Parent = workspace
 end
 
@@ -38,6 +36,8 @@ end
 local AutoFarm = false
 local Mode = "Behind"
 local Distance = 5
+local TweenSleep = 0.1
+
 local ToolSpam = false
 
 local function GetOffset(cf)
@@ -58,7 +58,7 @@ local function TweenTo(pos)
     if not root then return end
 
     local dist = (root.Position - pos.Position).Magnitude
-    local time = dist / 50
+    local time = dist / 60
 
     local tween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {
         CFrame = pos
@@ -68,20 +68,26 @@ local function TweenTo(pos)
     tween.Completed:Wait()
 end
 
--- 🔥 Tool Activate
-local function ActivateTools()
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    for _, tool in pairs(char:GetChildren()) do
-        if tool:IsA("Tool") then
-            pcall(function()
-                tool:Activate()
-            end)
+-- 🔥 spam tool ตลอด
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if ToolSpam then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in pairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        pcall(function()
+                            tool:Activate()
+                        end)
+                    end
+                end
+            end
         end
     end
-end
+end)
 
+-- 🔁 main farm (ล็อคเป้า)
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -92,16 +98,18 @@ task.spawn(function()
                 and v.Name ~= "R6n_w1201s"
                 and v:FindFirstChildOfClass("Humanoid") then
 
+                    local hum = v:FindFirstChildOfClass("Humanoid")
                     local hrp = v:FindFirstChild("HumanoidRootPart")
 
-                    -- 🔥 ignore ต่ำกว่า -50
-                    if hrp and hrp.Position.Y > -50 then
-                        local targetCF = GetOffset(hrp.CFrame)
+                    if hum and hrp and hum.Health > 0 and hrp.Position.Y > -50 then
+                        
+                        -- 🎯 ล็อคตัวนี้จนตายหรือหลุดแมพ
+                        while hum.Health > 0 and hrp.Position.Y > -50 and AutoFarm do
+                            
+                            local targetCF = GetOffset(hrp.CFrame)
+                            TweenTo(targetCF)
 
-                        TweenTo(targetCF)
-
-                        if ToolSpam then
-                            ActivateTools()
+                            task.wait(TweenSleep)
                         end
                     end
                 end
@@ -167,9 +175,20 @@ Tab:CreateSlider({
     end,
 })
 
--- 🔥 Tool Activate Toggle
+-- 💤 Tween Sleep
+Tab:CreateSlider({
+    Name = "Tween Sleep",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    CurrentValue = 0.1,
+    Callback = function(v)
+        TweenSleep = v
+    end,
+})
+
+-- 🔥 Tool Spam
 Tab:CreateToggle({
-    Name = "Auto Tool Activate",
+    Name = "Auto Tool Activate (Spam)",
     CurrentValue = false,
     Callback = function(v)
         ToolSpam = v
