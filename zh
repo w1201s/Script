@@ -11,6 +11,7 @@ local Tab = Window:CreateTab("Main", 4483362458)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 -- SETTINGS
@@ -18,10 +19,14 @@ local AutoFarm = false
 local Mode = "Behind"
 local Distance = 5
 local ToolSpam = false
-local TargetType = "NPC" -- "Player", "NPC", or "Both"
+local TargetNPC = true
+local TargetPlayer = false
 
 -- Store original gravity
 local OriginalGravity = Workspace.Gravity
+
+-- Tween tracking
+local CurrentTween = nil
 
 -- OFFSET
 local function GetOffset(cf)
@@ -60,14 +65,10 @@ end)
 
 -- 🔥 CHECK IF MODEL IS VALID TARGET
 local function IsValidTarget(model)
-    -- Must be a model with humanoid
     if not model or not model:IsA("Model") then return false end
-    
-    -- Skip self
     if model == LocalPlayer.Character then return false end
     if model.Name == LocalPlayer.Name then return false end
     
-    -- Check for humanoid and HRP
     local hum = model:FindFirstChildOfClass("Humanoid")
     local hrp = model:FindFirstChild("HumanoidRootPart")
     
@@ -75,24 +76,20 @@ local function IsValidTarget(model)
     if hum.Health <= 0 then return false end
     if hrp.Position.Y <= -50 then return false end
     
-    -- Check target type
     local player = Players:GetPlayerFromCharacter(model)
     
-    if TargetType == "Player" then
-        return player ~= nil -- Must be a player
-    elseif TargetType == "NPC" then
-        return player == nil -- Must NOT be a player (NPC)
-    elseif TargetType == "Both" then
-        return true -- Any valid humanoid
+    -- Check toggles
+    if player then
+        return TargetPlayer -- Is player and we want players
+    else
+        return TargetNPC -- Is NPC and we want NPCs
     end
-    
-    return false
 end
 
 -- 🔥 FIND TARGET
 local function GetTarget()
-    -- First check player characters (more priority)
-    if TargetType == "Player" or TargetType == "Both" then
+    -- Check players first if enabled
+    if TargetPlayer then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 local char = player.Character
@@ -107,19 +104,18 @@ local function GetTarget()
         end
     end
     
-    -- Then check workspace for NPCs
-    if TargetType == "NPC" or TargetType == "Both" then
+    -- Check NPCs if enabled
+    if TargetNPC then
         for _, v in pairs(workspace:GetDescendants()) do
             if v:IsA("Model") and v.Name ~= "R6n_w1201s" then
                 if IsValidTarget(v) then
                     local hum = v:FindFirstChildOfClass("Humanoid")
                     local hrp = v:FindFirstChild("HumanoidRootPart")
                     if hum and hrp then
-                        -- Double check it's not a player if NPC mode
-                        if TargetType == "NPC" and Players:GetPlayerFromCharacter(v) then
-                            continue
+                        -- Make sure it's not a player
+                        if not Players:GetPlayerFromCharacter(v) then
+                            return hum, hrp
                         end
-                        return hum, hrp
                     end
                 end
             end
@@ -129,12 +125,48 @@ local function GetTarget()
     return nil, nil
 end
 
--- 🚀 REALTIME MOVE (FIXED)
+-- 🚀 TWEEN TO TARGET
 local CurrentTarget = nil
 local CurrentHRP = nil
 
+local function TweenToTarget(targetHRP)
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Cancel existing tween
+    if CurrentTween then
+        CurrentTween:Cancel()
+        CurrentTween = nil
+    end
+    
+    local targetCF = GetOffset(targetHRP.CFrame)
+    local distance = (root.Position - targetCF.Position).Magnitude
+    local tweenTime = math.clamp(distance / 100, 0.1, 0.5) -- Faster for close, slower for far
+    
+    local tweenInfo = TweenInfo.new(
+        tweenTime,
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.Out,
+        0,
+        false,
+        0
+    )
+    
+    local goal = {CFrame = targetCF}
+    CurrentTween = TweenService:Create(root, tweenInfo, goal)
+    CurrentTween:Play()
+end
+
+-- 🔥 MAIN LOOP
 RunService.Heartbeat:Connect(function()
     if not AutoFarm then 
+        if CurrentTween then
+            CurrentTween:Cancel()
+            CurrentTween = nil
+        end
         CurrentTarget = nil
         CurrentHRP = nil
         return 
@@ -142,6 +174,10 @@ RunService.Heartbeat:Connect(function()
 
     local char = LocalPlayer.Character
     if not char then 
+        if CurrentTween then
+            CurrentTween:Cancel()
+            CurrentTween = nil
+        end
         CurrentTarget = nil
         CurrentHRP = nil
         return 
@@ -149,39 +185,57 @@ RunService.Heartbeat:Connect(function()
 
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then 
+        if CurrentTween then
+            CurrentTween:Cancel()
+            CurrentTween = nil
+        end
         CurrentTarget = nil
         CurrentHRP = nil
         return 
     end
 
-    -- Get new target if current is invalid or dead
-    if not CurrentTarget or not CurrentHRP or CurrentTarget.Health <= 0 or CurrentHRP.Position.Y <= -50 then
+    -- Check if current target is still valid
+    if CurrentTarget and CurrentHRP then
+        if CurrentTarget.Health <= 0 or CurrentHRP.Position.Y <= -50 or not CurrentHRP.Parent then
+            -- Target dead or gone, find new one
+            CurrentTarget = nil
+            CurrentHRP = nil
+            if CurrentTween then
+                CurrentTween:Cancel()
+                CurrentTween = nil
+            end
+        end
+    end
+
+    -- Get new target if needed
+    if not CurrentTarget or not CurrentHRP then
         local hum, hrp = GetTarget()
         if hum and hrp then
             CurrentTarget = hum
             CurrentHRP = hrp
+            -- Start tweening to new target
+            TweenToTarget(hrp)
         else
             CurrentTarget = nil
             CurrentHRP = nil
-            return
+        end
+    else
+        -- Update tween to follow moving target
+        if CurrentHRP and CurrentHRP.Parent then
+            -- Check if we need to update tween (target moved significantly)
+            local targetCF = GetOffset(CurrentHRP.CFrame)
+            local distance = (root.Position - targetCF.Position).Magnitude
+            
+            -- Retween if target moved too far or tween finished
+            if distance > 5 or not CurrentTween or CurrentTween.PlaybackState == Enum.PlaybackState.Completed then
+                TweenToTarget(CurrentHRP)
+            end
         end
     end
-
-    -- 🎯 Update position every frame
-    if CurrentHRP and CurrentHRP.Parent then
-        local targetCF = GetOffset(CurrentHRP.CFrame)
-        
-        -- 💨 Instant teleport (no lerp delay)
-        root.CFrame = targetCF
-        
-        -- Reset velocity to prevent falling
-        root.Velocity = Vector3.new(0, 0, 0)
-        root.RotVelocity = Vector3.new(0, 0, 0)
-    else
-        -- Target lost, clear it
-        CurrentTarget = nil
-        CurrentHRP = nil
-    end
+    
+    -- Reset velocity while farming
+    root.Velocity = Vector3.new(0, 0, 0)
+    root.RotVelocity = Vector3.new(0, 0, 0)
 end)
 
 -- UI
@@ -190,27 +244,48 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AutoFarm = v
-        -- 🌍 GRAVITY CONTROL
         if AutoFarm then
             Workspace.Gravity = 0
             OriginalGravity = OriginalGravity ~= 0 and OriginalGravity or 196.2
         else
             Workspace.Gravity = OriginalGravity
+            if CurrentTween then
+                CurrentTween:Cancel()
+                CurrentTween = nil
+            end
             CurrentTarget = nil
             CurrentHRP = nil
         end
     end,
 })
 
-Tab:CreateDropdown({
-    Name = "Target Type",
-    Options = {"NPC", "Player", "Both"},
-    CurrentOption = "NPC",
+Tab:CreateToggle({
+    Name = "Target NPC",
+    CurrentValue = true,
     Callback = function(v)
-        TargetType = v
-        -- Reset target when changing type
+        TargetNPC = v
+        -- Reset target when changing settings
         CurrentTarget = nil
         CurrentHRP = nil
+        if CurrentTween then
+            CurrentTween:Cancel()
+            CurrentTween = nil
+        end
+    end,
+})
+
+Tab:CreateToggle({
+    Name = "Target Player",
+    CurrentValue = false,
+    Callback = function(v)
+        TargetPlayer = v
+        -- Reset target when changing settings
+        CurrentTarget = nil
+        CurrentHRP = nil
+        if CurrentTween then
+            CurrentTween:Cancel()
+            CurrentTween = nil
+        end
     end,
 })
 
@@ -246,14 +321,21 @@ LocalPlayer.CharacterRemoving:Connect(function()
     if AutoFarm then
         Workspace.Gravity = OriginalGravity
     end
+    if CurrentTween then
+        CurrentTween:Cancel()
+        CurrentTween = nil
+    end
     CurrentTarget = nil
     CurrentHRP = nil
 end)
 
--- Reset on death
 LocalPlayer.CharacterAdded:Connect(function()
     CurrentTarget = nil
     CurrentHRP = nil
+    if CurrentTween then
+        CurrentTween:Cancel()
+        CurrentTween = nil
+    end
     if AutoFarm then
         Workspace.Gravity = 0
     end
