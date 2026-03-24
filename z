@@ -1,0 +1,213 @@
+-- Hitbox Expander - Separate Hitbox Parts (No Physics Issues)
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Hitbox Expander",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by we fucking dead",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "HitboxConfig",
+        FileName = "Settings"
+    },
+    KeySystem = false
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- Variables
+local HitboxEnabled = false
+local HitboxSize = 10
+local HitboxTransparency = 0.5
+local HitboxColor = Color3.fromRGB(255, 0, 0)
+local TeamCheck = true
+
+-- Storage for hitbox parts
+local HitboxParts = {}
+
+-- EXACT path to ignore
+local IGNORE_PATH = nil
+task.spawn(function()
+    local success = pcall(function()
+        IGNORE_PATH = workspace:WaitForChild("Everything"):WaitForChild("Map"):WaitForChild("Npc"):WaitForChild("R6n_w1201s")
+    end)
+end)
+
+-- Enable Toggle
+MainTab:CreateToggle({
+    Name = "Enable Hitbox",
+    CurrentValue = false,
+    Flag = "HitboxToggle",
+    Callback = function(Value)
+        HitboxEnabled = Value
+        if not Value then
+            -- Destroy all hitbox parts
+            for _, hitbox in pairs(HitboxParts) do
+                if hitbox and hitbox.Parent then
+                    hitbox:Destroy()
+                end
+            end
+            table.clear(HitboxParts)
+        end
+    end
+})
+
+-- Size Slider
+MainTab:CreateSlider({
+    Name = "Hitbox Size",
+    Range = {2, 30},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = 10,
+    Flag = "HitboxSize",
+    Callback = function(Value)
+        HitboxSize = Value
+    end
+})
+
+-- Transparency Slider
+MainTab:CreateSlider({
+    Name = "Hitbox Transparency",
+    Range = {0, 1},
+    Increment = 0.05,
+    Suffix = "",
+    CurrentValue = 0.5,
+    Flag = "HitboxTransparency",
+    Callback = function(Value)
+        HitboxTransparency = Value
+    end
+})
+
+-- Color Picker
+MainTab:CreateColorPicker({
+    Name = "Hitbox Color",
+    Color = Color3.fromRGB(255, 0, 0),
+    Flag = "HitboxColor",
+    Callback = function(Color)
+        HitboxColor = Color
+    end
+})
+
+-- Team Check
+MainTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Flag = "TeamCheck",
+    Callback = function(Value)
+        TeamCheck = Value
+    end
+})
+
+-- Function: Check if object is inside ignored path
+local function isIgnored(obj)
+    if not IGNORE_PATH then return false end
+    local current = obj
+    while current do
+        if current == IGNORE_PATH then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
+end
+
+-- Function: Get Humanoid from character
+local function getHumanoid(model)
+    if not model or not model:IsA("Model") then return nil end
+    return model:FindFirstChildOfClass("Humanoid")
+end
+
+-- Function: Create or update hitbox for character
+local function updateHitbox(character)
+    if not HitboxEnabled then return end
+    if not character or not character.Parent then return end
+    
+    -- Ignore check
+    if isIgnored(character) then return end
+    
+    -- Must have humanoid
+    local humanoid = getHumanoid(character)
+    if not humanoid or humanoid.Health <= 0 then 
+        -- Remove hitbox if dead
+        if HitboxParts[character] then
+            HitboxParts[character]:Destroy()
+            HitboxParts[character] = nil
+        end
+        return 
+    end
+    
+    -- Team check
+    if TeamCheck then
+        local localPlayer = game.Players.LocalPlayer
+        local player = game.Players:GetPlayerFromCharacter(character)
+        if player and localPlayer and player.Team == localPlayer.Team then
+            return
+        end
+    end
+    
+    -- Get target part (HRP or Head)
+    local targetPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+    if not targetPart then return end
+    
+    -- Get or create hitbox
+    local hitbox = HitboxParts[character]
+    if not hitbox or not hitbox.Parent then
+        hitbox = Instance.new("Part")
+        hitbox.Name = "HitboxVisual"
+        hitbox.Shape = Enum.PartType.Ball
+        hitbox.Material = Enum.Material.Neon
+        hitbox.CanCollide = false
+        hitbox.CanQuery = true -- Can be hit by raycasts
+        hitbox.Massless = true
+        hitbox.Anchored = false -- Follows character
+        
+        -- Parent to target so it moves with it
+        hitbox.Parent = targetPart
+        HitboxParts[character] = hitbox
+    end
+    
+    -- Update properties
+    hitbox.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+    hitbox.Transparency = HitboxTransparency
+    hitbox.Color = HitboxColor
+    hitbox.CFrame = targetPart.CFrame -- Center on target
+end
+
+-- Main Loop
+task.spawn(function()
+    while task.wait(0.05) do -- Faster update for smooth following
+        if not HitboxEnabled then continue end
+        
+        -- Clean up dead characters
+        for char, hitbox in pairs(HitboxParts) do
+            if not char or not char.Parent or not hitbox or not hitbox.Parent then
+                if hitbox then hitbox:Destroy() end
+                HitboxParts[char] = nil
+            end
+        end
+        
+        -- Update all characters with humanoids
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") then
+                local humanoid = getHumanoid(obj)
+                if humanoid and humanoid.Health > 0 then
+                    updateHitbox(obj)
+                end
+            end
+        end
+    end
+end)
+
+-- Cleanup on death/leave
+workspace.DescendantRemoving:Connect(function(obj)
+    if HitboxParts[obj] then
+        HitboxParts[obj]:Destroy()
+        HitboxParts[obj] = nil
+    end
+end)
+
+Rayfield:Notify({
+    Title = "Hitbox Loaded",
+    Content = "Separate hitboxes | No movement issues",
+    Duration = 5
+})
