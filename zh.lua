@@ -1,21 +1,25 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Universal Hitbox + Size",
+    Name = "Hitbox Others Only",
     LoadingTitle = "Loading...",
     LoadingSubtitle = "by you",
 })
 
 local Tab = Window:CreateTab("Main", 4483362458)
 
-local Enabled = false
-local HitboxSize = 5 -- ค่าเริ่มต้น (stud)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- เก็บ size เดิมกันพัง
+local Enabled = false
+local HitboxSize = 5
+
 local OriginalSizes = {}
 
--- 📦 ใส่ hitbox (ขยายจริง)
+-- 📦 ใส่ hitbox (เฉพาะคนอื่น)
 local function ApplyHitbox(model)
+    if model == LocalPlayer.Character then return end -- 🔥 กันตัวเรา
+
     local hrp = model:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
@@ -60,13 +64,12 @@ end)
 -- 🎛️ UI
 
 Tab:CreateToggle({
-    Name = "Enable Hitbox",
+    Name = "Enable Hitbox (Others Only)",
     CurrentValue = false,
     Callback = function(v)
         Enabled = v
 
         if not v then
-            -- reset ทั้งหมด
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("Model") then
                     ResetHitbox(v)
