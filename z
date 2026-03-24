@@ -1,4 +1,4 @@
--- Simple Hitbox Expander - Direct HRP Expansion, No Flicker
+-- Simple Hitbox Expander - No Collision Issues
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -35,6 +35,7 @@ MainTab:CreateToggle({
                     hrp.Size = Vector3.new(2, 2, 1)
                     hrp.Transparency = 1
                     hrp.CanCollide = false
+                    hrp.CanQuery = true
                 end
             end
         end
@@ -72,14 +73,13 @@ MainTab:CreateToggle({
     end
 })
 
--- Simple loop, no flicker
+-- Main loop
 game:GetService("RunService").RenderStepped:Connect(function()
     if not Enabled then return end
     
     local localPlayer = game.Players.LocalPlayer
     
     for _, plr in ipairs(game.Players:GetPlayers()) do
-        -- Skip self check
         if plr == localPlayer and not SelfHitbox then continue end
         
         if plr.Character then
@@ -87,13 +87,16 @@ game:GetService("RunService").RenderStepped:Connect(function()
             local hum = plr.Character:FindFirstChildOfClass("Humanoid")
             
             if hrp and hum and hum.Health > 0 then
-                -- Set size once per frame, no flicker
+                -- Apply hitbox
                 hrp.Size = Vector3.new(Size, Size, Size)
                 hrp.Transparency = Transparency
                 hrp.Color = Color3.fromRGB(255, 0, 0)
                 hrp.Material = Enum.Material.Neon
+                
+                -- CRITICAL: No collision settings
                 hrp.CanCollide = false
                 hrp.CanQuery = true
+                hrp.Massless = true
             end
         end
     end
@@ -115,12 +118,13 @@ game.Players.PlayerAdded:Connect(function(plr)
             hrp.Material = Enum.Material.Neon
             hrp.CanCollide = false
             hrp.CanQuery = true
+            hrp.Massless = true
         end
     end)
 end)
 
 Rayfield:Notify({
     Title = "Loaded",
-    Content = "Simple hitbox expander",
+    Content = "No collision | CanCollide = false",
     Duration = 3
 })
