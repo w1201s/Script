@@ -1,0 +1,283 @@
+-- Hitbox Expander Script with Rayfield UI
+-- Only targets Humanoids, ignores "R6n_w1201s"
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Hitbox Expander",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by we fucking dead",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "HitboxConfig",
+        FileName = "Settings"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = false
+    },
+    KeySystem = false
+})
+
+-- Main Tab
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- Variables
+local HitboxEnabled = false
+local HitboxSize = 5
+local HitboxTransparency = 0.7
+local HitboxColor = Color3.fromRGB(255, 0, 0)
+local TeamCheck = true
+local TargetPart = "HumanoidRootPart"
+local IgnoreList = {"R6n_w1201s"} -- Add names here to ignore
+
+-- Target Part Dropdown
+MainTab:CreateDropdown({
+    Name = "Target Part",
+    Options = {"HumanoidRootPart", "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"},
+    CurrentOption = "HumanoidRootPart",
+    Flag = "TargetPart",
+    Callback = function(Option)
+        TargetPart = Option
+    end
+})
+
+-- Enable/Disable Toggle
+MainTab:CreateToggle({
+    Name = "Enable Hitbox",
+    CurrentValue = false,
+    Flag = "HitboxToggle",
+    Callback = function(Value)
+        HitboxEnabled = Value
+        if not Value then
+            -- Reset all hitboxes when disabled
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and obj:GetAttribute("HitboxModified") then
+                    obj.Size = obj:GetAttribute("OriginalSize") or obj.Size
+                    obj.Transparency = obj:GetAttribute("OriginalTransparency") or 1
+                    obj.Color = obj:GetAttribute("OriginalColor") or obj.Color
+                    obj:SetAttribute("HitboxModified", nil)
+                end
+            end
+        end
+    end
+})
+
+-- Size Slider
+MainTab:CreateSlider({
+    Name = "Hitbox Size",
+    Range = {1, 50},
+    Increment = 0.5,
+    Suffix = " studs",
+    CurrentValue = 5,
+    Flag = "HitboxSize",
+    Callback = function(Value)
+        HitboxSize = Value
+    end
+})
+
+-- Transparency Slider
+MainTab:CreateSlider({
+    Name = "Transparency",
+    Range = {0, 1},
+    Increment = 0.05,
+    Suffix = "",
+    CurrentValue = 0.7,
+    Flag = "HitboxTransparency",
+    Callback = function(Value)
+        HitboxTransparency = Value
+    end
+})
+
+-- Color Picker
+MainTab:CreateColorPicker({
+    Name = "Hitbox Color",
+    Color = Color3.fromRGB(255, 0, 0),
+    Flag = "HitboxColor",
+    Callback = function(Color)
+        HitboxColor = Color
+    end
+})
+
+-- Team Check Toggle
+MainTab:CreateToggle({
+    Name = "Team Check (Ignore Teammates)",
+    CurrentValue = true,
+    Flag = "TeamCheck",
+    Callback = function(Value)
+        TeamCheck = Value
+    end
+})
+
+-- Ignore List Tab
+local IgnoreTab = Window:CreateTab("Ignore List", 4483362458)
+
+IgnoreTab:CreateParagraph({
+    Title = "Auto-Ignored",
+    Content = "R6n_w1201s is always ignored"
+})
+
+IgnoreTab:CreateInput({
+    Name = "Add Name to Ignore",
+    PlaceholderText = "Enter model/part name",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        if Text and Text ~= "" then
+            table.insert(IgnoreList, Text)
+            Rayfield:Notify({
+                Title = "Added to Ignore",
+                Content = "Now ignoring: " .. Text,
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Settings Tab
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+
+SettingsTab:CreateToggle({
+    Name = "Show Humanoid Only",
+    CurrentValue = true,
+    Flag = "HumanoidOnly",
+    Callback = function(Value)
+        -- Always true in this version
+    end
+})
+
+SettingsTab:CreateParagraph({
+    Title = "How it works",
+    Content = "Only expands parts that have a Humanoid parent (NPCs/Players). Ignores R6n_w1201s completely."
+})
+
+-- Function to check if should ignore
+local function shouldIgnore(obj)
+    -- Check if name is in ignore list
+    if obj.Name == "R6n_w1201s" then
+        return true
+    end
+    
+    for _, name in ipairs(IgnoreList) do
+        if obj.Name == name then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Function to check if valid target (has humanoid, not ignored)
+local function getValidHumanoid(obj)
+    if not obj or not obj:IsA("BasePart") then
+        return nil
+    end
+    
+    -- Check ignore list
+    if shouldIgnore(obj) then
+        return nil
+    end
+    
+    -- Check parent model name
+    local model = obj:FindFirstAncestorOfClass("Model")
+    if model and shouldIgnore(model) then
+        return nil
+    end
+    
+    -- Must have Humanoid in character/model
+    local humanoid = nil
+    
+    if obj.Parent then
+        if obj.Parent:IsA("Model") then
+            humanoid = obj.Parent:FindFirstChildOfClass("Humanoid")
+        end
+        
+        -- Check grandparent too (for R15/R6 rig structure)
+        if not humanoid and obj.Parent.Parent and obj.Parent.Parent:IsA("Model") then
+            humanoid = obj.Parent.Parent:FindFirstChildOfClass("Humanoid")
+        end
+    end
+    
+    return humanoid
+end
+
+-- Main Loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if HitboxEnabled then
+            local localPlayer = game.Players.LocalPlayer
+            
+            -- Scan all descendants in workspace
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    -- Skip if already processed this frame or should ignore
+                    if shouldIgnore(obj) then
+                        continue
+                    end
+                    
+                    -- Check if parent model is ignored
+                    local model = obj:FindFirstAncestorOfClass("Model")
+                    if model and shouldIgnore(model) then
+                        continue
+                    end
+                    
+                    -- Must have Humanoid
+                    local humanoid = getValidHumanoid(obj)
+                    
+                    if humanoid and humanoid.Health > 0 then
+                        -- Check if it's the target part name
+                        if obj.Name == TargetPart then
+                            -- Team check for players
+                            if TeamCheck and localPlayer then
+                                local player = game.Players:GetPlayerFromCharacter(obj:FindFirstAncestorOfClass("Model"))
+                                if player and player.Team == localPlayer.Team then
+                                    continue
+                                end
+                            end
+                            
+                            -- Store original properties if not stored
+                            if not obj:GetAttribute("OriginalSize") then
+                                obj:SetAttribute("OriginalSize", obj.Size)
+                                obj:SetAttribute("OriginalTransparency", obj.Transparency)
+                                obj:SetAttribute("OriginalColor", obj.Color)
+                                obj:SetAttribute("HitboxModified", true)
+                            end
+                            
+                            -- Apply hitbox modifications
+                            obj.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                            obj.Transparency = HitboxTransparency
+                            obj.Color = HitboxColor
+                            obj.Material = Enum.Material.Neon
+                            
+                            -- CRITICAL: No collision settings
+                            obj.CanCollide = false
+                            obj.CanQuery = true
+                            obj.Massless = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Handle new objects being added
+workspace.DescendantAdded:Connect(function(obj)
+    if HitboxEnabled and obj:IsA("BasePart") and obj.Name == TargetPart then
+        -- Small delay to let humanoid load
+        task.delay(0.5, function()
+            if not shouldIgnore(obj) then
+                local humanoid = getValidHumanoid(obj)
+                if humanoid and humanoid.Health > 0 then
+                    -- Will be caught by main loop next iteration
+                end
+            end
+        end)
+    end
+end)
+
+Rayfield:Notify({
+    Title = "Hitbox Loaded",
+    Content = "Humanoids only | Ignoring R6n_w1201s",
+    Duration = 5
+})
