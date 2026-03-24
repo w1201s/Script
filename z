@@ -1,7 +1,7 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Farm + Anti Void",
+    Name = "Farm + Anti Void (Updated)",
     LoadingTitle = "Loading...",
     LoadingSubtitle = "by you",
 })
@@ -36,8 +36,9 @@ end
 -- 🤖 Auto Farm
 -- =====================
 local AutoFarm = false
-local Mode = "Behind" -- Under / Behind / Above
+local Mode = "Behind"
 local Distance = 5
+local ToolSpam = false
 
 local function GetOffset(cf)
     if Mode == "Behind" then
@@ -67,20 +68,41 @@ local function TweenTo(pos)
     tween.Completed:Wait()
 end
 
+-- 🔥 Tool Activate
+local function ActivateTools()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") then
+            pcall(function()
+                tool:Activate()
+            end)
+        end
+    end
+end
+
 task.spawn(function()
     while true do
         task.wait(0.2)
 
         if AutoFarm then
             for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Model") 
-                and v.Name ~= "R6n_w1201s" 
+                if v:IsA("Model")
+                and v.Name ~= "R6n_w1201s"
                 and v:FindFirstChildOfClass("Humanoid") then
 
                     local hrp = v:FindFirstChild("HumanoidRootPart")
-                    if hrp and LocalPlayer.Character then
+
+                    -- 🔥 ignore ต่ำกว่า -50
+                    if hrp and hrp.Position.Y > -50 then
                         local targetCF = GetOffset(hrp.CFrame)
+
                         TweenTo(targetCF)
+
+                        if ToolSpam then
+                            ActivateTools()
+                        end
                     end
                 end
             end
@@ -92,13 +114,11 @@ end)
 -- 🎛️ UI
 -- =====================
 
--- Anti Void Toggle
 Tab:CreateToggle({
     Name = "Anti Void",
     CurrentValue = false,
     Callback = function(v)
         AntiVoidEnabled = v
-
         if v then
             CreateVoid()
         else
@@ -107,7 +127,6 @@ Tab:CreateToggle({
     end,
 })
 
--- Thickness Slider
 Tab:CreateSlider({
     Name = "Void Thickness",
     Range = {1,10},
@@ -121,7 +140,6 @@ Tab:CreateSlider({
     end,
 })
 
--- Auto Farm Toggle
 Tab:CreateToggle({
     Name = "Auto Farm",
     CurrentValue = false,
@@ -130,7 +148,6 @@ Tab:CreateToggle({
     end,
 })
 
--- Mode Dropdown
 Tab:CreateDropdown({
     Name = "Position Mode",
     Options = {"Behind", "Under", "Above"},
@@ -140,7 +157,6 @@ Tab:CreateDropdown({
     end,
 })
 
--- Distance Slider
 Tab:CreateSlider({
     Name = "Distance",
     Range = {1,20},
@@ -148,5 +164,14 @@ Tab:CreateSlider({
     CurrentValue = 5,
     Callback = function(v)
         Distance = v
+    end,
+})
+
+-- 🔥 Tool Activate Toggle
+Tab:CreateToggle({
+    Name = "Auto Tool Activate",
+    CurrentValue = false,
+    Callback = function(v)
+        ToolSpam = v
     end,
 })
