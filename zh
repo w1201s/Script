@@ -1,0 +1,60 @@
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Auto Tool Activate",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by you",
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local Enabled = false
+local Delay = 0.1 -- ความเร็วการตี
+
+-- 🔥 ใช้ tool
+local function ActivateTools()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    for _, tool in pairs(char:GetChildren()) do
+        if tool:IsA("Tool") then
+            pcall(function()
+                tool:Activate()
+            end)
+        end
+    end
+end
+
+-- 🔁 Loop
+task.spawn(function()
+    while true do
+        task.wait(Delay)
+
+        if Enabled then
+            ActivateTools()
+        end
+    end
+end)
+
+-- 🎛️ UI
+
+Tab:CreateToggle({
+    Name = "Auto Activate Tool",
+    CurrentValue = false,
+    Callback = function(v)
+        Enabled = v
+    end,
+})
+
+Tab:CreateSlider({
+    Name = "Speed (lower = faster)",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    CurrentValue = 0.1,
+    Callback = function(v)
+        Delay = v
+    end,
+})
