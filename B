@@ -1,12 +1,13 @@
 --[[
-    Blade Ball Auto Parry - Rayfield Edition
-    Fixed Toggle + New Parry System + Orb Visualizer Toggle
+    Blade Ball Auto Parry - Mobile Edition
+    Fixed Toggle + Perfect Ball Tracking + Mobile Support
 ]]
 
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local GuiService = game:GetService("GuiService")
 
 local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local Character = Player.Character or Player.CharacterAdded:Wait()
@@ -19,15 +20,17 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Settings = {
     Enabled = false,
     Distance = 10,
-    VisualizerEnabled = true, -- Master toggle for orb visibility
+    VisualizerEnabled = true,
     VisualizerColor = Color3.fromRGB(0, 255, 255),
-    VisualizerTransparency = 0.5
+    VisualizerTransparency = 0.5,
+    ParryCooldown = 0.15 -- Prevent spam
 }
 
--- Store active connections to manage them
+-- Store active connections
 local ActiveConnections = {}
+local LastParryTime = 0
 
--- Visual Distance Indicator (No Collision, No Physics)
+-- Visual Distance Indicator (No Collision)
 local Visualizer = Instance.new("Part")
 Visualizer.Name = "ParryDistanceVisualizer"
 Visualizer.Shape = Enum.PartType.Ball
@@ -58,8 +61,8 @@ end)
 -- Rayfield Window
 local Window = Rayfield:CreateWindow({
     Name = "Blade Ball Auto Parry",
-    LoadingTitle = "Loading Auto Parry...",
-    LoadingSubtitle = "by System",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "Mobile Version",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "BladeBallParry",
@@ -96,7 +99,6 @@ MainTab:CreateSlider({
 -- Visual Tab
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
--- Toggle to show/hide the orb
 VisualTab:CreateToggle({
     Name = "Show Distance Orb",
     CurrentValue = true,
@@ -139,12 +141,24 @@ local function IsTarget()
     return (Player.Character and Player.Character:FindFirstChild("Highlight"))
 end
 
+-- Mobile Parry Function - Uses screen center tap
 local function Parry()
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    local CurrentTime = tick()
+    if CurrentTime - LastParryTime < Settings.ParryCooldown then
+        return
+    end
+    LastParryTime = CurrentTime
+    
+    -- Mobile: Tap center of screen (where parry button is)
+    local screenSize = Workspace.CurrentCamera.ViewportSize
+    local centerX = screenSize.X / 2
+    local centerY = screenSize.Y / 2
+    
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
 end
 
--- Ball Tracking System
+-- Ball Tracking System - FIXED: Properly checks Settings.Enabled
 Balls.ChildAdded:Connect(function(Ball)
     if not VerifyBall(Ball) then
         return
@@ -152,15 +166,26 @@ Balls.ChildAdded:Connect(function(Ball)
 
     local OldPosition = Ball.Position
     local OldTick = tick()
+    local HasParried = false
     
     local Connection
     
-    Connection = Ball:GetPropertyChangedSignal("Position"):Connect(function()
+    -- Use Heartbeat for consistent updates
+    Connection = RunService.Heartbeat:Connect(function()
+        -- CRITICAL FIX: Check if enabled first thing
         if not Settings.Enabled then
+            HasParried = false
             return
         end
         
+        -- Check if ball still exists
+        if not Ball or not Ball.Parent then
+            return
+        end
+        
+        -- Check if we're the target
         if not IsTarget() then
+            HasParried = false
             return
         end
         
@@ -169,27 +194,41 @@ Balls.ChildAdded:Connect(function(Ball)
             return
         end
         
-        local Distance = (Ball.Position - HRP.Position).Magnitude
-        local Velocity = (OldPosition - Ball.Position).Magnitude
+        -- Calculate distance and velocity
+        local CurrentPosition = Ball.Position
+        local Distance = (CurrentPosition - HRP.Position).Magnitude
         
+        -- Only update OldPosition every 1/60th second
+        if (tick() - OldTick >= 1/60) then
+            OldTick = tick()
+            OldPosition = CurrentPosition
+        end
+        
+        local Velocity = (OldPosition - CurrentPosition).Magnitude
+        
+        -- Prevent division by zero
         if Velocity <= 0 then
             return
         end
         
+        -- Calculate time to impact
         local TimeToImpact = Distance / Velocity
         
-        if TimeToImpact <= Settings.Distance then
+        -- Parry when ball is within distance threshold
+        if TimeToImpact <= Settings.Distance and not HasParried then
             Parry()
-        end
-
-        if (tick() - OldTick >= 1/60) then
-            OldTick = tick()
-            OldPosition = Ball.Position
+            HasParried = true
+            
+            -- Reset after cooldown
+            task.delay(Settings.ParryCooldown, function()
+                HasParried = false
+            end)
         end
     end)
     
     ActiveConnections[Ball] = Connection
     
+    -- Cleanup when ball is destroyed
     Ball.AncestryChanged:Connect(function()
         if not Ball:IsDescendantOf(Workspace) then
             if Connection then
@@ -200,6 +239,7 @@ Balls.ChildAdded:Connect(function(Ball)
     end)
 end)
 
+-- Cleanup removed balls
 Balls.ChildRemoved:Connect(function(Ball)
     if ActiveConnections[Ball] then
         ActiveConnections[Ball]:Disconnect()
@@ -207,6 +247,7 @@ Balls.ChildRemoved:Connect(function(Ball)
     end
 end)
 
+-- Handle character respawn
 Player.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
 end)
