@@ -1,6 +1,6 @@
 --[[
     Blade Ball Auto Parry - Rayfield Edition
-    Visual Distance Indicator + New Parry System
+    Fixed Toggle + New Parry System
 ]]
 
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Player = Players.LocalPlayer
+local Player = Players.LocalPlayer or Player.CharacterAdded:Wait()
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Balls = Workspace:WaitForChild("Balls", 9e9)
 
@@ -24,6 +24,9 @@ local Settings = {
     VisualizerTransparency = 0.5
 }
 
+-- Store active connections to manage them
+local ActiveConnections = {}
+
 -- Visual Distance Indicator (No Collision, No Physics)
 local Visualizer = Instance.new("Part")
 Visualizer.Name = "ParryDistanceVisualizer"
@@ -37,7 +40,7 @@ Visualizer.Material = Enum.Material.ForceField
 Visualizer.Color = Settings.VisualizerColor
 Visualizer.Transparency = Settings.VisualizerTransparency
 Visualizer.Size = Vector3.new(Settings.Distance * 2, Settings.Distance * 2, Settings.Distance * 2)
-Visualizer.Parent = nil -- Start hidden
+Visualizer.Parent = nil
 
 -- Update visualizer
 RunService.RenderStepped:Connect(function()
@@ -123,7 +126,7 @@ VisualTab:CreateSlider({
     end
 })
 
--- Functions from your original script
+-- Functions
 local function VerifyBall(Ball)
     if typeof(Ball) == "Instance" and Ball:IsA("BasePart") and Ball:IsDescendantOf(Balls) and Ball:GetAttribute("realBall") == true then
         return true
@@ -140,7 +143,7 @@ local function Parry()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
 end
 
--- Ball Tracking System (from your original script)
+-- Ball Tracking System - Fixed to check Settings.Enabled
 Balls.ChildAdded:Connect(function(Ball)
     if not VerifyBall(Ball) then
         return
@@ -148,27 +151,37 @@ Balls.ChildAdded:Connect(function(Ball)
 
     local OldPosition = Ball.Position
     local OldTick = tick()
+    
+    -- Store connection so we can disconnect it properly
     local Connection
-
+    
     Connection = Ball:GetPropertyChangedSignal("Position"):Connect(function()
+        -- CRITICAL FIX: Check if enabled BEFORE doing anything
         if not Settings.Enabled then
             return
         end
         
-        if IsTarget() then
-            local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
-            if HRP then
-                local Distance = (Ball.Position - HRP.Position).Magnitude
-                local Velocity = (OldPosition - Ball.Position).Magnitude
-                
-                -- Prevent division by zero
-                if Velocity > 0 then
-                    local TimeToImpact = Distance / Velocity
-                    if TimeToImpact <= Settings.Distance then
-                        Parry()
-                    end
-                end
-            end
+        if not IsTarget() then
+            return
+        end
+        
+        local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
+        if not HRP then
+            return
+        end
+        
+        local Distance = (Ball.Position - HRP.Position).Magnitude
+        local Velocity = (OldPosition - Ball.Position).Magnitude
+        
+        -- Prevent division by zero
+        if Velocity <= 0 then
+            return
+        end
+        
+        local TimeToImpact = Distance / Velocity
+        
+        if TimeToImpact <= Settings.Distance then
+            Parry()
         end
 
         if (tick() - OldTick >= 1/60) then
@@ -177,14 +190,26 @@ Balls.ChildAdded:Connect(function(Ball)
         end
     end)
     
+    -- Store connection for cleanup
+    ActiveConnections[Ball] = Connection
+    
     -- Cleanup when ball is destroyed
     Ball.AncestryChanged:Connect(function()
         if not Ball:IsDescendantOf(Workspace) then
             if Connection then
                 Connection:Disconnect()
+                ActiveConnections[Ball] = nil
             end
         end
     end)
+end)
+
+-- Cleanup connections when balls are removed
+Balls.ChildRemoved:Connect(function(Ball)
+    if ActiveConnections[Ball] then
+        ActiveConnections[Ball]:Disconnect()
+        ActiveConnections[Ball] = nil
+    end
 end)
 
 -- Character respawn handler
