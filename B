@@ -1,0 +1,213 @@
+local Stats = game:GetService("Stats")
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local local_player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local Character = local_player.Character or local_player.CharacterAdded:Wait()
+
+-- Settings
+local PingBased = true
+local PingBasedOffset = 0.05
+local MinDistanceToParry = 0.3
+local MaxDistanceToParry = 1.5
+local ParryDelay = 0.015
+local MinimumBallVelocity = 10
+local ParryCooldown = 0.1
+local lastParryTime = 0
+local lastCheckTime = 0
+local canParry = true
+local isParrying = false
+local lastBallVelocity = 0
+local lastBallPosition = nil
+local autoParryEnabled = false
+
+-- Visualizer Settings
+local VisualizerEnabled = true
+local VisualizerColor = Color3.fromRGB(0, 255, 255)
+local VisualizerTransparency = 0.5
+
+-- Visual Distance Indicator (No Collision)
+local Visualizer = Instance.new("Part")
+Visualizer.Name = "ParryDistanceVisualizer"
+Visualizer.Shape = Enum.PartType.Ball
+Visualizer.Anchored = true
+Visualizer.CanCollide = false
+Visualizer.CanQuery = false
+Visualizer.CanTouch = false
+Visualizer.CastShadow = false
+Visualizer.Material = Enum.Material.ForceField
+Visualizer.Color = VisualizerColor
+Visualizer.Transparency = VisualizerTransparency
+Visualizer.Size = Vector3.new(20, 20, 20)
+Visualizer.Parent = nil
+
+-- Update visualizer
+RunService.RenderStepped:Connect(function()
+    if VisualizerEnabled and Character and Character:FindFirstChild("HumanoidRootPart") then
+        -- Calculate visualizer size based on parry distance
+        local avgDistance = (MinDistanceToParry + MaxDistanceToParry) / 2 * 20
+        Visualizer.Size = Vector3.new(avgDistance, avgDistance, avgDistance)
+        Visualizer.Color = VisualizerColor
+        Visualizer.Transparency = VisualizerTransparency
+        Visualizer.CFrame = Character.HumanoidRootPart.CFrame
+        Visualizer.Parent = Workspace
+    else
+        Visualizer.Parent = nil
+    end
+end)
+
+-- Rayfield Window (NO KEY SYSTEM)
+local Window = Rayfield:CreateWindow({
+   Name = "blade ball script",
+   Icon = 0,
+   LoadingTitle = "best script",
+   LoadingSubtitle = "by IKӨЯZ",
+   Theme = "Default",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "blade ball"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "",
+      RememberJoins = false
+   },
+   KeySystem = false -- REMOVED KEY SYSTEM
+})
+
+Rayfield:Notify({
+   Title = "blade ball script",
+   Content = "thanks for using the script (NO KEY)",
+   Duration = 6.5,
+   Image = 4483362458,
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+
+local Toggle = Tab:CreateToggle({
+   Name = "Auto Parry",
+   CurrentValue = false,
+   Flag = "Toggle1",
+   Callback = function(Value)
+      autoParryEnabled = Value
+   end,
+})
+
+-- Visual Tab
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+
+VisualTab:CreateToggle({
+   Name = "Show Distance Orb",
+   CurrentValue = true,
+   Flag = "VisualizerToggle",
+   Callback = function(Value)
+      VisualizerEnabled = Value
+   end,
+})
+
+VisualTab:CreateColorPicker({
+   Name = "Orb Color",
+   Color = VisualizerColor,
+   Flag = "VisualizerColor",
+   Callback = function(Value)
+      VisualizerColor = Value
+   end,
+})
+
+VisualTab:CreateSlider({
+   Name = "Orb Transparency",
+   Range = {0, 0.9},
+   Increment = 0.1,
+   Suffix = "",
+   CurrentValue = 0.5,
+   Flag = "VisualizerTransparency",
+   Callback = function(Value)
+      VisualizerTransparency = Value
+   end,
+})
+
+local function FindBall()
+    for _, ball in pairs(workspace:WaitForChild("Balls"):GetChildren()) do
+        if ball:GetAttribute("realBall") == true then
+            return ball
+        end
+    end
+end
+
+local function IsTheTarget()
+    return local_player.Character and local_player.Character:FindFirstChild("Highlight")
+end
+
+local function DetectBallCurve(ball)
+    local ballPosition = ball.Position
+    local ballVelocity = ball.AssemblyLinearVelocity
+    if lastBallPosition then
+        local deltaPos = ballPosition - lastBallPosition
+        local velocityDirection = ballVelocity.Unit
+        local angle = math.acos(velocityDirection:Dot(deltaPos.Unit)) * (180 / math.pi)
+        if angle > 10 then
+            return true
+        end
+    end
+    lastBallPosition = ballPosition
+    lastBallVelocity = ballVelocity
+    return false
+end
+
+local function PerformParry()
+    if tick() - lastParryTime >= ParryCooldown and canParry and not isParrying then
+        isParrying = true
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        lastParryTime = tick()
+        task.delay(ParryCooldown, function()
+            canParry = true
+            isParrying = false
+        end)
+    end
+end
+
+-- Handle character respawn
+local_player.CharacterAdded:Connect(function(NewChar)
+    Character = NewChar
+end)
+
+task.spawn(function()
+    RunService.Heartbeat:Connect(function()
+        if autoParryEnabled and tick() - lastCheckTime >= ParryDelay then
+            local Ball = FindBall()
+            if Ball then
+                local BallPosition = Ball.Position
+                local BallVelocity = Ball.AssemblyLinearVelocity.Magnitude
+                local Distance = local_player:DistanceFromCharacter(BallPosition)
+                local Ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+                local PingAdjustment = Ping / 1000
+                local DynamicPingOffset = PingAdjustment * 0.5
+                local DynamicParryDistance = MinDistanceToParry + DynamicPingOffset
+
+                if DynamicParryDistance < MinDistanceToParry then
+                    DynamicParryDistance = MinDistanceToParry
+                elseif DynamicParryDistance > MaxDistanceToParry then
+                    DynamicParryDistance = MaxDistanceToParry
+                end
+
+                local ballIsCurved = DetectBallCurve(Ball)
+
+                if BallVelocity > MinimumBallVelocity and (Distance / BallVelocity) <= DynamicParryDistance and IsTheTarget() then
+                    if ballIsCurved then
+                        ParryDelay = 0.02
+                    else
+                        ParryDelay = 0.015
+                    end
+                    PerformParry()
+                end
+            end
+            lastCheckTime = tick()
+        end
+    end)
+end)
