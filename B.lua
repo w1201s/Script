@@ -1,6 +1,6 @@
 --[[
     Blade Ball Auto Parry - Rayfield Edition
-    Fixed Toggle + New Parry System
+    Fixed Toggle + New Parry System + Orb Visualizer Toggle
 ]]
 
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Player = Players.LocalPlayer or Player.CharacterAdded:Wait()
+local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Balls = Workspace:WaitForChild("Balls", 9e9)
 
@@ -19,7 +19,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Settings = {
     Enabled = false,
     Distance = 10,
-    VisualizerEnabled = true,
+    VisualizerEnabled = true, -- Master toggle for orb visibility
     VisualizerColor = Color3.fromRGB(0, 255, 255),
     VisualizerTransparency = 0.5
 }
@@ -96,8 +96,9 @@ MainTab:CreateSlider({
 -- Visual Tab
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
+-- Toggle to show/hide the orb
 VisualTab:CreateToggle({
-    Name = "Show Distance Circle",
+    Name = "Show Distance Orb",
     CurrentValue = true,
     Flag = "VisualizerToggle",
     Callback = function(Value)
@@ -106,7 +107,7 @@ VisualTab:CreateToggle({
 })
 
 VisualTab:CreateColorPicker({
-    Name = "Circle Color",
+    Name = "Orb Color",
     Color = Settings.VisualizerColor,
     Flag = "VisualizerColor",
     Callback = function(Value)
@@ -115,7 +116,7 @@ VisualTab:CreateColorPicker({
 })
 
 VisualTab:CreateSlider({
-    Name = "Circle Transparency",
+    Name = "Orb Transparency",
     Range = {0, 0.9},
     Increment = 0.1,
     Suffix = "",
@@ -143,7 +144,7 @@ local function Parry()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
 end
 
--- Ball Tracking System - Fixed to check Settings.Enabled
+-- Ball Tracking System
 Balls.ChildAdded:Connect(function(Ball)
     if not VerifyBall(Ball) then
         return
@@ -152,11 +153,9 @@ Balls.ChildAdded:Connect(function(Ball)
     local OldPosition = Ball.Position
     local OldTick = tick()
     
-    -- Store connection so we can disconnect it properly
     local Connection
     
     Connection = Ball:GetPropertyChangedSignal("Position"):Connect(function()
-        -- CRITICAL FIX: Check if enabled BEFORE doing anything
         if not Settings.Enabled then
             return
         end
@@ -173,7 +172,6 @@ Balls.ChildAdded:Connect(function(Ball)
         local Distance = (Ball.Position - HRP.Position).Magnitude
         local Velocity = (OldPosition - Ball.Position).Magnitude
         
-        -- Prevent division by zero
         if Velocity <= 0 then
             return
         end
@@ -190,10 +188,8 @@ Balls.ChildAdded:Connect(function(Ball)
         end
     end)
     
-    -- Store connection for cleanup
     ActiveConnections[Ball] = Connection
     
-    -- Cleanup when ball is destroyed
     Ball.AncestryChanged:Connect(function()
         if not Ball:IsDescendantOf(Workspace) then
             if Connection then
@@ -204,7 +200,6 @@ Balls.ChildAdded:Connect(function(Ball)
     end)
 end)
 
--- Cleanup connections when balls are removed
 Balls.ChildRemoved:Connect(function(Ball)
     if ActiveConnections[Ball] then
         ActiveConnections[Ball]:Disconnect()
@@ -212,7 +207,6 @@ Balls.ChildRemoved:Connect(function(Ball)
     end
 end)
 
--- Character respawn handler
 Player.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
 end)
