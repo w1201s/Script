@@ -1,6 +1,6 @@
 --[[
-    Blade Ball Auto Parry - Mobile Edition
-    Fixed Toggle + Perfect Ball Tracking + Mobile Support
+    Blade Ball Auto Parry - Mobile Edition (FIXED)
+    Proper Touch Simulation + Perfect Ball Tracking
 ]]
 
 local Players = game:GetService("Players")
@@ -23,14 +23,14 @@ local Settings = {
     VisualizerEnabled = true,
     VisualizerColor = Color3.fromRGB(0, 255, 255),
     VisualizerTransparency = 0.5,
-    ParryCooldown = 0.15 -- Prevent spam
+    ParryCooldown = 0.1
 }
 
 -- Store active connections
 local ActiveConnections = {}
 local LastParryTime = 0
 
--- Visual Distance Indicator (No Collision)
+-- Visual Distance Indicator
 local Visualizer = Instance.new("Part")
 Visualizer.Name = "ParryDistanceVisualizer"
 Visualizer.Shape = Enum.PartType.Ball
@@ -141,7 +141,7 @@ local function IsTarget()
     return (Player.Character and Player.Character:FindFirstChild("Highlight"))
 end
 
--- Mobile Parry Function - Uses screen center tap
+-- FIXED Mobile Parry - Uses proper touch simulation
 local function Parry()
     local CurrentTime = tick()
     if CurrentTime - LastParryTime < Settings.ParryCooldown then
@@ -149,16 +149,51 @@ local function Parry()
     end
     LastParryTime = CurrentTime
     
-    -- Mobile: Tap center of screen (where parry button is)
-    local screenSize = Workspace.CurrentCamera.ViewportSize
-    local centerX = screenSize.X / 2
-    local centerY = screenSize.Y / 2
+    -- Method 1: Try to find and click the parry button directly
+    local success = pcall(function()
+        local PlayerGui = Player:WaitForChild("PlayerGui")
+        local Hotbar = PlayerGui:WaitForChild("Hotbar")
+        local BlockButton = Hotbar:WaitForChild("Block")
+        
+        -- Fire the button's activated signal
+        if BlockButton and BlockButton:IsA("GuiButton") then
+            -- Simulate touch at button position
+            local absPos = BlockButton.AbsolutePosition
+            local absSize = BlockButton.AbsoluteSize
+            local centerX = absPos.X + (absSize.X / 2)
+            local centerY = absPos.Y + (absSize.Y / 2)
+            
+            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+        end
+    end)
     
-    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+    -- Method 2: If button method fails, use screen center (fallback)
+    if not success then
+        local screenSize = Workspace.CurrentCamera.ViewportSize
+        local centerX = screenSize.X / 2
+        local centerY = screenSize.Y / 2 + 100 -- Slightly lower than center (where parry button usually is)
+        
+        VirtualInputManager:SendTouchEvent(1, 0, centerX, centerY) -- Touch begin
+        task.wait(0.05)
+        VirtualInputManager:SendTouchEvent(1, 2, centerX, centerY) -- Touch end
+    end
 end
 
--- Ball Tracking System - FIXED: Properly checks Settings.Enabled
+-- Alternative: Use keypress for mobile (some executors support this)
+local function ParryKey()
+    local CurrentTime = tick()
+    if CurrentTime - LastParryTime < Settings.ParryCooldown then
+        return
+    end
+    LastParryTime = CurrentTime
+    
+    -- Try F key first (works on some mobile executors with keyboard emulation)
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+end
+
+-- Ball Tracking System - FIXED
 Balls.ChildAdded:Connect(function(Ball)
     if not VerifyBall(Ball) then
         return
@@ -170,20 +205,19 @@ Balls.ChildAdded:Connect(function(Ball)
     
     local Connection
     
-    -- Use Heartbeat for consistent updates
     Connection = RunService.Heartbeat:Connect(function()
-        -- CRITICAL FIX: Check if enabled first thing
+        -- Check if enabled FIRST
         if not Settings.Enabled then
             HasParried = false
             return
         end
         
-        -- Check if ball still exists
+        -- Check if ball exists
         if not Ball or not Ball.Parent then
             return
         end
         
-        -- Check if we're the target
+        -- Check if we're target
         if not IsTarget() then
             HasParried = false
             return
@@ -194,32 +228,40 @@ Balls.ChildAdded:Connect(function(Ball)
             return
         end
         
-        -- Calculate distance and velocity
-        local CurrentPosition = Ball.Position
-        local Distance = (CurrentPosition - HRP.Position).Magnitude
+        -- Get ball velocity from zoomies if available
+        local Zoomies = Ball:FindFirstChild("zoomies")
+        local Velocity = Vector3.zero
         
-        -- Only update OldPosition every 1/60th second
-        if (tick() - OldTick >= 1/60) then
-            OldTick = tick()
+        if Zoomies and Zoomies:IsA("LinearVelocity") then
+            Velocity = Zoomies.VectorVelocity
+        else
+            -- Fallback: calculate manually
+            local CurrentPosition = Ball.Position
+            Velocity = (CurrentPosition - OldPosition) / (tick() - OldTick)
             OldPosition = CurrentPosition
+            OldTick = tick()
         end
         
-        local Velocity = (OldPosition - CurrentPosition).Magnitude
+        local Distance = (Ball.Position - HRP.Position).Magnitude
+        local Speed = Velocity.Magnitude
         
         -- Prevent division by zero
-        if Velocity <= 0 then
+        if Speed <= 0 then
             return
         end
         
         -- Calculate time to impact
-        local TimeToImpact = Distance / Velocity
+        local TimeToImpact = Distance / Speed
         
-        -- Parry when ball is within distance threshold
+        -- DEBUG: You can remove this after testing
+        -- print(string.format("Distance: %.2f, Speed: %.2f, Time: %.2f, Threshold: %.2f", Distance, Speed, TimeToImpact, Settings.Distance))
+        
+        -- Parry when ball is close enough
         if TimeToImpact <= Settings.Distance and not HasParried then
-            Parry()
+            Parry() -- Try button method first
+            -- ParryKey() -- Uncomment to try F-key method instead
             HasParried = true
             
-            -- Reset after cooldown
             task.delay(Settings.ParryCooldown, function()
                 HasParried = false
             end)
@@ -228,7 +270,7 @@ Balls.ChildAdded:Connect(function(Ball)
     
     ActiveConnections[Ball] = Connection
     
-    -- Cleanup when ball is destroyed
+    -- Cleanup
     Ball.AncestryChanged:Connect(function()
         if not Ball:IsDescendantOf(Workspace) then
             if Connection then
@@ -239,7 +281,6 @@ Balls.ChildAdded:Connect(function(Ball)
     end)
 end)
 
--- Cleanup removed balls
 Balls.ChildRemoved:Connect(function(Ball)
     if ActiveConnections[Ball] then
         ActiveConnections[Ball]:Disconnect()
@@ -247,9 +288,16 @@ Balls.ChildRemoved:Connect(function(Ball)
     end
 end)
 
--- Handle character respawn
 Player.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
 end)
 
 Rayfield:LoadConfiguration()
+
+-- Notification
+Rayfield:Notify({
+    Title = "Auto Parry Loaded",
+    Content = "Mobile version ready. Make sure parry button is visible!",
+    Duration = 6.5,
+    Image = 4483362458,
+})
