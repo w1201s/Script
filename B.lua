@@ -25,10 +25,15 @@ local lastBallVelocity = 0
 local lastBallPosition = nil
 local autoParryEnabled = false
 
+-- NEW: Parry Speed/Sensitivity (higher = faster reaction, lower distance)
+local ParrySpeed = 25 -- Default 25 (middle)
+
 -- Visualizer Settings
 local VisualizerEnabled = true
 local VisualizerColor = Color3.fromRGB(0, 255, 255)
 local VisualizerTransparency = 0.5
+local VisualizerSize = 25 -- Manual orb size
+local AutoScaleOrb = true -- Auto scale based on parry distance
 
 -- Visual Distance Indicator (No Collision)
 local Visualizer = Instance.new("Part")
@@ -42,15 +47,38 @@ Visualizer.CastShadow = false
 Visualizer.Material = Enum.Material.ForceField
 Visualizer.Color = VisualizerColor
 Visualizer.Transparency = VisualizerTransparency
-Visualizer.Size = Vector3.new(20, 20, 20)
+Visualizer.Size = Vector3.new(VisualizerSize, VisualizerSize, VisualizerSize)
 Visualizer.Parent = nil
+
+-- Calculate dynamic parry distance based on speed setting
+local function CalculateParryDistance(ballVelocity)
+    local Ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+    local PingAdjustment = Ping / 1000
+    local DynamicPingOffset = PingAdjustment * 0.5
+    
+    -- Convert ParrySpeed (1-50) to multiplier
+    -- Speed 1 = slow reaction (high distance), Speed 50 = instant (low distance)
+    local SpeedMultiplier = (51 - ParrySpeed) / 25
+    
+    local DynamicParryDistance = (MinDistanceToParry + DynamicPingOffset) * SpeedMultiplier
+    
+    return math.clamp(DynamicParryDistance, MinDistanceToParry, MaxDistanceToParry)
+end
 
 -- Update visualizer
 RunService.RenderStepped:Connect(function()
     if VisualizerEnabled and Character and Character:FindFirstChild("HumanoidRootPart") then
-        -- Calculate visualizer size based on parry distance
-        local avgDistance = (MinDistanceToParry + MaxDistanceToParry) / 2 * 20
-        Visualizer.Size = Vector3.new(avgDistance, avgDistance, avgDistance)
+        local size
+        if AutoScaleOrb then
+            -- Auto scale: higher parry speed = smaller orb (closer parry)
+            local baseSize = 50 - ParrySpeed -- 49 to 1 range
+            size = math.clamp(baseSize, 5, 50)
+        else
+            -- Manual size control
+            size = VisualizerSize
+        end
+        
+        Visualizer.Size = Vector3.new(size, size, size)
         Visualizer.Color = VisualizerColor
         Visualizer.Transparency = VisualizerTransparency
         Visualizer.CFrame = Character.HumanoidRootPart.CFrame
@@ -60,7 +88,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Rayfield Window (NO KEY SYSTEM)
+-- Rayfield Window
 local Window = Rayfield:CreateWindow({
    Name = "blade ball script",
    Icon = 0,
@@ -77,24 +105,63 @@ local Window = Rayfield:CreateWindow({
       Invite = "",
       RememberJoins = false
    },
-   KeySystem = false -- REMOVED KEY SYSTEM
+   KeySystem = false
 })
 
 Rayfield:Notify({
    Title = "blade ball script",
-   Content = "thanks for using the script (NO KEY)",
+   Content = "Enhanced - Parry Speed + Orb Control",
    Duration = 6.5,
    Image = 4483362458,
 })
 
 local Tab = Window:CreateTab("Main", 4483362458)
 
-local Toggle = Tab:CreateToggle({
+Tab:CreateToggle({
    Name = "Auto Parry",
    CurrentValue = false,
    Flag = "Toggle1",
    Callback = function(Value)
       autoParryEnabled = Value
+   end,
+})
+
+-- NEW: Parry Speed Slider (Reaction time)
+Tab:CreateSlider({
+   Name = "Parry Speed (Aim)",
+   Range = {1, 50},
+   Increment = 1,
+   Suffix = "",
+   CurrentValue = 25,
+   Flag = "ParrySpeedSlider",
+   Callback = function(Value)
+      ParrySpeed = Value
+      -- Higher speed = lower delay = faster reaction
+      ParryDelay = 0.025 - (Value / 2000)
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "Min Parry Distance",
+   Range = {0.1, 2.0},
+   Increment = 0.1,
+   Suffix = "",
+   CurrentValue = 0.3,
+   Flag = "MinDistanceSlider",
+   Callback = function(Value)
+      MinDistanceToParry = Value
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "Max Parry Distance",
+   Range = {0.5, 5.0},
+   Increment = 0.1,
+   Suffix = "",
+   CurrentValue = 1.5,
+   Flag = "MaxDistanceSlider",
+   Callback = function(Value)
+      MaxDistanceToParry = Value
    end,
 })
 
@@ -107,6 +174,28 @@ VisualTab:CreateToggle({
    Flag = "VisualizerToggle",
    Callback = function(Value)
       VisualizerEnabled = Value
+   end,
+})
+
+VisualTab:CreateToggle({
+   Name = "Auto Scale Orb",
+   CurrentValue = true,
+   Flag = "AutoScaleToggle",
+   Callback = function(Value)
+      AutoScaleOrb = Value
+   end,
+})
+
+-- NEW: Manual Orb Size Slider
+VisualTab:CreateSlider({
+   Name = "Orb Size",
+   Range = {5, 100},
+   Increment = 1,
+   Suffix = " studs",
+   CurrentValue = 25,
+   Flag = "OrbSizeSlider",
+   Callback = function(Value)
+      VisualizerSize = Value
    end,
 })
 
@@ -177,34 +266,33 @@ local_player.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
 end)
 
+-- IMPROVED: Better parry logic
 task.spawn(function()
     RunService.Heartbeat:Connect(function()
         if autoParryEnabled and tick() - lastCheckTime >= ParryDelay then
             local Ball = FindBall()
             if Ball then
                 local BallPosition = Ball.Position
-                local BallVelocity = Ball.AssemblyLinearVelocity.Magnitude
+                local BallVelocityVec = Ball.AssemblyLinearVelocity
+                local BallVelocity = BallVelocityVec.Magnitude
                 local Distance = local_player:DistanceFromCharacter(BallPosition)
-                local Ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
-                local PingAdjustment = Ping / 1000
-                local DynamicPingOffset = PingAdjustment * 0.5
-                local DynamicParryDistance = MinDistanceToParry + DynamicPingOffset
-
-                if DynamicParryDistance < MinDistanceToParry then
-                    DynamicParryDistance = MinDistanceToParry
-                elseif DynamicParryDistance > MaxDistanceToParry then
-                    DynamicParryDistance = MaxDistanceToParry
-                end
-
+                
+                -- Calculate dynamic distance based on speed setting
+                local DynamicParryDistance = CalculateParryDistance(BallVelocity)
+                
+                -- Time to impact (more accurate)
+                local TimeToImpact = Distance / math.max(BallVelocity, 0.1)
+                
                 local ballIsCurved = DetectBallCurve(Ball)
-
-                if BallVelocity > MinimumBallVelocity and (Distance / BallVelocity) <= DynamicParryDistance and IsTheTarget() then
+                
+                -- IMPROVED: Stricter timing for better accuracy
+                if BallVelocity > MinimumBallVelocity and TimeToImpact <= DynamicParryDistance and IsTheTarget() then
                     if ballIsCurved then
-                        ParryDelay = 0.02
+                        -- Slight delay for curved balls
+                        task.delay(0.008, PerformParry)
                     else
-                        ParryDelay = 0.015
+                        PerformParry()
                     end
-                    PerformParry()
                 end
             end
             lastCheckTime = tick()
