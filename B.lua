@@ -1,301 +1,214 @@
-local Stats = game:GetService("Stats")
+--// SERVICES
 local Players = game:GetService("Players")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local player = Players.LocalPlayer
 
-local local_player = Players.LocalPlayer
-local Character = local_player.Character or local_player.CharacterAdded:Wait()
+--// UI
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Settings
-local autoParryEnabled = false
-local orbSize = 25
-local VisualizerEnabled = true
-local VisualizerColor = Color3.fromRGB(0, 255, 255)
-local VisualizerTransparency = 0.5
-
--- AI System Data (PERSISTS through death)
-local AI = {
-    currentThreshold = 0.4,
-    consecutiveMisses = 0,
-    consecutiveHits = 0,
-    isLearning = true
-}
-
--- Visual Orb
-local Visualizer = Instance.new("Part")
-Visualizer.Name = "ParryDistanceVisualizer"
-Visualizer.Shape = Enum.PartType.Ball
-Visualizer.Anchored = true
-Visualizer.CanCollide = false
-Visualizer.CanQuery = false
-Visualizer.CanTouch = false
-Visualizer.CastShadow = false
-Visualizer.Material = Enum.Material.ForceField
-Visualizer.Color = VisualizerColor
-Visualizer.Transparency = VisualizerTransparency
-Visualizer.Size = Vector3.new(orbSize, orbSize, orbSize)
-Visualizer.Parent = nil
-
--- AI: Adjust parry timing (LIMITED change per adjustment)
-local function AI_Learn(success, ballSpeed)
-    if not AI.isLearning then return end
-
-    -- Max change per adjustment: 0.05 (perfect amount)
-    local maxChange = 0.05
-
-    if success then
-        AI.consecutiveHits = math.min(AI.consecutiveHits + 1, 5)
-        AI.consecutiveMisses = 0
-
-        -- Only adjust after 3 consecutive hits
-        if AI.consecutiveHits >= 3 then
-            -- Try to parry closer (more precise) - decrease threshold
-            local change = math.min(0.02, maxChange)
-            AI.currentThreshold = math.max(0.2, AI.currentThreshold - change)
-            AI.consecutiveHits = 0 -- Reset after adjustment
-        end
-    else
-        AI.consecutiveMisses = math.min(AI.consecutiveMisses + 1, 3)
-        AI.consecutiveHits = 0
-
-        -- Adjust immediately on miss
-        if AI.consecutiveMisses >= 1 then
-            -- Parry earlier (safer) - increase threshold
-            local change = math.min(0.05, maxChange)
-            AI.currentThreshold = math.min(1.0, AI.currentThreshold + change)
-        end
-    end
-
-    -- Speed adjustment (subtle)
-    if ballSpeed > 150 then
-        AI.currentThreshold = math.min(1.0, AI.currentThreshold + 0.02)
-    elseif ballSpeed < 30 then
-        AI.currentThreshold = math.max(0.2, AI.currentThreshold - 0.01)
-    end
-
-    -- Update orb size smoothly (30% transition per frame)
-    local targetSize = AI.currentThreshold * 60
-    orbSize = orbSize + (targetSize - orbSize) * 0.3
-end
-
--- Update visualizer
-RunService.RenderStepped:Connect(function()
-    if VisualizerEnabled and Character and Character:FindFirstChild("HumanoidRootPart") then
-        Visualizer.Size = Vector3.new(orbSize, orbSize, orbSize)
-        Visualizer.Color = VisualizerColor
-        Visualizer.Transparency = VisualizerTransparency
-        Visualizer.CFrame = Character.HumanoidRootPart.CFrame
-        Visualizer.Parent = Workspace
-    else
-        Visualizer.Parent = nil
-    end
-end)
-
--- Rayfield Window
 local Window = Rayfield:CreateWindow({
-   Name = "Blade Ball AI",
-   Icon = 0,
-   LoadingTitle = "AI Auto Parry",
-   LoadingSubtitle = "Self-Learning System",
-   Theme = "Default",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil,
-      FileName = "blade ball ai"
-   },
-   KeySystem = false
-})
-
-Rayfield:Notify({
-   Title = "AI System Loaded",
-   Content = "Auto-adjusting parry timing enabled",
-   Duration = 6.5,
-   Image = 4483362458,
+    Name = "Advanced System",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by you",
+    ConfigurationSaving = {Enabled = false}
 })
 
 local Tab = Window:CreateTab("Main", 4483362458)
 
-Tab:CreateToggle({
-   Name = "Auto Parry (AI)",
-   CurrentValue = false,
-   Flag = "Toggle1",
-   Callback = function(Value)
-      autoParryEnabled = Value
-   end,
-})
+--// VARIABLES
+local AutoFarm = false
+local Mode = "Behind"
+local Distance = 5
 
--- Visual Tab
-local VisualTab = Window:CreateTab("Visual", 4483362458)
+local TweenSpeed = 0.2
+local OrbitSpeed = 0.05
 
-VisualTab:CreateToggle({
-   Name = "Show Distance Orb",
-   CurrentValue = true,
-   Flag = "VisualizerToggle",
-   Callback = function(Value)
-      VisualizerEnabled = Value
-   end,
-})
+local CurrentTarget = nil
+local TargetTime = 0
+local StayDuration = 2
 
-VisualTab:CreateSlider({
-   Name = "Orb Size Override",
-   Range = {5, 100},
-   Increment = 1,
-   Suffix = " studs",
-   CurrentValue = 25,
-   Flag = "OrbSizeSlider",
-   Callback = function(Value)
-      orbSize = Value
-      AI.currentThreshold = Value / 60
-      AI.isLearning = false -- Disable AI when manual override
-   end,
-})
+local oldGravity = Workspace.Gravity
+local AntiVoid = false
+local VoidPart = nil
 
-VisualTab:CreateToggle({
-   Name = "AI Learning",
-   CurrentValue = true,
-   Flag = "AILearningToggle",
-   Callback = function(Value)
-      AI.isLearning = Value
-   end,
-})
+local angle = 0
 
-VisualTab:CreateColorPicker({
-   Name = "Orb Color",
-   Color = VisualizerColor,
-   Flag = "VisualizerColor",
-   Callback = function(Value)
-      VisualizerColor = Value
-   end,
-})
+--// FUNCTIONS
 
-VisualTab:CreateSlider({
-   Name = "Orb Transparency",
-   Range = {0, 0.9},
-   Increment = 0.1,
-   Suffix = "",
-   CurrentValue = 0.5,
-   Flag = "VisualizerTransparency",
-   Callback = function(Value)
-      VisualizerTransparency = Value
-   end,
-})
-
-local function FindBall()
-    for _, ball in pairs(workspace:WaitForChild("Balls"):GetChildren()) do
-        if ball:GetAttribute("realBall") == true then
-            return ball
+local function getTool()
+    local char = player.Character
+    if not char then return end
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            return v
         end
     end
-    return nil
 end
 
--- FIXED: Proper target check
-local function IsTheTarget()
-    local char = local_player.Character
-    if not char then return false end
+local function getAllTargets()
+    local list = {}
 
-    -- Check for Highlight (target indicator)
-    local highlight = char:FindFirstChild("Highlight")
-    if not highlight then return false end
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name ~= "R6n_w1201s" then
+            local hum = obj:FindFirstChildOfClass("Humanoid")
+            local hrp = obj:FindFirstChild("HumanoidRootPart")
 
-    return true
-end
-
-local lastParryTime = 0
-local hasParried = false
-local ballWhenParried = nil
-
-local function PerformParry()
-    if tick() - lastParryTime >= 0.15 then
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        lastParryTime = tick()
-        return true
-    end
-    return false
-end
-
--- FIXED: Handle character respawn properly
-local_player.CharacterAdded:Connect(function(NewChar)
-    Character = NewChar
-    -- Don't reset AI data - keep learning across deaths
-    hasParried = false
-    ballWhenParried = nil
-end)
-
--- Main AI Loop
-local lastCheckTime = 0
-local ballBeforeParry = nil
-local velocityBeforeParry = nil
-local lastBallDistance = math.huge
-
-RunService.Heartbeat:Connect(function()
-    if not autoParryEnabled then return end
-    if tick() - lastCheckTime < 0.01 then return end
-
-    local Ball = FindBall()
-    if not Ball then 
-        hasParried = false
-        ballBeforeParry = nil
-        lastBallDistance = math.huge
-        return 
-    end
-
-    local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
-    if not HRP then return end
-
-    local BallVelocity = Ball.AssemblyLinearVelocity
-    local BallSpeed = BallVelocity.Magnitude
-    local Distance = (Ball.Position - HRP.Position).Magnitude
-
-    -- Track if ball is getting closer or further
-    local gettingCloser = Distance < lastBallDistance
-    lastBallDistance = Distance
-
-    -- FIXED: Check if we are ACTUALLY the target
-    local isTarget = IsTheTarget()
-
-    -- Reset parry state if not target or ball is too far
-    if not isTarget then
-        if hasParried and ballBeforeParry then
-            -- Check if parry was successful (ball bounced)
-            local currentDist = (ballBeforeParry.Position - HRP.Position).Magnitude
-            if currentDist > Distance + 10 then -- Ball moved away
-                AI_Learn(true, BallSpeed)
-            else
-                AI_Learn(false, BallSpeed)
+            if hum and hrp and hum.Health > 0 then
+                if hrp.Position.Y > -50 then -- ignore ใต้ void
+                    table.insert(list, hrp)
+                end
             end
         end
-
-        hasParried = false
-        ballBeforeParry = nil
-        velocityBeforeParry = nil
-        lastCheckTime = tick()
-        return
     end
 
-    -- FIXED: Only parry if ball is actually close (within orb)
-    local orbRadius = orbSize / 2
-    if Distance > orbRadius + 5 then -- Give 5 stud buffer
-        hasParried = false
-        lastCheckTime = tick()
-        return
+    return list
+end
+
+local function getPosition(target)
+    if Mode == "Behind" then
+        return target.CFrame * CFrame.new(0, 0, Distance)
+
+    elseif Mode == "Above" then
+        return target.CFrame * CFrame.new(0, Distance, 0)
+
+    elseif Mode == "Under" then
+        return target.CFrame * CFrame.new(0, -Distance, 0)
+
+    elseif Mode == "Orbit" then
+        angle += OrbitSpeed
+        return target.CFrame * CFrame.new(math.cos(angle)*Distance, 0, math.sin(angle)*Distance)
     end
+end
 
-    -- AI: Calculate time to impact
-    local TimeToImpact = Distance / math.max(BallSpeed, 1)
+local function tweenTo(root, cf)
+    local tween = TweenService:Create(root, TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear), {
+        CFrame = cf
+    })
+    tween:Play()
+end
 
-    -- Only parry if ball is approaching and within threshold
-    if not hasParried and gettingCloser and TimeToImpact <= AI.currentThreshold and BallSpeed > 5 then
-        if PerformParry() then
-            hasParried = true
-            ballBeforeParry = Ball
-            velocityBeforeParry = BallVelocity
+local function createVoid()
+    if VoidPart then return end
+
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(5000, 2, 5000)
+    part.Position = Vector3.new(0, -50, 0)
+    part.Anchored = true
+    part.Name = "AntiVoidFloor"
+    part.Parent = Workspace
+
+    VoidPart = part
+end
+
+local function removeVoid()
+    if VoidPart then
+        VoidPart:Destroy()
+        VoidPart = nil
+    end
+end
+
+--// LOOP
+RunService.RenderStepped:Connect(function()
+    if not AutoFarm then return end
+
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    -- gravity control
+    Workspace.Gravity = 0
+
+    -- target switching
+    if not CurrentTarget or tick() - TargetTime > StayDuration then
+        local targets = getAllTargets()
+        if #targets > 0 then
+            CurrentTarget = targets[math.random(1, #targets)]
+            TargetTime = tick()
         end
     end
 
-    lastCheckTime = tick()
+    -- move
+    if CurrentTarget then
+        local pos = getPosition(CurrentTarget)
+        if pos then
+            tweenTo(root, pos)
+        end
+    end
+
+    -- activate tool
+    local tool = getTool()
+    if tool then
+        tool:Activate()
+    end
 end)
+
+--// UI
+
+Tab:CreateToggle({
+    Name = "Auto Farm",
+    CurrentValue = false,
+    Callback = function(v)
+        AutoFarm = v
+
+        if not v then
+            Workspace.Gravity = oldGravity
+        end
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Anti Void",
+    CurrentValue = false,
+    Callback = function(v)
+        AntiVoid = v
+
+        if v then
+            createVoid()
+        else
+            removeVoid()
+        end
+    end
+})
+
+Tab:CreateDropdown({
+    Name = "Position Mode",
+    Options = {"Behind", "Above", "Under", "Orbit"},
+    CurrentOption = "Behind",
+    Callback = function(opt)
+        Mode = opt
+    end
+})
+
+Tab:CreateSlider({
+    Name = "Distance",
+    Range = {2, 20},
+    Increment = 1,
+    CurrentValue = 5,
+    Callback = function(v)
+        Distance = v
+    end
+})
+
+Tab:CreateSlider({
+    Name = "Tween Speed",
+    Range = {0.05, 1},
+    Increment = 0.05,
+    CurrentValue = 0.2,
+    Callback = function(v)
+        TweenSpeed = v
+    end
+})
+
+Tab:CreateSlider({
+    Name = "Orbit Speed",
+    Range = {0.01, 0.2},
+    Increment = 0.01,
+    CurrentValue = 0.05,
+    Callback = function(v)
+        OrbitSpeed = v
+    end
+})
