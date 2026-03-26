@@ -12,7 +12,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Advanced System",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "by you",
+    LoadingSubtitle = "All In One",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -20,10 +20,12 @@ local Tab = Window:CreateTab("Main", 4483362458)
 
 --// VARIABLES
 local AutoFarm = false
+local AutoActivate = false
+local AntiVoid = false
+
 local Mode = "Behind"
 local Distance = 5
-
-local TweenSpeed = 0.2
+local MoveSpeed = 30
 local OrbitSpeed = 0.05
 
 local CurrentTarget = nil
@@ -31,9 +33,7 @@ local TargetTime = 0
 local StayDuration = 2
 
 local oldGravity = Workspace.Gravity
-local AntiVoid = false
 local VoidPart = nil
-
 local angle = 0
 
 --// FUNCTIONS
@@ -57,7 +57,7 @@ local function getAllTargets()
             local hrp = obj:FindFirstChild("HumanoidRootPart")
 
             if hum and hrp and hum.Health > 0 then
-                if hrp.Position.Y > -50 then -- ignore ใต้ void
+                if hrp.Position.Y > -50 then
                     table.insert(list, hrp)
                 end
             end
@@ -83,10 +83,16 @@ local function getPosition(target)
     end
 end
 
+-- stable speed tween
 local function tweenTo(root, cf)
-    local tween = TweenService:Create(root, TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear), {
-        CFrame = cf
-    })
+    local distance = (root.Position - cf.Position).Magnitude
+    local time = distance / MoveSpeed
+
+    local tween = TweenService:Create(
+        root,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = cf}
+    )
     tween:Play()
 end
 
@@ -112,37 +118,39 @@ end
 
 --// LOOP
 RunService.RenderStepped:Connect(function()
-    if not AutoFarm then return end
-
     local char = player.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- gravity control
-    Workspace.Gravity = 0
+    -- AUTO FARM
+    if AutoFarm then
+        Workspace.Gravity = 0
 
-    -- target switching
-    if not CurrentTarget or tick() - TargetTime > StayDuration then
-        local targets = getAllTargets()
-        if #targets > 0 then
-            CurrentTarget = targets[math.random(1, #targets)]
-            TargetTime = tick()
+        if not CurrentTarget or tick() - TargetTime > StayDuration then
+            local targets = getAllTargets()
+            if #targets > 0 then
+                CurrentTarget = targets[math.random(1, #targets)]
+                TargetTime = tick()
+            end
         end
+
+        if CurrentTarget then
+            local pos = getPosition(CurrentTarget)
+            if pos then
+                tweenTo(root, pos)
+            end
+        end
+    else
+        Workspace.Gravity = oldGravity
     end
 
-    -- move
-    if CurrentTarget then
-        local pos = getPosition(CurrentTarget)
-        if pos then
-            tweenTo(root, pos)
+    -- AUTO ACTIVATE (แยก)
+    if AutoActivate then
+        local tool = getTool()
+        if tool then
+            tool:Activate()
         end
-    end
-
-    -- activate tool
-    local tool = getTool()
-    if tool then
-        tool:Activate()
     end
 end)
 
@@ -153,10 +161,17 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AutoFarm = v
-
         if not v then
             Workspace.Gravity = oldGravity
         end
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Auto Activate Tool",
+    CurrentValue = false,
+    Callback = function(v)
+        AutoActivate = v
     end
 })
 
@@ -165,7 +180,6 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AntiVoid = v
-
         if v then
             createVoid()
         else
@@ -194,12 +208,12 @@ Tab:CreateSlider({
 })
 
 Tab:CreateSlider({
-    Name = "Tween Speed",
-    Range = {0.05, 1},
-    Increment = 0.05,
-    CurrentValue = 0.2,
+    Name = "Move Speed",
+    Range = {10, 100},
+    Increment = 5,
+    CurrentValue = 30,
     Callback = function(v)
-        TweenSpeed = v
+        MoveSpeed = v
     end
 })
 
