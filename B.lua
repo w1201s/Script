@@ -30,7 +30,7 @@ local TargetSelf = false
 local MaxDistance = 100
 local Mode = "Behind"
 local Distance = 5
-local MoveSpeed = 30
+local MoveSpeed = 200
 local OrbitSpeed = 0.05
 
 local CurrentTarget = nil
@@ -268,7 +268,7 @@ Tab:CreateSlider({
 
 Tab:CreateSlider({
     Name = "Move Speed",
-    Range = {10, 100},
+    Range = {10, 600},
     Increment = 5,
     CurrentValue = 30,
     Callback = function(v)
