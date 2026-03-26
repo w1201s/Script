@@ -12,7 +12,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Advanced System",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "All In One",
+    LoadingSubtitle = "Final",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -23,6 +23,11 @@ local AutoFarm = false
 local AutoActivate = false
 local AntiVoid = false
 
+local TargetNPC = true
+local TargetPlayer = true
+local TargetSelf = false
+
+local MaxDistance = 100
 local Mode = "Behind"
 local Distance = 5
 local MoveSpeed = 30
@@ -48,8 +53,17 @@ local function getTool()
     end
 end
 
+local function isPlayerCharacter(model)
+    return Players:GetPlayerFromCharacter(model) ~= nil
+end
+
 local function getAllTargets()
     local list = {}
+
+    local char = player.Character
+    if not char then return list end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return list end
 
     for _, obj in pairs(Workspace:GetDescendants()) do
         if obj:IsA("Model") and obj.Name ~= "R6n_w1201s" then
@@ -57,9 +71,25 @@ local function getAllTargets()
             local hrp = obj:FindFirstChild("HumanoidRootPart")
 
             if hum and hrp and hum.Health > 0 then
-                if hrp.Position.Y > -50 then
-                    table.insert(list, hrp)
+                -- ❌ ignore ต่ำกว่า void
+                if hrp.Position.Y <= -50 then continue end
+
+                local distance = (hrp.Position - root.Position).Magnitude
+
+                -- ❌ ไกลเกิน
+                if distance > MaxDistance then continue end
+
+                local isPlayer = isPlayerCharacter(obj)
+
+                -- ❌ filter target
+                if isPlayer then
+                    if obj == char and not TargetSelf then continue end
+                    if obj ~= char and not TargetPlayer then continue end
+                else
+                    if not TargetNPC then continue end
                 end
+
+                table.insert(list, hrp)
             end
         end
     end
@@ -83,7 +113,6 @@ local function getPosition(target)
     end
 end
 
--- stable speed tween
 local function tweenTo(root, cf)
     local distance = (root.Position - cf.Position).Magnitude
     local time = distance / MoveSpeed
@@ -123,7 +152,6 @@ RunService.RenderStepped:Connect(function()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- AUTO FARM
     if AutoFarm then
         Workspace.Gravity = 0
 
@@ -132,6 +160,8 @@ RunService.RenderStepped:Connect(function()
             if #targets > 0 then
                 CurrentTarget = targets[math.random(1, #targets)]
                 TargetTime = tick()
+            else
+                CurrentTarget = nil
             end
         end
 
@@ -145,7 +175,6 @@ RunService.RenderStepped:Connect(function()
         Workspace.Gravity = oldGravity
     end
 
-    -- AUTO ACTIVATE (แยก)
     if AutoActivate then
         local tool = getTool()
         if tool then
@@ -180,11 +209,41 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AntiVoid = v
-        if v then
-            createVoid()
-        else
-            removeVoid()
-        end
+        if v then createVoid() else removeVoid() end
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Target NPC",
+    CurrentValue = true,
+    Callback = function(v)
+        TargetNPC = v
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Target Player",
+    CurrentValue = true,
+    Callback = function(v)
+        TargetPlayer = v
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Target Self",
+    CurrentValue = false,
+    Callback = function(v)
+        TargetSelf = v
+    end
+})
+
+Tab:CreateSlider({
+    Name = "Max Distance",
+    Range = {1, 10000},
+    Increment = 10,
+    CurrentValue = 100,
+    Callback = function(v)
+        MaxDistance = v
     end
 })
 
