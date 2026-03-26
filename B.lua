@@ -10,9 +10,9 @@ local player = Players.LocalPlayer
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "ULTIMATE SYSTEM GOD FINAL",
+    Name = "ULTIMATE SYSTEM FINAL REAL",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "No Missing",
+    LoadingSubtitle = "No Bug Version",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -24,7 +24,6 @@ local AutoActivate = false
 local LobbyMode = false
 local AntiVoid = false
 
--- 🎯 TARGET TOGGLES
 local TargetNPC = true
 local TargetPlayer = true
 local TargetSelf = false
@@ -44,8 +43,8 @@ local currentTween = nil
 local lastGoal = nil
 
 -- POSITIONS
-local LobbyTop = Vector3.new(-36, 302, 110)
-local PortalPos = Vector3.new(-36, 310, 40)
+local LobbyTweenPos = Vector3.new(-36, 280, 110)
+local LobbySafePos = Vector3.new(-36, 300, 110)
 local NoTargetPos = Vector3.new(-32, 70, 242)
 
 --// FUNCTIONS
@@ -90,6 +89,7 @@ end
 -- GET TARGETS
 local function getAllTargets()
     local list = {}
+
     local char = player.Character
     if not char then return list end
 
@@ -122,7 +122,7 @@ local function getAllTargets()
     return list
 end
 
--- POSITION
+-- POSITION SYSTEM (FIXED)
 local function getPosition(target, root)
     local pos = target.Position
 
@@ -138,12 +138,14 @@ local function getPosition(target, root)
     end
 end
 
--- TWEEN FIX
+-- FIXED TWEEN (NO SPAM)
 local function tweenTo(root, cf)
     if lastGoal and (lastGoal.Position - cf.Position).Magnitude < 1 then return end
     lastGoal = cf
 
-    if currentTween then currentTween:Cancel() end
+    if currentTween then
+        currentTween:Cancel()
+    end
 
     local dist = (root.Position - cf.Position).Magnitude
     local time = dist / MoveSpeed
@@ -185,33 +187,28 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
-        -- 🧤 ไม่มีของ → ไปเอา glove
-        if not getTool() then
-            tweenTo(root, CFrame.new(PortalPos))
-            return
-        end
-
-        -- 🏢 LOBBY MODE
-        if LobbyMode then
-            if root.Position.Y < 300 then
-                root.CFrame = CFrame.new(LobbyTop)
-                return
-            end
-        end
-
-        -- VOID
         if root.Position.Y <= -50 then
             CurrentTarget = nil
             tweenTo(root, CFrame.new(NoTargetPos))
             return
         end
 
-        -- VALIDATE TARGET
+        if LobbyMode then
+            if (root.Position - LobbySafePos).Magnitude > 5 then
+                tweenTo(root, CFrame.new(LobbyTweenPos))
+                return
+            end
+
+            if root.Position.Y < 290 then
+                root.CFrame = CFrame.new(LobbySafePos)
+                return
+            end
+        end
+
         if not isTargetValid(CurrentTarget) then
             CurrentTarget = nil
         end
 
-        -- SELECT TARGET
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
 
@@ -223,13 +220,11 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- NO TARGET
         if not CurrentTarget then
             tweenTo(root, CFrame.new(NoTargetPos))
             return
         end
 
-        -- MOVE
         local pos = getPosition(CurrentTarget, root)
         if pos then
             tweenTo(root, pos)
@@ -239,7 +234,6 @@ RunService.RenderStepped:Connect(function()
         Workspace.Gravity = oldGravity
     end
 
-    -- AUTO ACTIVATE
     if AutoActivate then
         local tool = getTool()
         if tool then tool:Activate() end
@@ -281,7 +275,6 @@ Tab:CreateToggle({
     end
 })
 
--- 🎯 TARGET UI
 Tab:CreateToggle({
     Name = "Target NPC",
     CurrentValue = true,
@@ -300,7 +293,6 @@ Tab:CreateToggle({
     Callback = function(v) TargetSelf = v end
 })
 
--- POSITION
 Tab:CreateDropdown({
     Name = "Position Mode",
     Options = {"Behind", "Above", "Under"},
