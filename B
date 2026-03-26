@@ -12,7 +12,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "ULTIMATE SYSTEM",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "Fixed",
+    LoadingSubtitle = "No Max Distance",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -27,7 +27,6 @@ local TargetNPC = true
 local TargetPlayer = true
 local TargetSelf = false
 
-local MaxDistance = 100
 local Mode = "Behind"
 local Distance = 5
 local MoveSpeed = 300
@@ -61,18 +60,18 @@ local function isPlayerCharacter(model)
     return Players:GetPlayerFromCharacter(model) ~= nil
 end
 
--- 🔥 VALIDATE TARGET (FIX BUG)
+-- 🔥 VALIDATE TARGET
 local function isTargetValid(target, root)
     if not target or not target.Parent then return false end
 
     local hum = target.Parent:FindFirstChildOfClass("Humanoid")
     if not hum or hum.Health <= 0 then return false end
 
-    if target.Position.Y <= -50 then return false end
-    if LobbyMode and target.Position.Y < 280 then return false end
+    if target.Position.Y <= -50 then return false
+    end
 
-    local dist = (target.Position - root.Position).Magnitude
-    if dist > MaxDistance then return false end
+    if LobbyMode and target.Position.Y < 280 then return false
+    end
 
     return true
 end
@@ -82,8 +81,6 @@ local function getAllTargets()
 
     local char = player.Character
     if not char then return list end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return list end
 
     for _, obj in pairs(Workspace:GetDescendants()) do
         if obj:IsA("Model") and obj.Name ~= "R6n_w1201s" then
@@ -93,9 +90,6 @@ local function getAllTargets()
             if hum and hrp and hum.Health > 0 then
                 if hrp.Position.Y <= -50 then continue end
                 if LobbyMode and hrp.Position.Y < 280 then continue end
-
-                local dist = (hrp.Position - root.Position).Magnitude
-                if dist > MaxDistance then continue end
 
                 local isPlayer = isPlayerCharacter(obj)
 
@@ -148,7 +142,7 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
-        -- LOBBY
+        -- LOBBY MODE
         if LobbyMode then
             if (root.Position - LobbySafePos).Magnitude > 5 then
                 tweenTo(root, CFrame.new(LobbyTweenPos))
@@ -161,7 +155,7 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- 🔥 FIX: validate target every frame
+        -- 🔥 FIX target ทุกเฟรม
         if not isTargetValid(CurrentTarget, root) then
             CurrentTarget = nil
         end
@@ -256,14 +250,6 @@ Tab:CreateToggle({
     Name = "Target Self",
     CurrentValue = false,
     Callback = function(v) TargetSelf = v end
-})
-
-Tab:CreateSlider({
-    Name = "Max Distance",
-    Range = {1, 10000},
-    Increment = 10,
-    CurrentValue = 100,
-    Callback = function(v) MaxDistance = v end
 })
 
 Tab:CreateDropdown({
