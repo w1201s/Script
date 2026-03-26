@@ -12,7 +12,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "ULTIMATE SYSTEM",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "All In One",
+    LoadingSubtitle = "Fixed",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -21,7 +21,6 @@ local Tab = Window:CreateTab("Main", 4483362458)
 --// VARIABLES
 local AutoFarm = false
 local AutoActivate = false
-local AntiVoid = false
 local LobbyMode = false
 
 local TargetNPC = true
@@ -31,8 +30,7 @@ local TargetSelf = false
 local MaxDistance = 100
 local Mode = "Behind"
 local Distance = 5
-local MoveSpeed = 300 -- 🔥 DEFAULT
-
+local MoveSpeed = 300
 local OrbitSpeed = 0.05
 
 local CurrentTarget = nil
@@ -40,7 +38,6 @@ local TargetTime = 0
 local StayDuration = 2
 
 local oldGravity = Workspace.Gravity
-local VoidPart = nil
 local angle = 0
 
 -- POSITIONS
@@ -64,6 +61,22 @@ local function isPlayerCharacter(model)
     return Players:GetPlayerFromCharacter(model) ~= nil
 end
 
+-- 🔥 VALIDATE TARGET (FIX BUG)
+local function isTargetValid(target, root)
+    if not target or not target.Parent then return false end
+
+    local hum = target.Parent:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+
+    if target.Position.Y <= -50 then return false end
+    if LobbyMode and target.Position.Y < 280 then return false end
+
+    local dist = (target.Position - root.Position).Magnitude
+    if dist > MaxDistance then return false end
+
+    return true
+end
+
 local function getAllTargets()
     local list = {}
 
@@ -79,12 +92,10 @@ local function getAllTargets()
 
             if hum and hrp and hum.Health > 0 then
                 if hrp.Position.Y <= -50 then continue end
-
-                -- LOBBY FILTER
                 if LobbyMode and hrp.Position.Y < 280 then continue end
 
-                local distance = (hrp.Position - root.Position).Magnitude
-                if distance > MaxDistance then continue end
+                local dist = (hrp.Position - root.Position).Magnitude
+                if dist > MaxDistance then continue end
 
                 local isPlayer = isPlayerCharacter(obj)
 
@@ -106,13 +117,10 @@ end
 local function getPosition(target)
     if Mode == "Behind" then
         return target.CFrame * CFrame.new(0, 0, Distance)
-
     elseif Mode == "Above" then
         return target.CFrame * CFrame.new(0, Distance, 0)
-
     elseif Mode == "Under" then
         return target.CFrame * CFrame.new(0, -Distance, 0)
-
     elseif Mode == "Orbit" then
         angle += OrbitSpeed
         return target.CFrame * CFrame.new(math.cos(angle)*Distance, 0, math.sin(angle)*Distance)
@@ -124,33 +132,10 @@ local function tweenTo(root, cf)
     local dist = (root.Position - cf.Position).Magnitude
     local time = dist / MoveSpeed
 
-    local tween = TweenService:Create(
-        root,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = cf}
-    )
+    local tween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {
+        CFrame = cf
+    })
     tween:Play()
-end
-
--- ANTI VOID
-local function createVoid()
-    if VoidPart then return end
-
-    local part = Instance.new("Part")
-    part.Size = Vector3.new(5000, 2, 5000)
-    part.Position = Vector3.new(0, -50, 0)
-    part.Anchored = true
-    part.Name = "AntiVoidFloor"
-    part.Parent = Workspace
-
-    VoidPart = part
-end
-
-local function removeVoid()
-    if VoidPart then
-        VoidPart:Destroy()
-        VoidPart = nil
-    end
 end
 
 --// LOOP
@@ -163,7 +148,7 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
-        -- LOBBY MODE
+        -- LOBBY
         if LobbyMode then
             if (root.Position - LobbySafePos).Magnitude > 5 then
                 tweenTo(root, CFrame.new(LobbyTweenPos))
@@ -176,9 +161,15 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- TARGET SELECT
+        -- 🔥 FIX: validate target every frame
+        if not isTargetValid(CurrentTarget, root) then
+            CurrentTarget = nil
+        end
+
+        -- SELECT TARGET
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
+
             if #targets > 0 then
                 CurrentTarget = targets[math.random(1, #targets)]
                 TargetTime = tick()
@@ -228,14 +219,6 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AutoActivate = v
-    end
-})
-
-Tab:CreateToggle({
-    Name = "Anti Void",
-    CurrentValue = false,
-    Callback = function(v)
-        if v then createVoid() else removeVoid() end
     end
 })
 
