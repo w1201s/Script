@@ -126,12 +126,16 @@ end
 
 -- POSITION MODE
 local function getPosition(target)
+    local pos = target.Position
+
     if Mode == "Behind" then
-        return target.CFrame * CFrame.new(0, 0, Distance)
+        return CFrame.new(pos + Vector3.new(0, 0, Distance))
+
     elseif Mode == "Above" then
-        return target.CFrame * CFrame.new(0, Distance, 0)
+        return CFrame.new(pos + Vector3.new(0, Distance, 0))
+
     elseif Mode == "Under" then
-        return target.CFrame * CFrame.new(0, -Distance, 0)
+        return CFrame.new(pos + Vector3.new(0, -Distance, 0))
     end
 end
 
