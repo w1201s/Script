@@ -10,9 +10,9 @@ local player = Players.LocalPlayer
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Advanced System",
+    Name = "ULTIMATE SYSTEM",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "Final",
+    LoadingSubtitle = "All In One",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -22,6 +22,7 @@ local Tab = Window:CreateTab("Main", 4483362458)
 local AutoFarm = false
 local AutoActivate = false
 local AntiVoid = false
+local LobbyMode = false
 
 local TargetNPC = true
 local TargetPlayer = true
@@ -30,7 +31,8 @@ local TargetSelf = false
 local MaxDistance = 100
 local Mode = "Behind"
 local Distance = 5
-local MoveSpeed = 200
+local MoveSpeed = 300 -- 🔥 DEFAULT
+
 local OrbitSpeed = 0.05
 
 local CurrentTarget = nil
@@ -40,6 +42,11 @@ local StayDuration = 2
 local oldGravity = Workspace.Gravity
 local VoidPart = nil
 local angle = 0
+
+-- POSITIONS
+local LobbyTweenPos = Vector3.new(-36, 280, 110)
+local LobbySafePos = Vector3.new(-36, 300, 110)
+local NoTargetPos = Vector3.new(-32, 70, 242)
 
 --// FUNCTIONS
 
@@ -71,17 +78,16 @@ local function getAllTargets()
             local hrp = obj:FindFirstChild("HumanoidRootPart")
 
             if hum and hrp and hum.Health > 0 then
-                -- ❌ ignore ต่ำกว่า void
                 if hrp.Position.Y <= -50 then continue end
 
-                local distance = (hrp.Position - root.Position).Magnitude
+                -- LOBBY FILTER
+                if LobbyMode and hrp.Position.Y < 280 then continue end
 
-                -- ❌ ไกลเกิน
+                local distance = (hrp.Position - root.Position).Magnitude
                 if distance > MaxDistance then continue end
 
                 local isPlayer = isPlayerCharacter(obj)
 
-                -- ❌ filter target
                 if isPlayer then
                     if obj == char and not TargetSelf then continue end
                     if obj ~= char and not TargetPlayer then continue end
@@ -113,9 +119,10 @@ local function getPosition(target)
     end
 end
 
+-- STABLE SPEED
 local function tweenTo(root, cf)
-    local distance = (root.Position - cf.Position).Magnitude
-    local time = distance / MoveSpeed
+    local dist = (root.Position - cf.Position).Magnitude
+    local time = dist / MoveSpeed
 
     local tween = TweenService:Create(
         root,
@@ -125,6 +132,7 @@ local function tweenTo(root, cf)
     tween:Play()
 end
 
+-- ANTI VOID
 local function createVoid()
     if VoidPart then return end
 
@@ -155,6 +163,20 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
+        -- LOBBY MODE
+        if LobbyMode then
+            if (root.Position - LobbySafePos).Magnitude > 5 then
+                tweenTo(root, CFrame.new(LobbyTweenPos))
+                return
+            end
+
+            if root.Position.Y < 290 then
+                root.CFrame = CFrame.new(LobbySafePos)
+                return
+            end
+        end
+
+        -- TARGET SELECT
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
             if #targets > 0 then
@@ -165,16 +187,23 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        if CurrentTarget then
-            local pos = getPosition(CurrentTarget)
-            if pos then
-                tweenTo(root, pos)
-            end
+        -- NO TARGET
+        if not CurrentTarget then
+            tweenTo(root, CFrame.new(NoTargetPos))
+            return
         end
+
+        -- MOVE
+        local pos = getPosition(CurrentTarget)
+        if pos then
+            tweenTo(root, pos)
+        end
+
     else
         Workspace.Gravity = oldGravity
     end
 
+    -- AUTO ACTIVATE
     if AutoActivate then
         local tool = getTool()
         if tool then
@@ -190,9 +219,7 @@ Tab:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         AutoFarm = v
-        if not v then
-            Workspace.Gravity = oldGravity
-        end
+        if not v then Workspace.Gravity = oldGravity end
     end
 })
 
@@ -208,33 +235,44 @@ Tab:CreateToggle({
     Name = "Anti Void",
     CurrentValue = false,
     Callback = function(v)
-        AntiVoid = v
         if v then createVoid() else removeVoid() end
+    end
+})
+
+Tab:CreateToggle({
+    Name = "Lobby Mode",
+    CurrentValue = false,
+    Callback = function(v)
+        LobbyMode = v
+
+        if not v then
+            local char = player.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = CFrame.new(root.Position.X, 280, root.Position.Z)
+                end
+            end
+        end
     end
 })
 
 Tab:CreateToggle({
     Name = "Target NPC",
     CurrentValue = true,
-    Callback = function(v)
-        TargetNPC = v
-    end
+    Callback = function(v) TargetNPC = v end
 })
 
 Tab:CreateToggle({
     Name = "Target Player",
     CurrentValue = true,
-    Callback = function(v)
-        TargetPlayer = v
-    end
+    Callback = function(v) TargetPlayer = v end
 })
 
 Tab:CreateToggle({
     Name = "Target Self",
     CurrentValue = false,
-    Callback = function(v)
-        TargetSelf = v
-    end
+    Callback = function(v) TargetSelf = v end
 })
 
 Tab:CreateSlider({
@@ -242,18 +280,14 @@ Tab:CreateSlider({
     Range = {1, 10000},
     Increment = 10,
     CurrentValue = 100,
-    Callback = function(v)
-        MaxDistance = v
-    end
+    Callback = function(v) MaxDistance = v end
 })
 
 Tab:CreateDropdown({
     Name = "Position Mode",
     Options = {"Behind", "Above", "Under", "Orbit"},
     CurrentOption = "Behind",
-    Callback = function(opt)
-        Mode = opt
-    end
+    Callback = function(opt) Mode = opt end
 })
 
 Tab:CreateSlider({
@@ -261,19 +295,15 @@ Tab:CreateSlider({
     Range = {2, 20},
     Increment = 1,
     CurrentValue = 5,
-    Callback = function(v)
-        Distance = v
-    end
+    Callback = function(v) Distance = v end
 })
 
 Tab:CreateSlider({
     Name = "Move Speed",
-    Range = {10, 600},
-    Increment = 5,
-    CurrentValue = 30,
-    Callback = function(v)
-        MoveSpeed = v
-    end
+    Range = {10, 1000},
+    Increment = 10,
+    CurrentValue = 300,
+    Callback = function(v) MoveSpeed = v end
 })
 
 Tab:CreateSlider({
@@ -281,7 +311,5 @@ Tab:CreateSlider({
     Range = {0.01, 0.2},
     Increment = 0.01,
     CurrentValue = 0.05,
-    Callback = function(v)
-        OrbitSpeed = v
-    end
+    Callback = function(v) OrbitSpeed = v end
 })
