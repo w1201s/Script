@@ -10,9 +10,9 @@ local player = Players.LocalPlayer
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "ULTIMATE SYSTEM",
+    Name = "ULTIMATE SYSTEM (UNIVERSAL)",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "No Max Distance",
+    LoadingSubtitle = "Fix All NPC",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -22,22 +22,21 @@ local Tab = Window:CreateTab("Main", 4483362458)
 local AutoFarm = false
 local AutoActivate = false
 local LobbyMode = false
+local AntiVoid = false
 
 local TargetNPC = true
 local TargetPlayer = true
 local TargetSelf = false
 
-local Mode = "Behind"
 local Distance = 5
 local MoveSpeed = 300
-local OrbitSpeed = 0.05
 
 local CurrentTarget = nil
 local TargetTime = 0
 local StayDuration = 2
 
 local oldGravity = Workspace.Gravity
-local angle = 0
+local VoidPart = nil
 
 -- POSITIONS
 local LobbyTweenPos = Vector3.new(-36, 280, 110)
@@ -46,13 +45,26 @@ local NoTargetPos = Vector3.new(-32, 70, 242)
 
 --// FUNCTIONS
 
+-- 🔥 UNIVERSAL ROOT FINDER
+local function getRoot(model)
+    return model:FindFirstChild("HumanoidRootPart")
+        or model:FindFirstChild("UpperTorso")
+        or model:FindFirstChild("Torso")
+        or model.PrimaryPart
+        or model:FindFirstChildWhichIsA("BasePart")
+end
+
+-- 🔥 UNIVERSAL HUMANOID
+local function getHumanoid(model)
+    return model:FindFirstChildOfClass("Humanoid")
+        or model:FindFirstChildOfClass("AnimationController")
+end
+
 local function getTool()
     local char = player.Character
     if not char then return end
     for _, v in pairs(char:GetChildren()) do
-        if v:IsA("Tool") then
-            return v
-        end
+        if v:IsA("Tool") then return v end
     end
 end
 
@@ -60,22 +72,17 @@ local function isPlayerCharacter(model)
     return Players:GetPlayerFromCharacter(model) ~= nil
 end
 
--- 🔥 VALIDATE TARGET
-local function isTargetValid(target, root)
+-- ✅ VALIDATE (ULTRA SAFE)
+local function isTargetValid(target)
     if not target or not target.Parent then return false end
 
-    local hum = target.Parent:FindFirstChildOfClass("Humanoid")
-    if not hum or hum.Health <= 0 then return false end
-
-    if target.Position.Y <= -50 then return false
-    end
-
-    if LobbyMode and target.Position.Y < 280 then return false
-    end
+    if target.Position.Y <= -50 then return false end
+    if LobbyMode and target.Position.Y < 280 then return false end
 
     return true
 end
 
+-- 🔥 GET TARGETS (FIX AFallenRPD)
 local function getAllTargets()
     local list = {}
 
@@ -84,12 +91,13 @@ local function getAllTargets()
 
     for _, obj in pairs(Workspace:GetDescendants()) do
         if obj:IsA("Model") and obj.Name ~= "R6n_w1201s" then
-            local hum = obj:FindFirstChildOfClass("Humanoid")
-            local hrp = obj:FindFirstChild("HumanoidRootPart")
 
-            if hum and hrp and hum.Health > 0 then
-                if hrp.Position.Y <= -50 then continue end
-                if LobbyMode and hrp.Position.Y < 280 then continue end
+            local root = getRoot(obj)
+            local hum = getHumanoid(obj)
+
+            if root and hum then
+                if root.Position.Y <= -50 then continue end
+                if LobbyMode and root.Position.Y < 280 then continue end
 
                 local isPlayer = isPlayerCharacter(obj)
 
@@ -100,7 +108,7 @@ local function getAllTargets()
                     if not TargetNPC then continue end
                 end
 
-                table.insert(list, hrp)
+                table.insert(list, root)
             end
         end
     end
@@ -108,17 +116,9 @@ local function getAllTargets()
     return list
 end
 
+-- POSITION (STABLE)
 local function getPosition(target)
-    if Mode == "Behind" then
-        return target.CFrame * CFrame.new(0, 0, Distance)
-    elseif Mode == "Above" then
-        return target.CFrame * CFrame.new(0, Distance, 0)
-    elseif Mode == "Under" then
-        return target.CFrame * CFrame.new(0, -Distance, 0)
-    elseif Mode == "Orbit" then
-        angle += OrbitSpeed
-        return target.CFrame * CFrame.new(math.cos(angle)*Distance, 0, math.sin(angle)*Distance)
-    end
+    return target.CFrame * CFrame.new(0, 0, Distance)
 end
 
 -- STABLE SPEED
@@ -132,6 +132,27 @@ local function tweenTo(root, cf)
     tween:Play()
 end
 
+-- ANTI VOID
+local function createVoid()
+    if VoidPart then return end
+
+    local p = Instance.new("Part")
+    p.Size = Vector3.new(5000, 2, 5000)
+    p.Position = Vector3.new(0, -50, 0)
+    p.Anchored = true
+    p.Name = "AntiVoidFloor"
+    p.Parent = Workspace
+
+    VoidPart = p
+end
+
+local function removeVoid()
+    if VoidPart then
+        VoidPart:Destroy()
+        VoidPart = nil
+    end
+end
+
 --// LOOP
 RunService.RenderStepped:Connect(function()
     local char = player.Character
@@ -142,7 +163,14 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
-        -- LOBBY MODE
+        -- FALLBACK VOID
+        if root.Position.Y <= -50 then
+            CurrentTarget = nil
+            tweenTo(root, CFrame.new(NoTargetPos))
+            return
+        end
+
+        -- LOBBY
         if LobbyMode then
             if (root.Position - LobbySafePos).Magnitude > 5 then
                 tweenTo(root, CFrame.new(LobbyTweenPos))
@@ -155,12 +183,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- 🔥 FIX target ทุกเฟรม
-        if not isTargetValid(CurrentTarget, root) then
+        -- VALIDATE
+        if not isTargetValid(CurrentTarget) then
             CurrentTarget = nil
         end
 
-        -- SELECT TARGET
+        -- SELECT
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
 
@@ -191,9 +219,7 @@ RunService.RenderStepped:Connect(function()
     -- AUTO ACTIVATE
     if AutoActivate then
         local tool = getTool()
-        if tool then
-            tool:Activate()
-        end
+        if tool then tool:Activate() end
     end
 end)
 
@@ -217,20 +243,18 @@ Tab:CreateToggle({
 })
 
 Tab:CreateToggle({
+    Name = "Anti Void",
+    CurrentValue = false,
+    Callback = function(v)
+        if v then createVoid() else removeVoid() end
+    end
+})
+
+Tab:CreateToggle({
     Name = "Lobby Mode",
     CurrentValue = false,
     Callback = function(v)
         LobbyMode = v
-
-        if not v then
-            local char = player.Character
-            if char then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    root.CFrame = CFrame.new(root.Position.X, 280, root.Position.Z)
-                end
-            end
-        end
     end
 })
 
@@ -252,13 +276,6 @@ Tab:CreateToggle({
     Callback = function(v) TargetSelf = v end
 })
 
-Tab:CreateDropdown({
-    Name = "Position Mode",
-    Options = {"Behind", "Above", "Under", "Orbit"},
-    CurrentOption = "Behind",
-    Callback = function(opt) Mode = opt end
-})
-
 Tab:CreateSlider({
     Name = "Distance",
     Range = {2, 20},
@@ -273,12 +290,4 @@ Tab:CreateSlider({
     Increment = 10,
     CurrentValue = 300,
     Callback = function(v) MoveSpeed = v end
-})
-
-Tab:CreateSlider({
-    Name = "Orbit Speed",
-    Range = {0.01, 0.2},
-    Increment = 0.01,
-    CurrentValue = 0.05,
-    Callback = function(v) OrbitSpeed = v end
 })
