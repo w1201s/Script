@@ -10,9 +10,9 @@ local player = Players.LocalPlayer
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "ULTIMATE SYSTEM FINAL REAL",
+    Name = "ULTIMATE SYSTEM FINAL+",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "No Bug Version",
+    LoadingSubtitle = "Ignore Dead Targets",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -39,9 +39,6 @@ local StayDuration = 2
 local oldGravity = Workspace.Gravity
 local VoidPart = nil
 
-local currentTween = nil
-local lastGoal = nil
-
 -- POSITIONS
 local LobbyTweenPos = Vector3.new(-36, 280, 110)
 local LobbySafePos = Vector3.new(-36, 300, 110)
@@ -57,6 +54,7 @@ local function getRoot(model)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
+-- ✅ ONLY REAL HUMANOID
 local function getHumanoid(model)
     return model:FindFirstChildOfClass("Humanoid")
 end
@@ -73,7 +71,7 @@ local function isPlayerCharacter(model)
     return Players:GetPlayerFromCharacter(model) ~= nil
 end
 
--- VALID TARGET
+-- ✅ VALIDATE TARGET (NO DEAD)
 local function isTargetValid(target)
     if not target or not target.Parent then return false end
 
@@ -86,7 +84,7 @@ local function isTargetValid(target)
     return true
 end
 
--- GET TARGETS
+-- ✅ GET TARGETS (FILTER DEAD)
 local function getAllTargets()
     local list = {}
 
@@ -99,7 +97,11 @@ local function getAllTargets()
             local root = getRoot(obj)
             local hum = getHumanoid(obj)
 
-            if not hum or hum.Health <= 0 then continue end
+            -- ❌ ไม่มี humanoid = ไม่เอา
+            if not hum then continue end
+
+            -- ❌ ตาย = ไม่เอา
+            if hum.Health <= 0 then continue end
 
             if root then
                 if root.Position.Y <= -50 then continue end
@@ -122,39 +124,26 @@ local function getAllTargets()
     return list
 end
 
--- POSITION SYSTEM (FIXED)
-local function getPosition(target, root)
-    local pos = target.Position
-
+-- POSITION MODE
+local function getPosition(target)
     if Mode == "Behind" then
-        local dir = (pos - root.Position).Unit
-        return CFrame.new(pos - dir * Distance)
-
+        return target.CFrame * CFrame.new(0, 0, Distance)
     elseif Mode == "Above" then
-        return CFrame.new(pos + Vector3.new(0, Distance, 0))
-
+        return target.CFrame * CFrame.new(0, Distance, 0)
     elseif Mode == "Under" then
-        return CFrame.new(pos + Vector3.new(0, -Distance, 0))
+        return target.CFrame * CFrame.new(0, -Distance, 0)
     end
 end
 
--- FIXED TWEEN (NO SPAM)
+-- STABLE SPEED
 local function tweenTo(root, cf)
-    if lastGoal and (lastGoal.Position - cf.Position).Magnitude < 1 then return end
-    lastGoal = cf
-
-    if currentTween then
-        currentTween:Cancel()
-    end
-
     local dist = (root.Position - cf.Position).Magnitude
     local time = dist / MoveSpeed
 
-    currentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {
+    local tween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {
         CFrame = cf
     })
-
-    currentTween:Play()
+    tween:Play()
 end
 
 -- ANTI VOID
@@ -165,6 +154,7 @@ local function createVoid()
     p.Size = Vector3.new(5000, 2, 5000)
     p.Position = Vector3.new(0, -50, 0)
     p.Anchored = true
+    p.Name = "AntiVoidFloor"
     p.Parent = Workspace
 
     VoidPart = p
@@ -187,12 +177,14 @@ RunService.RenderStepped:Connect(function()
     if AutoFarm then
         Workspace.Gravity = 0
 
+        -- FALLBACK VOID
         if root.Position.Y <= -50 then
             CurrentTarget = nil
             tweenTo(root, CFrame.new(NoTargetPos))
             return
         end
 
+        -- LOBBY
         if LobbyMode then
             if (root.Position - LobbySafePos).Magnitude > 5 then
                 tweenTo(root, CFrame.new(LobbyTweenPos))
@@ -205,10 +197,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
+        -- VALIDATE TARGET
         if not isTargetValid(CurrentTarget) then
             CurrentTarget = nil
         end
 
+        -- SELECT TARGET
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
 
@@ -220,12 +214,14 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
+        -- NO TARGET
         if not CurrentTarget then
             tweenTo(root, CFrame.new(NoTargetPos))
             return
         end
 
-        local pos = getPosition(CurrentTarget, root)
+        -- MOVE
+        local pos = getPosition(CurrentTarget)
         if pos then
             tweenTo(root, pos)
         end
@@ -234,6 +230,7 @@ RunService.RenderStepped:Connect(function()
         Workspace.Gravity = oldGravity
     end
 
+    -- AUTO ACTIVATE
     if AutoActivate then
         local tool = getTool()
         if tool then tool:Activate() end
