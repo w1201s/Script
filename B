@@ -10,9 +10,9 @@ local player = Players.LocalPlayer
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "ULTIMATE SYSTEM (UNIVERSAL)",
+    Name = "ULTIMATE SYSTEM FINAL+",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "Fix All NPC",
+    LoadingSubtitle = "Ignore Dead Targets",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -28,6 +28,7 @@ local TargetNPC = true
 local TargetPlayer = true
 local TargetSelf = false
 
+local Mode = "Behind"
 local Distance = 5
 local MoveSpeed = 300
 
@@ -45,7 +46,6 @@ local NoTargetPos = Vector3.new(-32, 70, 242)
 
 --// FUNCTIONS
 
--- 🔥 UNIVERSAL ROOT FINDER
 local function getRoot(model)
     return model:FindFirstChild("HumanoidRootPart")
         or model:FindFirstChild("UpperTorso")
@@ -54,10 +54,9 @@ local function getRoot(model)
         or model:FindFirstChildWhichIsA("BasePart")
 end
 
--- 🔥 UNIVERSAL HUMANOID
+-- ✅ ONLY REAL HUMANOID
 local function getHumanoid(model)
     return model:FindFirstChildOfClass("Humanoid")
-        or model:FindFirstChildOfClass("AnimationController")
 end
 
 local function getTool()
@@ -72,9 +71,12 @@ local function isPlayerCharacter(model)
     return Players:GetPlayerFromCharacter(model) ~= nil
 end
 
--- ✅ VALIDATE (ULTRA SAFE)
+-- ✅ VALIDATE TARGET (NO DEAD)
 local function isTargetValid(target)
     if not target or not target.Parent then return false end
+
+    local hum = target.Parent:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
 
     if target.Position.Y <= -50 then return false end
     if LobbyMode and target.Position.Y < 280 then return false end
@@ -82,7 +84,7 @@ local function isTargetValid(target)
     return true
 end
 
--- 🔥 GET TARGETS (FIX AFallenRPD)
+-- ✅ GET TARGETS (FILTER DEAD)
 local function getAllTargets()
     local list = {}
 
@@ -95,7 +97,13 @@ local function getAllTargets()
             local root = getRoot(obj)
             local hum = getHumanoid(obj)
 
-            if root and hum then
+            -- ❌ ไม่มี humanoid = ไม่เอา
+            if not hum then continue end
+
+            -- ❌ ตาย = ไม่เอา
+            if hum.Health <= 0 then continue end
+
+            if root then
                 if root.Position.Y <= -50 then continue end
                 if LobbyMode and root.Position.Y < 280 then continue end
 
@@ -116,9 +124,15 @@ local function getAllTargets()
     return list
 end
 
--- POSITION (STABLE)
+-- POSITION MODE
 local function getPosition(target)
-    return target.CFrame * CFrame.new(0, 0, Distance)
+    if Mode == "Behind" then
+        return target.CFrame * CFrame.new(0, 0, Distance)
+    elseif Mode == "Above" then
+        return target.CFrame * CFrame.new(0, Distance, 0)
+    elseif Mode == "Under" then
+        return target.CFrame * CFrame.new(0, -Distance, 0)
+    end
 end
 
 -- STABLE SPEED
@@ -183,12 +197,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- VALIDATE
+        -- VALIDATE TARGET
         if not isTargetValid(CurrentTarget) then
             CurrentTarget = nil
         end
 
-        -- SELECT
+        -- SELECT TARGET
         if not CurrentTarget or tick() - TargetTime > StayDuration then
             local targets = getAllTargets()
 
@@ -274,6 +288,15 @@ Tab:CreateToggle({
     Name = "Target Self",
     CurrentValue = false,
     Callback = function(v) TargetSelf = v end
+})
+
+Tab:CreateDropdown({
+    Name = "Position Mode",
+    Options = {"Behind", "Above", "Under"},
+    CurrentOption = "Behind",
+    Callback = function(opt)
+        Mode = opt
+    end
 })
 
 Tab:CreateSlider({
