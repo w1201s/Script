@@ -23,6 +23,7 @@ local autoFarmToggle = nil
 local farmDelay = 0.3
 local isFarming = false
 local originalGravity = workspace.Gravity
+local tweenSpeed = 1000
 
 -- Function to fire proximity prompt
 local function firePrompt(obj)
@@ -32,12 +33,25 @@ local function firePrompt(obj)
     end
 end
 
--- Function to teleport
-local function teleportTo(position)
+-- Function to tween to position
+local function tweenTo(position)
     local player = game.Players.LocalPlayer
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
-        character.HumanoidRootPart.CFrame = CFrame.new(position)
+        local hrp = character.HumanoidRootPart
+        local distance = (position - hrp.Position).Magnitude
+        local tweenTime = distance / tweenSpeed
+        
+        local tweenInfo = TweenInfo.new(
+            tweenTime,
+            Enum.EasingStyle.Linear,
+            Enum.EasingDirection.Out
+        )
+        
+        local goal = {CFrame = CFrame.new(position)}
+        local tween = game:GetService("TweenService"):Create(hrp, tweenInfo, goal)
+        tween:Play()
+        tween.Completed:Wait()
     end
 end
 
@@ -50,17 +64,23 @@ local function startAutoFarm()
             for _, brainrot in ipairs(activeBrainrots:GetChildren()) do
                 if not isFarming then break end
                 
-                -- Teleport to brainrot
+                local targetPos = nil
+                
+                -- Get target position
                 if brainrot and brainrot:IsA("Model") and brainrot:FindFirstChild("HumanoidRootPart") then
-                    teleportTo(brainrot.HumanoidRootPart.Position)
+                    targetPos = brainrot.HumanoidRootPart.Position
                 elseif brainrot and brainrot:IsA("BasePart") then
-                    teleportTo(brainrot.Position)
+                    targetPos = brainrot.Position
                 elseif brainrot then
-                    -- Try to get position from any part
                     local part = brainrot:FindFirstChildWhichIsA("BasePart")
                     if part then
-                        teleportTo(part.Position)
+                        targetPos = part.Position
                     end
+                end
+                
+                -- Tween to brainrot
+                if targetPos then
+                    tweenTo(targetPos)
                 end
                 
                 -- Wait specified delay
@@ -71,8 +91,8 @@ local function startAutoFarm()
                     firePrompt(brainrot)
                 end
                 
-                -- Teleport back
-                teleportTo(Vector3.new(16, -10, -57))
+                -- Tween back
+                tweenTo(Vector3.new(16, -10, -57))
                 
                 -- Small delay before next iteration
                 task.wait(0.1)
@@ -91,12 +111,10 @@ autoFarmToggle = MainTab:CreateToggle({
     Callback = function(Value)
         isFarming = Value
         if Value then
-            -- Set gravity to 0 when enabled
             originalGravity = workspace.Gravity
             workspace.Gravity = 0
             startAutoFarm()
         else
-            -- Restore gravity when disabled
             workspace.Gravity = originalGravity
         end
     end,
@@ -112,5 +130,18 @@ MainTab:CreateSlider({
     Flag = "FarmDelaySlider",
     Callback = function(Value)
         farmDelay = Value
+    end,
+})
+
+-- Create Tween Speed Slider
+MainTab:CreateSlider({
+    Name = "Tween Speed",
+    Range = {100, 3000},
+    Increment = 100,
+    Suffix = " studs/s",
+    CurrentValue = 1000,
+    Flag = "TweenSpeedSlider",
+    Callback = function(Value)
+        tweenSpeed = Value
     end,
 })
