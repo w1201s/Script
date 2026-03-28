@@ -25,11 +25,16 @@ local isFarming = false
 local originalGravity = workspace.Gravity
 local tweenSpeed = 1000
 
--- Function to fire proximity prompt
-local function firePrompt(obj)
-    if obj and obj:FindFirstChildOfClass("ProximityPrompt") then
-        local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+-- Function to fire proximity prompt multiple times in a loop
+local function firePromptLoop(obj, duration)
+    if not obj then return end
+    local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+    if not prompt then return end
+    
+    local startTime = tick()
+    while tick() - startTime < duration do
         fireproximityprompt(prompt)
+        task.wait(0.05)  -- Fire every 0.05 seconds
     end
 end
 
@@ -93,12 +98,11 @@ local function startAutoFarm()
                     teleportTo(targetPos)
                 end
                 
-                -- Wait specified delay
-                task.wait(farmDelay)
-                
-                -- Fire prompt
+                -- LOOP FIRE PROMPT for the duration of farmDelay
                 if brainrot then
-                    firePrompt(brainrot)
+                    firePromptLoop(brainrot, farmDelay)
+                else
+                    task.wait(farmDelay)
                 end
                 
                 -- Return to base: First TP to Zones["1"], then tween to base
