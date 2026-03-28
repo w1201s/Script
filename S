@@ -55,10 +55,20 @@ local function tweenTo(position)
     end
 end
 
+-- Function to teleport instantly
+local function teleportTo(position)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.CFrame = CFrame.new(position)
+    end
+end
+
 -- Auto Farm Function
 local function startAutoFarm()
     while isFarming do
         local activeBrainrots = workspace:FindFirstChild("ActiveBrainrots")
+        local zones = workspace:FindFirstChild("Zones")
         
         if activeBrainrots then
             for _, brainrot in ipairs(activeBrainrots:GetChildren()) do
@@ -91,7 +101,17 @@ local function startAutoFarm()
                     firePrompt(brainrot)
                 end
                 
-                -- Tween back
+                -- Return to base: First teleport to Zones["1"], then tween to base
+                if zones and zones:FindFirstChild("1") then
+                    local zone1 = zones["1"]
+                    if zone1:IsA("BasePart") then
+                        teleportTo(zone1.Position)
+                    elseif zone1:IsA("Model") and zone1:FindFirstChildWhichIsA("BasePart") then
+                        teleportTo(zone1:FindFirstChildWhichIsA("BasePart").Position)
+                    end
+                end
+                
+                -- Tween back to base position
                 tweenTo(Vector3.new(16, -10, -57))
                 
                 -- Small delay before next iteration
