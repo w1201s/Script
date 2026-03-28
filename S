@@ -1,0 +1,116 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Brainrot Auto Farm",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "by Rayfield",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = nil,
+        FileName = "BrainrotFarm"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = false
+    },
+    KeySystem = false
+})
+
+local MainTab = Window:CreateTab("Auto Farm", 4483362458)
+
+local autoFarmToggle = nil
+local farmDelay = 0.3
+local isFarming = false
+local originalGravity = workspace.Gravity
+
+-- Function to fire proximity prompt
+local function firePrompt(obj)
+    if obj and obj:FindFirstChildOfClass("ProximityPrompt") then
+        local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
+        fireproximityprompt(prompt)
+    end
+end
+
+-- Function to teleport
+local function teleportTo(position)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.CFrame = CFrame.new(position)
+    end
+end
+
+-- Auto Farm Function
+local function startAutoFarm()
+    while isFarming do
+        local activeBrainrots = workspace:FindFirstChild("ActiveBrainrots")
+        
+        if activeBrainrots then
+            for _, brainrot in ipairs(activeBrainrots:GetChildren()) do
+                if not isFarming then break end
+                
+                -- Teleport to brainrot
+                if brainrot and brainrot:IsA("Model") and brainrot:FindFirstChild("HumanoidRootPart") then
+                    teleportTo(brainrot.HumanoidRootPart.Position)
+                elseif brainrot and brainrot:IsA("BasePart") then
+                    teleportTo(brainrot.Position)
+                elseif brainrot then
+                    -- Try to get position from any part
+                    local part = brainrot:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        teleportTo(part.Position)
+                    end
+                end
+                
+                -- Wait specified delay
+                task.wait(farmDelay)
+                
+                -- Fire prompt
+                if brainrot then
+                    firePrompt(brainrot)
+                end
+                
+                -- Teleport back
+                teleportTo(Vector3.new(16, -10, -57))
+                
+                -- Small delay before next iteration
+                task.wait(0.1)
+            end
+        end
+        
+        task.wait(0.1)
+    end
+end
+
+-- Create Toggle
+autoFarmToggle = MainTab:CreateToggle({
+    Name = "Auto Farm Brainrots",
+    CurrentValue = false,
+    Flag = "AutoFarmToggle",
+    Callback = function(Value)
+        isFarming = Value
+        if Value then
+            -- Set gravity to 0 when enabled
+            originalGravity = workspace.Gravity
+            workspace.Gravity = 0
+            startAutoFarm()
+        else
+            -- Restore gravity when disabled
+            workspace.Gravity = originalGravity
+        end
+    end,
+})
+
+-- Create Delay Slider
+MainTab:CreateSlider({
+    Name = "Farm Delay",
+    Range = {0, 1},
+    Increment = 0.05,
+    Suffix = "s",
+    CurrentValue = 0.3,
+    Flag = "FarmDelaySlider",
+    Callback = function(Value)
+        farmDelay = Value
+    end,
+})
