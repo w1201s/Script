@@ -88,9 +88,9 @@ local function startAutoFarm()
                     end
                 end
                 
-                -- Tween to brainrot
+                -- TP to brainrot (instant)
                 if targetPos then
-                    tweenTo(targetPos)
+                    teleportTo(targetPos)
                 end
                 
                 -- Wait specified delay
@@ -101,7 +101,7 @@ local function startAutoFarm()
                     firePrompt(brainrot)
                 end
                 
-                -- Return to base: First teleport to Zones["1"], then tween to base
+                -- Return to base: First TP to Zones["1"], then tween to base
                 if zones and zones:FindFirstChild("1") then
                     local zone1 = zones["1"]
                     if zone1:IsA("BasePart") then
