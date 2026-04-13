@@ -21,7 +21,7 @@ local inmatesTeam = Teams:FindFirstChild("Inmates")
 local criminalsTeam = Teams:FindFirstChild("Criminals")
 
 local cfg = {
-    enabled = false, -- toggle the whole script on/off
+    enabled = true, -- toggle the whole script on/off
     teamcheck = true, -- dont shoot people on your team
     wallcheck = true, -- dont shoot through walls
     deathcheck = true, -- skip dead players
@@ -1716,7 +1716,7 @@ local Tab = Window:CreateTab("Tab Example", "rewind")
 
 local Toggle = Tab:CreateToggle({
    Name = "Silent aim",
-   CurrentValue = false,
+   CurrentValue = true,
    Flag = "A", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
    Callback = function(Value)
    	enabled = Value
