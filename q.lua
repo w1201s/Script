@@ -1,7 +1,3 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
-local version = "1.0.2"
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
