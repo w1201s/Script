@@ -2102,8 +2102,3 @@ SettingsTab:CreateButton({
         end
     end,
 })
-
-
-})
-
-refreshUI()
