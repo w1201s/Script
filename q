@@ -1868,1625 +1868,246 @@ local function replaceFirst(source, oldText, newText)
 	return string.sub(source, 1, startIndex - 1) .. newText .. string.sub(source, endIndex + 1), true
 end
 
-local function loadPatchedMacLib()
-	local source = game:HttpGet("https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-	source = select(1, replaceFirst(
-		source,
-		'sliderBar.Size = UDim2.fromOffset(123, 3)',
-		'sliderBar.Size = UDim2.fromOffset(123, 10)\n\t\t\t\t\tsliderBar.Active = true'
-	))
+	local Window = Rayfield:CreateWindow({
+   Name = "Rayfield Example Window",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
-	source = select(1, replaceFirst(
-		source,
-		'sliderHead.Size = UDim2.fromOffset(12, 12)',
-		'sliderHead.Size = UDim2.fromOffset(16, 16)'
-	))
+   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
 
-	source = select(1, replaceFirst(
-		source,
-		[[					sliderHead.InputBegan:Connect(function(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							dragging = true
-							SetValue(input)
-						end
-					end)
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
 
-					sliderHead.InputEnded:Connect(function(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							dragging = false
-							if SliderFunctions.Settings.onInputComplete then
-								SliderFunctions.Settings.onInputComplete(finalValue)
-							end
-						end
-					end)]],
-		[[					local function beginDrag(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							dragging = true
-							SetValue(input)
-						end
-					end
+   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
 
-					local function endDrag(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							dragging = false
-							if SliderFunctions.Settings.onInputComplete then
-								SliderFunctions.Settings.onInputComplete(finalValue)
-							end
-						end
-					end
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Big Hub"
+   },
 
-					sliderHead.InputBegan:Connect(beginDrag)
-					sliderBar.InputBegan:Connect(beginDrag)
-					sliderHead.InputEnded:Connect(endDrag)
-					sliderBar.InputEnded:Connect(endDrag)]]
-	))
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
+   },
 
-	return loadstring(source)()
-end
-
-local MacLib = loadPatchedMacLib()
-local Folder = "Silent Aim"
-
-local function getPreferredWindowSize()
-	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-	if UserInputService.TouchEnabled then
-		local maxWidth = math.min(1520, math.max(760, viewport.X - 20))
-		local maxHeight = math.min(860, math.max(420, viewport.Y - 56))
-		local minWidth = math.min(920, maxWidth)
-		local minHeight = math.min(520, maxHeight)
-		local width = math.floor(math.clamp(viewport.X * 0.9, minWidth, maxWidth))
-		local height = math.floor(math.clamp(viewport.Y * 0.8, minHeight, maxHeight))
-		return UDim2.fromOffset(width, height)
-	end
-	return UDim2.fromOffset(800, 600)
-end
-
-local Window = MacLib:Window({
-	Title = "Prison Life Silent Aim",
-	Subtitle = "Prison Life Exploit",
-	Size = UDim2.fromOffset(800, 600),
-	DragStyle = 1,
-	DisabledWindowControls = {},
-	ShowUserInfo = not UserInputService.TouchEnabled,
-	Keybind = Enum.KeyCode.RightAlt,
-	AcrylicBlur = true,
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
+   }
 })
 
-MacLib:SetFolder(Folder)
 
-local function applyPreferredWindowSize()
-	Window:SetSize(getPreferredWindowSize())
-end
+local AimbotTab = Window:CreateTab("Aimbot", 4034483344)
+local DistanceHitchanceTab = Window:CreateTab("Distance Hitchance", 4034483344)
+local ESPTab = Window:CreateTab("ESP", 4034483345)
+local AutoshootTab = Window:CreateTab("Autoshoot", 4034483346)
+local SettingsTab = Window:CreateTab("Settings", 4034483347)
 
-applyPreferredWindowSize()
-task.defer(applyPreferredWindowSize)
-task.delay(0.25, applyPreferredWindowSize)
-
-if UserInputService.TouchEnabled then
-	task.defer(function()
-		pcall(function()
-			Window:SetUserInfoState(false)
-		end)
-	end)
-end
-
-local clampMobileButtonPosition
-local currentViewportConn = nil
-local refreshMobileButtonVisibility
-local syncMobileButtonLayer
-local function bindWindowResizeToCamera()
-	if currentViewportConn then
-		currentViewportConn:Disconnect()
-		currentViewportConn = nil
-	end
-
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return
-	end
-
-	currentViewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-		if UserInputService.TouchEnabled then
-			applyPreferredWindowSize()
-			if clampMobileButtonPosition then
-				clampMobileButtonPosition()
-			end
-		end
-	end)
-end
-
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-	bindWindowResizeToCamera()
-	if UserInputService.TouchEnabled then
-		task.defer(applyPreferredWindowSize)
-	end
-end)
-
-bindWindowResizeToCamera()
-
-local function getMobileButtonParent()
-	return (gethui and gethui()) or CoreGui
-end
-
-local function getClampedButtonCenter(rawCenter, buttonSize)
-	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-	local padding = 10
-	local halfWidth = buttonSize.X * 0.5
-	local halfHeight = buttonSize.Y * 0.5
-	local minX = halfWidth + padding
-	local maxX = math.max(minX, viewport.X - halfWidth - padding)
-	local minY = halfHeight + padding
-	local maxY = math.max(minY, viewport.Y - halfHeight - padding)
-	return Vector2.new(
-		math.clamp(rawCenter.X, minX, maxX),
-		math.clamp(rawCenter.Y, minY, maxY)
-	)
-end
-
-local function getDefaultMobileButtonCenter(buttonSize)
-	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-	local topOffset = math.max(118, viewport.Y * 0.12)
-	local desiredCenter = Vector2.new(buttonSize.X * 0.5 + 28, topOffset + buttonSize.Y * 0.5)
-	return getClampedButtonCenter(desiredCenter, buttonSize)
-end
-
-local function getInputPosition2D(input)
-	local position = input and input.Position
-	if not position then
-		return Vector2.zero
-	end
-	return Vector2.new(position.X, position.Y)
-end
-
-clampMobileButtonPosition = function()
-	if not mobileGuiButton or not mobileGuiButton.Parent then
-		return
-	end
-
-	local currentCenter = Vector2.new(
-		mobileGuiButton.AbsolutePosition.X + mobileGuiButton.AbsoluteSize.X * 0.5,
-		mobileGuiButton.AbsolutePosition.Y + mobileGuiButton.AbsoluteSize.Y * 0.5
-	)
-	local clampedCenter = getClampedButtonCenter(currentCenter, mobileGuiButton.AbsoluteSize)
-	mobileGuiButton.Position = UDim2.fromOffset(clampedCenter.X, clampedCenter.Y)
-end
-
-resolveMacLibWindowGui = function()
-	local title = Window and Window.Settings and Window.Settings.Title or "Prison Life Silent Aim"
-	local guiParent = getMobileButtonParent()
-	local candidates = {guiParent}
-	if guiParent ~= CoreGui then
-		candidates[#candidates + 1] = CoreGui
-	end
-
-	for _, parent in ipairs(candidates) do
-		for _, descendant in ipairs(parent:GetDescendants()) do
-			if descendant:IsA("TextLabel") and descendant.Text == title then
-				return descendant:FindFirstAncestorOfClass("ScreenGui")
-			end
-		end
-	end
-
-	return nil
-end
-
-refreshMobileButtonVisibility = function()
-	if not mobileGuiButton then
-		return
-	end
-
-	mobileGuiButton.Visible = true
-	mobileGuiButton.Active = true
-end
-
-syncMobileButtonLayer = function()
-	if not mobileGuiButton then
-		return
-	end
-
-	local screen = mobileGuiButton:FindFirstAncestorOfClass("ScreenGui")
-	if not screen then
-		return
-	end
-
-	local windowGui = resolveMacLibWindowGui and resolveMacLibWindowGui() or nil
-	local targetParent = getMobileButtonParent()
-	if windowGui and windowGui.Parent then
-		targetParent = windowGui.Parent
-	end
-
-	screen.ScreenInsets = Enum.ScreenInsets.None
-	screen.DisplayOrder = windowGui and windowGui.DisplayOrder or 2147483647
-
-	if screen.Parent ~= targetParent then
-		screen.Parent = targetParent
-	end
-
-	-- Reparent once so this layer collector is inserted after the menu.
-	screen.Parent = nil
-	screen.Parent = targetParent
-end
-
-local function toggleMacLibWindow()
-	local windowGui = resolveMacLibWindowGui()
-	if not windowGui then
-		Window:Notify({
-			Title = Window.Settings.Title,
-			Description = "Couldn't find the window to toggle yet.",
-			Lifetime = 3
-		})
-		return
-	end
-
-	windowGui.Enabled = not windowGui.Enabled
-	refreshMobileButtonVisibility()
-end
-
-local function createMobileWindowButton()
-	if not UserInputService.TouchEnabled then
-		return
-	end
-
-	local existing = getMobileButtonParent():FindFirstChild("SilentAimMobileButton")
-	if existing then
-		existing:Destroy()
-	end
-
-	local screen = Instance.new("ScreenGui")
-	screen.Name = "SilentAimMobileButton"
-	screen.ResetOnSpawn = false
-	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screen.IgnoreGuiInset = true
-	screen.ScreenInsets = Enum.ScreenInsets.None
-	screen.DisplayOrder = 2147483647
-	screen.Parent = getMobileButtonParent()
-
-	local buttonSize = Vector2.new(68, 68)
-	local defaultCenter = getDefaultMobileButtonCenter(buttonSize)
-	local button = Instance.new("ImageButton")
-	button.Name = "ToggleButton"
-	button.AnchorPoint = Vector2.new(0.5, 0.5)
-	button.Position = UDim2.fromOffset(defaultCenter.X, defaultCenter.Y)
-	button.Size = UDim2.fromOffset(buttonSize.X, buttonSize.Y)
-	button.BackgroundTransparency = 1
-	button.BorderSizePixel = 0
-	button.Image = "rbxassetid://100746642581984"
-	button.ScaleType = Enum.ScaleType.Fit
-	button.Active = true
-	button.ZIndex = 1000
-	button.Parent = screen
-
-	mobileGuiButton = button
-
-	local dragInput = nil
-	local dragStart = nil
-	local startCenter = nil
-	local moved = false
-	local moveThreshold = 14
-
-	button.InputBegan:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.Touch and input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-			return
-		end
-		dragInput = input
-		mobileGuiDragInput = input
-		dragStart = getInputPosition2D(input)
-		startCenter = Vector2.new(
-			button.AbsolutePosition.X + button.AbsoluteSize.X * 0.5,
-			button.AbsolutePosition.Y + button.AbsoluteSize.Y * 0.5
-		)
-		activeTouch = nil
-		lastTouchAimPos = nil
-		moved = false
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragStart and startCenter then
-			local delta = getInputPosition2D(input) - dragStart
-
-			if not moved then
-				if delta.Magnitude < moveThreshold then
-					return
-				end
-				moved = true
-			end
-
-			local nextCenter = getClampedButtonCenter(startCenter + delta, button.AbsoluteSize)
-			button.Position = UDim2.fromOffset(nextCenter.X, nextCenter.Y)
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input ~= dragInput then
-			return
-		end
-
-		local wasMoved = moved
-		mobileGuiDragInput = nil
-		dragInput = nil
-		dragStart = nil
-		startCenter = nil
-		moved = false
-
-		if wasMoved then
-			clampMobileButtonPosition()
-		else
-			toggleMacLibWindow()
-		end
-	end)
-
-	task.defer(clampMobileButtonPosition)
-	task.defer(syncMobileButtonLayer)
-	task.defer(refreshMobileButtonVisibility)
-end
-
-createMobileWindowButton()
-
-task.defer(function()
-	local windowGui = resolveMacLibWindowGui and resolveMacLibWindowGui() or nil
-	syncMobileButtonLayer()
-	if windowGui then
-		windowGui:GetPropertyChangedSignal("Enabled"):Connect(function()
-			syncMobileButtonLayer()
-			refreshMobileButtonVisibility()
-		end)
-	end
-end)
-
-local globalSettings = {
-	UIBlurToggle = Window:GlobalSetting({
-		Name = "UI Blur",
-		Default = Window:GetAcrylicBlurState(),
-		Callback = function(bool)
-			Window:SetAcrylicBlurState(bool)
-			Window:Notify({
-				Title = Window.Settings.Title,
-				Description = (bool and "Enabled" or "Disabled") .. " UI Blur",
-				Lifetime = 5
-			})
-		end,
-	}),
-
-	NotificationToggler = Window:GlobalSetting({
-		Name = "Notifications",
-		Default = Window:GetNotificationsState(),
-		Callback = function(bool)
-			Window:SetNotificationsState(bool)
-			Window:Notify({
-				Title = Window.Settings.Title,
-				Description = (bool and "Enabled" or "Disabled") .. " Notifications",
-				Lifetime = 5
-			})
-		end,
-	}),
-
-	ShowUserInfo = Window:GlobalSetting({
-		Name = "Show User Info",
-		Default = Window:GetUserInfoState(),
-		Callback = function(bool)
-			Window:SetUserInfoState(bool)
-			Window:Notify({
-				Title = Window.Settings.Title,
-				Description = (bool and "Showing" or "Redacted") .. " User Info",
-				Lifetime = 5
-			})
-		end,
-	})
-}
-
-local MainGroup = Window:TabGroup()
-
-local AimbotTab = MainGroup:Tab({Name = "Aimbot", Image = "rbxassetid://4034483344"})
-local DistanceHitchanceTab = MainGroup:Tab({Name = "Distance Hitchance", Image = "rbxassetid://4034483344"})
-local ESPTab = MainGroup:Tab({Name = "ESP", Image = "rbxassetid://4034483345"})
-local AutoshootTab = MainGroup:Tab({Name = "Autoshoot", Image = "rbxassetid://4034483346"})
-local SettingsTab = MainGroup:Tab({Name = "Settings", Image = "rbxassetid://4034483347"})
-
-local sections = {
-	aimbotLeft = AimbotTab:Section({ Side = "Left" }),
-	aimbotRight = AimbotTab:Section({ Side = "Right" }),
-	distanceHitchanceLeft = DistanceHitchanceTab:Section({ Side = "Left" }),
-	distanceHitchanceRight = DistanceHitchanceTab:Section({ Side = "Right" }),
-	espLeft = ESPTab:Section({ Side = "Left" }),
-	espRight = ESPTab:Section({ Side = "Right" }),
-	autoshootLeft = AutoshootTab:Section({ Side = "Left" }),
-	autoshootRight = AutoshootTab:Section({ Side = "Right" }),
-	settingsLeft = SettingsTab:Section({ Side = "Left" }),
-	settingsRight = SettingsTab:Section({ Side = "Right" })
-}
-
-AimbotTab:Select()
-
-Window:Notify({
-	Title = "Build Loaded",
-	Description = string.format("GUI build %s loaded with Distance Hitchance tab.", version),
-	Lifetime = 5
+-- Silent Aim
+uiElements.SilentAimToggle = AimbotTab:CreateToggle({
+    Name = "Silent Aim",
+    CurrentValue = cfg.enabled,
+    Flag = "SilentAimToggle",
+    Callback = function(Value)
+        cfg.enabled = Value
+    end,
 })
 
-local configFolder = "SilentAimConfigs"
-local autoloadConfigFile = configFolder .. "/_autoload.txt"
-
-local function serializeColor3(color)
-	return {R = color.R, G = color.G, B = color.B}
-end
-
-local function deserializeColor3(tbl)
-	if tbl and tbl.R and tbl.G and tbl.B then
-		return Color3.new(tbl.R, tbl.G, tbl.B)
-	end
-	return Color3.new(1, 1, 1)
-end
-
-local function serializeConfig()
-	local data = {}
-	for key, value in pairs(cfg) do
-		if typeof(value) == "Color3" then
-			data[key] = {type = "Color3", value = serializeColor3(value)}
-		elseif typeof(value) == "EnumItem" then
-			data[key] = {type = "EnumItem", value = tostring(value)}
-		elseif typeof(value) == "table" then
-			data[key] = {type = "table", value = value}
-		else
-			data[key] = {type = typeof(value), value = value}
-		end
-	end
-	return game:GetService("HttpService"):JSONEncode(data)
-end
-
-local function deserializeConfig(jsonString)
-	local success, data = pcall(function()
-		return game:GetService("HttpService"):JSONDecode(jsonString)
-	end)
-	if not success then return nil end
-	
-	local result = {}
-	for key, entry in pairs(data) do
-		if entry.type == "Color3" then
-			result[key] = deserializeColor3(entry.value)
-		elseif entry.type == "EnumItem" then
-			local enumPath = entry.value:match("Enum%.(.+)")
-			if enumPath then
-				local parts = enumPath:split(".")
-				if #parts == 2 then
-					local enumType = Enum[parts[1]]
-					if enumType then
-						result[key] = enumType[parts[2]]
-					end
-				end
-			end
-		elseif entry.type == "table" then
-			result[key] = entry.value
-		else
-			result[key] = entry.value
-		end
-	end
-	return result
-end
-
-local function saveConfig(name)
-	if not isfolder then return false end
-	if not isfolder(configFolder) then
-		makefolder(configFolder)
-	end
-	local path = configFolder .. "/" .. name .. ".json"
-	local data = serializeConfig()
-	writefile(path, data)
-	return true
-end
-
-local function loadConfig(name)
-	if not isfolder or not isfile then return false end
-	local path = configFolder .. "/" .. name .. ".json"
-	if not isfile(path) then return false end
-	
-	local data = readfile(path)
-	local loaded = deserializeConfig(data)
-	if not loaded then return false end
-	
-	for key, value in pairs(loaded) do
-		if cfg[key] ~= nil then
-			cfg[key] = value
-		end
-	end
-	syncDistanceHitchanceAimMaxDistanceFromConfig()
-	return true
-end
-
-local function getConfigList()
-	if not isfolder or not listfiles then return {} end
-	if not isfolder(configFolder) then return {} end
-	
-	local files = listfiles(configFolder)
-	local configs = {}
-	for _, path in ipairs(files) do
-		local name = path:match("([^/\\]+)%.json$")
-		if name then
-			table.insert(configs, name)
-		end
-	end
-	return configs
-end
-
-local function deleteConfig(name)
-	if not isfolder or not isfile or not delfile then return false end
-	local path = configFolder .. "/" .. name .. ".json"
-	if isfile(path) then
-		delfile(path)
-		return true
-	end
-	return false
-end
-
-local function getAutoLoadConfigName()
-	if not isfolder or not isfile or not readfile then
-		return ""
-	end
-	if not isfolder(configFolder) or not isfile(autoloadConfigFile) then
-		return ""
-	end
-	return tostring(readfile(autoloadConfigFile) or ""):gsub("^%s+", ""):gsub("%s+$", "")
-end
-
-local function setAutoLoadConfigName(name)
-	if not isfolder or not writefile then
-		return false
-	end
-	if not isfolder(configFolder) then
-		makefolder(configFolder)
-	end
-	writefile(autoloadConfigFile, tostring(name or ""))
-	return true
-end
-
-local function clearAutoLoadConfigName()
-	if not isfolder or not isfile or not delfile then
-		return false
-	end
-	if isfile(autoloadConfigFile) then
-		delfile(autoloadConfigFile)
-	end
-	return true
-end
-
-local currentAutoLoadConfigName = getAutoLoadConfigName()
-if currentAutoLoadConfigName ~= "" then
-	if loadConfig(currentAutoLoadConfigName) then
-		Window:Notify({
-			Title = "Auto Load",
-			Description = "Loaded config: " .. currentAutoLoadConfigName,
-			Lifetime = 4
-		})
-	else
-		Window:Notify({
-			Title = "Auto Load",
-			Description = "Couldn't load config: " .. currentAutoLoadConfigName,
-			Lifetime = 4
-		})
-	end
-end
-syncDistanceHitchanceAimMaxDistanceFromConfig()
-
-local function refreshUI()
-	if uiElements.SilentAimToggle then uiElements.SilentAimToggle:UpdateState(cfg.enabled) end
-	if uiElements.TeamCheckToggle then uiElements.TeamCheckToggle:UpdateState(cfg.teamcheck) end
-	if uiElements.WallCheckToggle then uiElements.WallCheckToggle:UpdateState(cfg.wallcheck) end
-	if uiElements.DeathCheckToggle then uiElements.DeathCheckToggle:UpdateState(cfg.deathcheck) end
-	if uiElements.VehicleCheckToggle then uiElements.VehicleCheckToggle:UpdateState(cfg.vehiclecheck) end
-	if uiElements.HostileCheckToggle then uiElements.HostileCheckToggle:UpdateState(cfg.hostilecheck) end
-	if uiElements.TrespassCheckToggle then uiElements.TrespassCheckToggle:UpdateState(cfg.trespasscheck) end
-	if uiElements.CriminalsSkipInmatesToggle then uiElements.CriminalsSkipInmatesToggle:UpdateState(cfg.criminalsnoinnmates) end
-	if uiElements.InmatesSkipCriminalsToggle then uiElements.InmatesSkipCriminalsToggle:UpdateState(cfg.inmatesnocriminals) end
-	if uiElements.FFCheckToggle then uiElements.FFCheckToggle:UpdateState(cfg.ffcheck) end
-	if uiElements.ShieldBreakerToggle then uiElements.ShieldBreakerToggle:UpdateState(cfg.shieldbreaker) end
-	if uiElements.ShieldFrontAngleSlider then uiElements.ShieldFrontAngleSlider:UpdateValue(cfg.shieldfrontangle) end
-	if uiElements.ShieldRandomHeadToggle then uiElements.ShieldRandomHeadToggle:UpdateState(cfg.shieldrandomhead) end
-	if uiElements.ShieldHeadChanceSlider then uiElements.ShieldHeadChanceSlider:UpdateValue(cfg.shieldheadchance) end
-	if uiElements.TaserBypassHostileToggle then uiElements.TaserBypassHostileToggle:UpdateState(cfg.taserbypasshostile) end
-	if uiElements.TaserBypassTrespassToggle then uiElements.TaserBypassTrespassToggle:UpdateState(cfg.taserbypasstrespass) end
-	if uiElements.TaserAlwaysHitToggle then uiElements.TaserAlwaysHitToggle:UpdateState(cfg.taseralwayshit) end
-	if uiElements.HitIfPlayerStillToggle then uiElements.HitIfPlayerStillToggle:UpdateState(cfg.ifplayerstill) end
-	if uiElements.StillThresholdSlider then uiElements.StillThresholdSlider:UpdateValue(cfg.stillthreshold) end
-	if uiElements.HitChanceSlider then uiElements.HitChanceSlider:UpdateValue(cfg.hitchance) end
-	if uiElements.HitChanceAutoOnlyToggle then uiElements.HitChanceAutoOnlyToggle:UpdateState(cfg.hitchanceAutoOnly) end
-	if uiElements.DistanceBasedHitChanceToggle then uiElements.DistanceBasedHitChanceToggle:UpdateState(cfg.distancebasedhitchance) end
-	if uiElements.AimMaxDistSlider then uiElements.AimMaxDistSlider:UpdateValue(cfg.aimmaxdist) end
-	if uiElements.MissSpreadSlider then uiElements.MissSpreadSlider:UpdateValue(cfg.missspread) end
-	if uiElements.ShotgunNaturalSpreadToggle then uiElements.ShotgunNaturalSpreadToggle:UpdateState(cfg.shotgunnaturalspread) end
-	if uiElements.ShotgunGameHandledToggle then uiElements.ShotgunGameHandledToggle:UpdateState(cfg.shotgungamehandled) end
-	if uiElements.PrioritizeClosestToggle then uiElements.PrioritizeClosestToggle:UpdateState(cfg.prioritizeclosest) end
-	if uiElements.PrioritizeCriminalsToggle then uiElements.PrioritizeCriminalsToggle:UpdateState(cfg.prioritizecriminals) end
-	if uiElements.TargetStickinessToggle then uiElements.TargetStickinessToggle:UpdateState(cfg.targetstickiness) end
-	if uiElements.StickinessDurationSlider then uiElements.StickinessDurationSlider:UpdateValue(cfg.targetstickinessduration) end
-	if uiElements.TargetStickinessRandomToggle then uiElements.TargetStickinessRandomToggle:UpdateState(cfg.targetstickinessrandom) end
-	if uiElements.TargetStickinessMinSlider then uiElements.TargetStickinessMinSlider:UpdateValue(cfg.targetstickinessmin) end
-	if uiElements.TargetStickinessMaxSlider then uiElements.TargetStickinessMaxSlider:UpdateValue(cfg.targetstickinessmax) end
-	if uiElements.FovSlider then uiElements.FovSlider:UpdateValue(cfg.fov) end
-	if uiElements.ShowFovToggle then uiElements.ShowFovToggle:UpdateState(cfg.showfov) end
-	if uiElements.StaticFovToggle then uiElements.StaticFovToggle:UpdateState(cfg.staticfov) end
-	if uiElements.ShowTargetLineToggle then uiElements.ShowTargetLineToggle:UpdateState(cfg.showtargetline) end
-	if uiElements.AimPartDropdown then uiElements.AimPartDropdown:UpdateSelection(cfg.aimpart) end
-	if uiElements.RandomPartsToggle then uiElements.RandomPartsToggle:UpdateState(cfg.randomparts) end
-	if uiElements.EspToggle then uiElements.EspToggle:UpdateState(cfg.esp) end
-	if uiElements.EspTeamCheckToggle then uiElements.EspTeamCheckToggle:UpdateState(cfg.espteamcheck) end
-	if uiElements.ShowTeamToggle then uiElements.ShowTeamToggle:UpdateState(cfg.espshowteam) end
-	if uiElements.EspMaxDistanceSlider then uiElements.EspMaxDistanceSlider:UpdateValue(cfg.espmaxdist) end
-	if uiElements.ShowDistanceToggle then uiElements.ShowDistanceToggle:UpdateState(cfg.espshowdist) end
-	if uiElements.UseTeamColorsToggle then uiElements.UseTeamColorsToggle:UpdateState(cfg.espuseteamcolors) end
-	if uiElements.EspColorPicker then uiElements.EspColorPicker:SetColor(cfg.espcolor) end
-	if uiElements.GuardsColorPicker then uiElements.GuardsColorPicker:SetColor(cfg.espguards) end
-	if uiElements.InmatesColorPicker then uiElements.InmatesColorPicker:SetColor(cfg.espinmates) end
-	if uiElements.CriminalsColorPicker then uiElements.CriminalsColorPicker:SetColor(cfg.espcriminals) end
-	if uiElements.TeamColorPicker then uiElements.TeamColorPicker:SetColor(cfg.espteam) end
-	if uiElements.C4EspToggle then uiElements.C4EspToggle:UpdateState(cfg.c4esp) end
-	if uiElements.C4EspMaxDistanceSlider then uiElements.C4EspMaxDistanceSlider:UpdateValue(cfg.c4espmaxdist) end
-	if uiElements.C4ShowDistanceToggle then uiElements.C4ShowDistanceToggle:UpdateState(cfg.c4espshowdist) end
-	if uiElements.C4EspColorPicker then uiElements.C4EspColorPicker:SetColor(cfg.c4espcolor) end
-	if uiElements.AutoshootToggle then uiElements.AutoshootToggle:UpdateState(cfg.autoshoot) end
-	if uiElements.AutoshootWeaponDropdown then uiElements.AutoshootWeaponDropdown:UpdateSelection(cfg.autoshootweapon) end
-	if uiElements.AutoshootDelaySlider then uiElements.AutoshootDelaySlider:UpdateValue(cfg.autoshootdelay) end
-	if uiElements.AutoshootStartDelaySlider then uiElements.AutoshootStartDelaySlider:UpdateValue(cfg.autoshootstartdelay) end
-	if uiElements.AutoGrabToggle then uiElements.AutoGrabToggle:UpdateState(cfg.autograb) end
-	if uiElements.AutoGrabDistanceSlider then uiElements.AutoGrabDistanceSlider:UpdateValue(cfg.autograbdistance) end
-	if uiElements.AutoGrabDelaySlider then uiElements.AutoGrabDelaySlider:UpdateValue(cfg.autograbdelay) end
-	if uiElements.AutoGrabKeycardToggle then uiElements.AutoGrabKeycardToggle:UpdateState(cfg.autograbkeycard) end
-	if uiElements.AutoGrabM9Toggle then uiElements.AutoGrabM9Toggle:UpdateState(cfg.autograbm9) end
-	syncDistanceHitchanceEditor()
-	updateEsp()
-	updateC4Esp()
-end
-
-uiElements.SilentAimToggle = sections.aimbotLeft:Toggle({
-	Name = "Silent Aim",
-	Default = cfg.enabled,
-	Callback = function(state)
-		cfg.enabled = state
-	end,
-}, "SilentAimToggle")
-
-uiElements.TeamCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Team Check",
-	Default = cfg.teamcheck,
-	Callback = function(state)
-		cfg.teamcheck = state
-	end,
-}, "TeamCheckToggle")
-
-uiElements.WallCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Wall Check",
-	Default = cfg.wallcheck,
-	Callback = function(state)
-		cfg.wallcheck = state
-	end,
-}, "WallCheckToggle")
-
-uiElements.DeathCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Death Check",
-	Default = cfg.deathcheck,
-	Callback = function(state)
-		cfg.deathcheck = state
-	end,
-}, "DeathCheckToggle")
-
-uiElements.VehicleCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Vehicle Check",
-	Default = cfg.vehiclecheck,
-	Callback = function(state)
-		cfg.vehiclecheck = state
-	end,
-}, "VehicleCheckToggle")
-
-uiElements.HostileCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Hostile Check",
-	Default = cfg.hostilecheck,
-	Callback = function(state)
-		cfg.hostilecheck = state
-	end,
-}, "HostileCheckToggle")
-
-uiElements.TrespassCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "Trespass Check",
-	Default = cfg.trespasscheck,
-	Callback = function(state)
-		cfg.trespasscheck = state
-	end,
-}, "TrespassCheckToggle")
-
-uiElements.CriminalsSkipInmatesToggle = sections.aimbotLeft:Toggle({
-	Name = "Criminals Skip Inmates",
-	Default = cfg.criminalsnoinnmates,
-	Callback = function(state)
-		cfg.criminalsnoinnmates = state
-	end,
-}, "CriminalsSkipInmatesToggle")
-
-uiElements.InmatesSkipCriminalsToggle = sections.aimbotLeft:Toggle({
-	Name = "Inmates Skip Criminals",
-	Default = cfg.inmatesnocriminals,
-	Callback = function(state)
-		cfg.inmatesnocriminals = state
-	end,
-}, "InmatesSkipCriminalsToggle")
-
-uiElements.FFCheckToggle = sections.aimbotLeft:Toggle({
-	Name = "ForceField Check",
-	Default = cfg.ffcheck,
-	Callback = function(state)
-		cfg.ffcheck = state
-	end,
-}, "FFCheckToggle")
-
-uiElements.ShieldBreakerToggle = sections.aimbotRight:Toggle({
-	Name = "Shield Breaker",
-	Default = cfg.shieldbreaker,
-	Callback = function(state)
-		cfg.shieldbreaker = state
-	end,
-}, "ShieldBreakerToggle")
-
-uiElements.ShieldFrontAngleSlider = sections.aimbotRight:Slider({
-	Name = "Shield Front Angle",
-	Default = cfg.shieldfrontangle,
-	Minimum = -1,
-	Maximum = 1,
-	Precision = 1,
-	Callback = function(value)
-		cfg.shieldfrontangle = value
-	end,
-}, "ShieldFrontAngleSlider")
-
-uiElements.ShieldRandomHeadToggle = sections.aimbotRight:Toggle({
-	Name = "Shield Random Head",
-	Default = cfg.shieldrandomhead,
-	Callback = function(state)
-		cfg.shieldrandomhead = state
-	end,
-}, "ShieldRandomHeadToggle")
-
-uiElements.ShieldHeadChanceSlider = sections.aimbotRight:Slider({
-	Name = "Shield Head Chance",
-	Default = cfg.shieldheadchance,
-	Minimum = 0,
-	Maximum = 100,
-	Precision = 0,
-	Callback = function(value)
-		cfg.shieldheadchance = value
-	end,
-}, "ShieldHeadChanceSlider")
-
-uiElements.TaserBypassHostileToggle = sections.aimbotRight:Toggle({
-	Name = "Taser Bypass Hostile",
-	Default = cfg.taserbypasshostile,
-	Callback = function(state)
-		cfg.taserbypasshostile = state
-	end,
-}, "TaserBypassHostileToggle")
-
-uiElements.TaserBypassTrespassToggle = sections.aimbotRight:Toggle({
-	Name = "Taser Bypass Trespass",
-	Default = cfg.taserbypasstrespass,
-	Callback = function(state)
-		cfg.taserbypasstrespass = state
-	end,
-}, "TaserBypassTrespassToggle")
-
-uiElements.TaserAlwaysHitToggle = sections.aimbotRight:Toggle({
-	Name = "Taser Always Hit",
-	Default = cfg.taseralwayshit,
-	Callback = function(state)
-		cfg.taseralwayshit = state
-	end,
-}, "TaserAlwaysHitToggle")
-
-uiElements.HitIfPlayerStillToggle = sections.aimbotRight:Toggle({
-	Name = "Hit If Player Still",
-	Default = cfg.ifplayerstill,
-	Callback = function(state)
-		cfg.ifplayerstill = state
-	end,
-}, "HitIfPlayerStillToggle")
-
-uiElements.StillThresholdSlider = sections.aimbotRight:Slider({
-	Name = "Still Threshold",
-	Default = cfg.stillthreshold,
-	Minimum = 0,
-	Maximum = 5,
-	Precision = 1,
-	Callback = function(value)
-		cfg.stillthreshold = value
-	end,
-}, "StillThresholdSlider")
-
-uiElements.HitChanceSlider = sections.aimbotRight:Slider({
-	Name = "Hit Chance",
-	Default = cfg.hitchance,
-	Minimum = 0,
-	Maximum = 100,
-	Precision = 0,
-	Callback = function(value)
-		cfg.hitchance = value
-	end,
-}, "HitChanceSlider")
-
-uiElements.HitChanceAutoOnlyToggle = sections.aimbotRight:Toggle({
-	Name = "Hit Chance Auto Only",
-	Default = cfg.hitchanceAutoOnly,
-	Callback = function(state)
-		cfg.hitchanceAutoOnly = state
-	end,
-}, "HitChanceAutoOnlyToggle")
-
-uiElements.DistanceBasedHitChanceToggle = sections.distanceHitchanceLeft:Toggle({
-	Name = "Distance Based Hitchance",
-	Default = cfg.distancebasedhitchance,
-	Callback = function(state)
-		setDistanceHitchanceEnabledState(state)
-		if uiElements.AimMaxDistSlider then
-			uiElements.AimMaxDistSlider:UpdateValue(cfg.aimmaxdist)
-		end
-	end,
-}, "DistanceBasedHitChanceToggle")
-
-uiElements.DistanceHitchancePointDropdown = sections.distanceHitchanceLeft:Dropdown({
-	Name = "Selected Point",
-	Default = "1. 200 studs -> 30%",
-	Options = {"1. 200 studs -> 30%"},
-	Callback = function(value)
-		if syncingDistanceHitchanceEditor then
-			return
-		end
-		local selectedIndex = tonumber(tostring(value):match("^(%d+)%."))
-		if selectedIndex then
-			selectedDistanceHitchancePoint = selectedIndex
-			syncDistanceHitchanceEditor()
-		end
-	end,
-}, "DistanceHitchancePointDropdown")
-
-sections.distanceHitchanceLeft:Button({
-	Name = "Add Point",
-	Callback = function()
-		local points = ensureEditableDistanceHitchancePoints()
-		local lastPoint = points[#points]
-		local newPoint = {
-			distance = lastPoint and (lastPoint.distance + 100) or 200,
-			chance = lastPoint and math.max(lastPoint.chance - 8, 0) or 30
-		}
-		points[#points + 1] = newPoint
-		table.sort(points, function(a, b)
-			return a.distance < b.distance
-		end)
-		for index, point in ipairs(points) do
-			if point == newPoint then
-				selectedDistanceHitchancePoint = index
-				break
-			end
-		end
-		setDistanceHitchanceEnabledState(true)
-		refreshUI()
-		Window:Notify({
-			Title = "Distance Hitchance",
-			Description = "Added a new distance point.",
-			Lifetime = 4
-		})
-	end,
+uiElements.TeamCheckToggle = AimbotTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = cfg.teamcheck,
+    Flag = "TeamCheckToggle",
+    Callback = function(Value)
+        cfg.teamcheck = Value
+    end,
 })
 
-sections.distanceHitchanceLeft:Button({
-	Name = "Remove Selected",
-	Callback = function()
-		local points = ensureEditableDistanceHitchancePoints()
-		if #points <= 1 then
-			Window:Notify({
-				Title = "Distance Hitchance",
-				Description = "Keep at least one point in the list.",
-				Lifetime = 4
-			})
-			return
-		end
-		table.remove(points, selectedDistanceHitchancePoint)
-		selectedDistanceHitchancePoint = math.clamp(selectedDistanceHitchancePoint, 1, #points)
-		refreshUI()
-		Window:Notify({
-			Title = "Distance Hitchance",
-			Description = "Removed the selected point.",
-			Lifetime = 4
-		})
-	end,
+uiElements.WallCheckToggle = AimbotTab:CreateToggle({
+    Name = "Wall Check",
+    CurrentValue = cfg.wallcheck,
+    Flag = "WallCheckToggle",
+    Callback = function(Value)
+        cfg.wallcheck = Value
+    end,
 })
 
-sections.distanceHitchanceLeft:Button({
-	Name = "Load Legit Preset",
-	Callback = function()
-		loadLegitDistanceHitchancePreset()
-		refreshUI()
-		Window:Notify({
-			Title = "Distance Hitchance",
-			Description = "Loaded a legit distance preset and set base hitchance to 82.",
-			Lifetime = 5
-		})
-	end,
+uiElements.DeathCheckToggle = AimbotTab:CreateToggle({
+    Name = "Death Check",
+    CurrentValue = cfg.deathcheck,
+    Flag = "DeathCheckToggle",
+    Callback = function(Value)
+        cfg.deathcheck = Value
+    end,
 })
 
-sections.distanceHitchanceLeft:Button({
-	Name = "Load Blatant Preset",
-	Callback = function()
-		loadBlatantDistanceHitchancePreset()
-		refreshUI()
-		Window:Notify({
-			Title = "Distance Hitchance",
-			Description = "Loaded a blatant distance preset and set base hitchance to 99.",
-			Lifetime = 5
-		})
-	end,
+uiElements.HitChanceSlider = AimbotTab:CreateSlider({
+    Name = "Hit Chance",
+    Range = {0, 100},
+    Increment = 1,
+    Suffix = "%",
+    CurrentValue = cfg.hitchance,
+    Flag = "HitChanceSlider",
+    Callback = function(Value)
+        cfg.hitchance = Value
+    end,
 })
 
-sections.distanceHitchanceLeft:Button({
-	Name = "Reset to Default",
-	Callback = function()
-		cfg.distancehitchancepoints = getDefaultDistanceHitchancePoints()
-		selectedDistanceHitchancePoint = 1
-		refreshUI()
-		Window:Notify({
-			Title = "Distance Hitchance",
-			Description = "Reset the distance list back to the default build.",
-			Lifetime = 4
-		})
-	end,
+uiElements.FovSlider = AimbotTab:CreateSlider({
+    Name = "FOV",
+    Range = {10, 500},
+    Increment = 1,
+    CurrentValue = cfg.fov,
+    Flag = "FovSlider",
+    Callback = function(Value)
+        cfg.fov = Value
+    end,
 })
 
-uiElements.SelectedDistancePointDistanceSlider = sections.distanceHitchanceRight:Slider({
-	Name = "Selected Distance",
-	Default = 200,
-	Minimum = 0,
-	Maximum = 5000,
-	Precision = 0,
-	Callback = function(value)
-		if syncingDistanceHitchanceEditor then
-			return
-		end
-		local points = ensureEditableDistanceHitchancePoints()
-		local point = points[selectedDistanceHitchancePoint]
-		if not point then
-			return
-		end
-		point.distance = value
-		table.sort(points, function(a, b)
-			return a.distance < b.distance
-		end)
-		for index, existingPoint in ipairs(points) do
-			if existingPoint == point then
-				selectedDistanceHitchancePoint = index
-				break
-			end
-		end
-		syncDistanceHitchanceEditor()
-	end,
-}, "SelectedDistancePointDistanceSlider")
+uiElements.AimPartDropdown = AimbotTab:CreateDropdown({
+    Name = "Aim Part",
+    Options = cfg.partslist,
+    CurrentOption = {cfg.aimpart},
+    Flag = "AimPartDropdown",
+    Callback = function(Option)
+        cfg.aimpart = Option[1]
+    end,
+})
 
-uiElements.SelectedDistancePointHitchanceSlider = sections.distanceHitchanceRight:Slider({
-	Name = "Selected Hitchance",
-	Default = 30,
-	Minimum = 0,
-	Maximum = 100,
-	Precision = 0,
-	Callback = function(value)
-		if syncingDistanceHitchanceEditor then
-			return
-		end
-		local points = ensureEditableDistanceHitchancePoints()
-		local point = points[selectedDistanceHitchancePoint]
-		if not point then
-			return
-		end
-		point.chance = value
-		syncDistanceHitchanceEditor()
-	end,
-}, "SelectedDistancePointHitchanceSlider")
+uiElements.DistanceBasedHitChanceToggle = DistanceHitchanceTab:CreateToggle({
+    Name = "Distance Based Hitchance",
+    CurrentValue = cfg.distancebasedhitchance,
+    Flag = "DistanceBasedHitChanceToggle",
+    Callback = function(Value)
+        setDistanceHitchanceEnabledState(Value)
+        if uiElements.AimMaxDistSlider then
+            uiElements.AimMaxDistSlider:Set(0)
+        end
+    end,
+})
 
-uiElements.AimMaxDistSlider = sections.aimbotRight:Slider({
-	Name = "Aim Max Distance (0 = Any)",
-	Default = cfg.aimmaxdist,
-	Minimum = 0,
-	Maximum = 5000,
-	Precision = 0,
-	Callback = function(value)
-		if cfg.distancebasedhitchance or distanceHitchanceForcesAimMaxDistance then
-			storedAimMaxDistanceBeforeDistanceHitchance = value
-			cfg.aimmaxdist = 0
-			if uiElements.AimMaxDistSlider and value ~= 0 then
-				uiElements.AimMaxDistSlider:UpdateValue(0)
-			end
-			return
-		end
-		cfg.aimmaxdist = value
-	end,
-}, "AimMaxDistSlider")
+uiElements.DistanceHitchancePointDropdown = DistanceHitchanceTab:CreateDropdown({
+    Name = "Selected Point",
+    Options = {"1. 200 studs -> 30%"},
+    CurrentOption = {"1. 200 studs -> 30%"},
+    Flag = "DistanceHitchancePointDropdown",
+    Callback = function(Option)
+        local value = Option[1]
+        if syncingDistanceHitchanceEditor then return end
+        local selectedIndex = tonumber(tostring(value):match("^(%d+)%."))
+        if selectedIndex then
+            selectedDistanceHitchancePoint = selectedIndex
+            syncDistanceHitchanceEditor()
+        end
+    end,
+})
 
-uiElements.MissSpreadSlider = sections.aimbotRight:Slider({
-	Name = "Miss Spread",
-	Default = cfg.missspread,
-	Minimum = 0,
-	Maximum = 20,
-	Precision = 1,
-	Callback = function(value)
-		cfg.missspread = value
-	end,
-}, "MissSpreadSlider")
+DistanceHitchanceTab:CreateButton({
+    Name = "Add Point",
+    Callback = function()
+        -- Your existing logic remains unchanged
+        local points = ensureEditableDistanceHitchancePoints()
+        local lastPoint = points[#points]
+        local newPoint = {
+            distance = lastPoint and (lastPoint.distance + 100) or 200,
+            chance = lastPoint and math.max(lastPoint.chance - 8, 0) or 30
+        }
+        points[#points + 1] = newPoint
+        table.sort(points, function(a, b)
+            return a.distance < b.distance
+        end)
+        refreshUI()
+        Rayfield:Notify({
+            Title = "Distance Hitchance",
+            Content = "Added a new distance point.",
+            Duration = 4
+        })
+    end,
+})
 
-uiElements.ShotgunNaturalSpreadToggle = sections.aimbotRight:Toggle({
-	Name = "Shotgun Natural Spread",
-	Default = cfg.shotgunnaturalspread,
-	Callback = function(state)
-		cfg.shotgunnaturalspread = state
-	end,
-}, "ShotgunNaturalSpreadToggle")
+uiElements.EspColorPicker = ESPTab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = cfg.espcolor,
+    Flag = "EspColorPicker",
+    Callback = function(Color)
+        cfg.espcolor = Color
+        updateEsp()
+    end,
+})
 
-uiElements.ShotgunGameHandledToggle = sections.aimbotRight:Toggle({
-	Name = "Shotgun Game Handled",
-	Default = cfg.shotgungamehandled,
-	Callback = function(state)
-		cfg.shotgungamehandled = state
-	end,
-}, "ShotgunGameHandledToggle")
+uiElements.AutoshootToggle = AutoshootTab:CreateToggle({
+    Name = "Autoshoot",
+    CurrentValue = cfg.autoshoot,
+    Flag = "AutoshootToggle",
+    Callback = function(Value)
+        cfg.autoshoot = Value
+    end,
+})
 
-uiElements.PrioritizeClosestToggle = sections.aimbotRight:Toggle({
-	Name = "Prioritize Closest",
-	Default = cfg.prioritizeclosest,
-	Callback = function(state)
-		cfg.prioritizeclosest = state
-	end,
-}, "PrioritizeClosestToggle")
-
-uiElements.PrioritizeCriminalsToggle = sections.aimbotRight:Toggle({
-	Name = "Prioritize Criminals",
-	Default = cfg.prioritizecriminals,
-	Callback = function(state)
-		cfg.prioritizecriminals = state
-	end,
-}, "PrioritizeCriminalsToggle")
-
-uiElements.TargetStickinessToggle = sections.aimbotRight:Toggle({
-	Name = "Target Stickiness",
-	Default = cfg.targetstickiness,
-	Callback = function(state)
-		cfg.targetstickiness = state
-	end,
-}, "TargetStickinessToggle")
-
-uiElements.StickinessDurationSlider = sections.aimbotRight:Slider({
-	Name = "Stickiness Duration",
-	Default = cfg.targetstickinessduration,
-	Minimum = 0.1,
-	Maximum = 2,
-	Precision = 1,
-	Callback = function(value)
-		cfg.targetstickinessduration = value
-	end,
-}, "StickinessDurationSlider")
-
-uiElements.TargetStickinessRandomToggle = sections.aimbotRight:Toggle({
-	Name = "Target Stickiness Random",
-	Default = cfg.targetstickinessrandom,
-	Callback = function(state)
-		cfg.targetstickinessrandom = state
-	end,
-}, "TargetStickinessRandomToggle")
-
-uiElements.TargetStickinessMinSlider = sections.aimbotRight:Slider({
-	Name = "Target Stickiness Min",
-	Default = cfg.targetstickinessmin,
-	Minimum = 0.1,
-	Maximum = 1,
-	Precision = 1,
-	Callback = function(value)
-		cfg.targetstickinessmin = value
-	end,
-}, "TargetStickinessMinSlider")
-
-uiElements.TargetStickinessMaxSlider = sections.aimbotRight:Slider({
-	Name = "Target Stickiness Max",
-	Default = cfg.targetstickinessmax,
-	Minimum = 0.1,
-	Maximum = 1,
-	Precision = 1,
-	Callback = function(value)
-		cfg.targetstickinessmax = value
-	end,
-}, "TargetStickinessMaxSlider")
-
-uiElements.FovSlider = sections.aimbotRight:Slider({
-	Name = "FOV",
-	Default = cfg.fov,
-	Minimum = 10,
-	Maximum = 500,
-	Precision = 0,
-	Callback = function(value)
-		cfg.fov = value
-	end,
-}, "FovSlider")
-
-uiElements.ShowFovToggle = sections.aimbotRight:Toggle({
-	Name = "Show FOV",
-	Default = cfg.showfov,
-	Callback = function(state)
-		cfg.showfov = state
-	end,
-}, "ShowFovToggle")
-
-uiElements.StaticFovToggle = sections.aimbotRight:Toggle({
-	Name = "Static FOV",
-	Default = cfg.staticfov,
-	Callback = function(state)
-		cfg.staticfov = state
-	end,
-}, "StaticFovToggle")
-
-uiElements.ShowTargetLineToggle = sections.aimbotRight:Toggle({
-	Name = "Show Target Line",
-	Default = cfg.showtargetline,
-	Callback = function(state)
-		cfg.showtargetline = state
-	end,
-}, "ShowTargetLineToggle")
-
-uiElements.AimPartDropdown = sections.aimbotRight:Dropdown({
-	Name = "Aim Part",
-	Default = cfg.aimpart,
-	Options = cfg.partslist,
-	Callback = function(value)
-		cfg.aimpart = value
-	end,
-}, "AimPartDropdown")
-
-uiElements.RandomPartsToggle = sections.aimbotRight:Toggle({
-	Name = "Random Parts",
-	Default = cfg.randomparts,
-	Callback = function(state)
-		cfg.randomparts = state
-	end,
-}, "RandomPartsToggle")
-
-uiElements.EspToggle = sections.espLeft:Toggle({
-	Name = "ESP",
-	Default = cfg.esp,
-	Callback = function(state)
-		cfg.esp = state
-		updateEsp()
-	end,
-}, "EspToggle")
-
-uiElements.EspTeamCheckToggle = sections.espLeft:Toggle({
-	Name = "ESP Team Check",
-	Default = cfg.espteamcheck,
-	Callback = function(state)
-		cfg.espteamcheck = state
-		updateEsp()
-	end,
-}, "EspTeamCheckToggle")
-
-uiElements.ShowTeamToggle = sections.espLeft:Toggle({
-	Name = "Show Team",
-	Default = cfg.espshowteam,
-	Callback = function(state)
-		cfg.espshowteam = state
-		updateEsp()
-	end,
-}, "ShowTeamToggle")
-
-uiElements.EspMaxDistanceSlider = sections.espLeft:Slider({
-	Name = "ESP Max Distance (0 = Any)",
-	Default = cfg.espmaxdist,
-	Minimum = 0,
-	Maximum = 5000,
-	Precision = 0,
-	Callback = function(value)
-		cfg.espmaxdist = value
-		updateEsp()
-	end,
-}, "EspMaxDistanceSlider")
-
-uiElements.ShowDistanceToggle = sections.espLeft:Toggle({
-	Name = "Show Distance",
-	Default = cfg.espshowdist,
-	Callback = function(state)
-		cfg.espshowdist = state
-		updateEsp()
-	end,
-}, "ShowDistanceToggle")
-
-uiElements.UseTeamColorsToggle = sections.espLeft:Toggle({
-	Name = "Use Team Colors",
-	Default = cfg.espuseteamcolors,
-	Callback = function(state)
-		cfg.espuseteamcolors = state
-		updateEsp()
-	end,
-}, "UseTeamColorsToggle")
-
-uiElements.EspColorPicker = sections.espLeft:Colorpicker({
-	Name = "ESP Color",
-	Default = cfg.espcolor,
-	Callback = function(color)
-		cfg.espcolor = color
-		updateEsp()
-	end,
-}, "EspColorPicker")
-
-uiElements.GuardsColorPicker = sections.espLeft:Colorpicker({
-	Name = "Guards Color",
-	Default = cfg.espguards,
-	Callback = function(color)
-		cfg.espguards = color
-		updateEsp()
-	end,
-}, "GuardsColorPicker")
-
-uiElements.InmatesColorPicker = sections.espLeft:Colorpicker({
-	Name = "Inmates Color",
-	Default = cfg.espinmates,
-	Callback = function(color)
-		cfg.espinmates = color
-		updateEsp()
-	end,
-}, "InmatesColorPicker")
-
-uiElements.CriminalsColorPicker = sections.espLeft:Colorpicker({
-	Name = "Criminals Color",
-	Default = cfg.espcriminals,
-	Callback = function(color)
-		cfg.espcriminals = color
-		updateEsp()
-	end,
-}, "CriminalsColorPicker")
-
-uiElements.TeamColorPicker = sections.espLeft:Colorpicker({
-	Name = "Team Color",
-	Default = cfg.espteam,
-	Callback = function(color)
-		cfg.espteam = color
-		updateEsp()
-	end,
-}, "TeamColorPicker")
-
-uiElements.C4EspToggle = sections.espRight:Toggle({
-	Name = "C4 ESP",
-	Default = cfg.c4esp,
-	Callback = function(state)
-		cfg.c4esp = state
-		updateC4Esp()
-	end,
-}, "C4EspToggle")
-
-uiElements.C4EspMaxDistanceSlider = sections.espRight:Slider({
-	Name = "C4 ESP Max Distance (0 = Any)",
-	Default = cfg.c4espmaxdist,
-	Minimum = 0,
-	Maximum = 5000,
-	Precision = 0,
-	Callback = function(value)
-		cfg.c4espmaxdist = value
-		updateC4Esp()
-	end,
-}, "C4EspMaxDistanceSlider")
-
-uiElements.C4ShowDistanceToggle = sections.espRight:Toggle({
-	Name = "C4 Show Distance",
-	Default = cfg.c4espshowdist,
-	Callback = function(state)
-		cfg.c4espshowdist = state
-		updateC4Esp()
-	end,
-}, "C4ShowDistanceToggle")
-
-uiElements.C4EspColorPicker = sections.espRight:Colorpicker({
-	Name = "C4 ESP Color",
-	Default = cfg.c4espcolor,
-	Callback = function(color)
-		cfg.c4espcolor = color
-		updateC4Esp()
-	end,
-}, "C4EspColorPicker")
-
-uiElements.AutoshootToggle = sections.autoshootLeft:Toggle({
-	Name = "Autoshoot",
-	Default = cfg.autoshoot,
-	Callback = function(state)
-		cfg.autoshoot = state
-	end,
-}, "AutoshootToggle")
-
-uiElements.AutoshootWeaponDropdown = sections.autoshootRight:Dropdown({
-	Name = "Autoshoot Weapon",
-	Default = cfg.autoshootweapon,
-	Options = {"Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"},
-	Callback = function(value)
-		cfg.autoshootweapon = value
-	end,
-}, "AutoshootWeaponDropdown")
-
-uiElements.AutoshootDelaySlider = sections.autoshootLeft:Slider({
-	Name = "Autoshoot Delay",
-	Default = cfg.autoshootdelay,
-	Minimum = 0.05,
-	Maximum = 0.5,
-	Precision = 1,
-	Callback = function(value)
-		cfg.autoshootdelay = value
-	end,
-}, "AutoshootDelaySlider")
-
-uiElements.AutoshootStartDelaySlider = sections.autoshootLeft:Slider({
-	Name = "Autoshoot Start Delay",
-	Default = cfg.autoshootstartdelay,
-	Minimum = 0,
-	Maximum = 1,
-	Precision = 1,
-	Callback = function(value)
-		cfg.autoshootstartdelay = value
-	end,
-}, "AutoshootStartDelaySlider")
-
-uiElements.AutoGrabToggle = sections.autoshootRight:Toggle({
-	Name = "Auto Grab",
-	Default = cfg.autograb,
-	Callback = function(state)
-		cfg.autograb = state
-	end,
-}, "AutoGrabToggle")
-
-uiElements.AutoGrabDistanceSlider = sections.autoshootRight:Slider({
-	Name = "Auto Grab Distance",
-	Default = cfg.autograbdistance,
-	Minimum = 0,
-	Maximum = 12,
-	Precision = 1,
-	Callback = function(value)
-		cfg.autograbdistance = value
-	end,
-}, "AutoGrabDistanceSlider")
-
-uiElements.AutoGrabDelaySlider = sections.autoshootRight:Slider({
-	Name = "Auto Grab Delay",
-	Default = cfg.autograbdelay,
-	Minimum = 0,
-	Maximum = 3,
-	Precision = 1,
-	Callback = function(value)
-		cfg.autograbdelay = value
-	end,
-}, "AutoGrabDelaySlider")
-
-uiElements.AutoGrabKeycardToggle = sections.autoshootRight:Toggle({
-	Name = "Grab Keycards",
-	Default = cfg.autograbkeycard,
-	Callback = function(state)
-		cfg.autograbkeycard = state
-	end,
-}, "AutoGrabKeycardToggle")
-
-uiElements.AutoGrabM9Toggle = sections.autoshootRight:Toggle({
-	Name = "Grab M9",
-	Default = cfg.autograbm9,
-	Callback = function(state)
-		cfg.autograbm9 = state
-	end,
-}, "AutoGrabM9Toggle")
+uiElements.AutoshootWeaponDropdown = AutoshootTab:CreateDropdown({
+    Name = "Autoshoot Weapon",
+    Options = {"Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"},
+    CurrentOption = {cfg.autoshootweapon},
+    Flag = "AutoshootWeaponDropdown",
+    Callback = function(Option)
+        cfg.autoshootweapon = Option[1]
+    end,
+})
 
 local configNameInput = currentAutoLoadConfigName ~= "" and currentAutoLoadConfigName or ""
 
-sections.settingsLeft:Input({
-	Name = "Config Name",
-	Placeholder = "Enter config name...",
-	Callback = function(text)
-		configNameInput = text
-	end,
-}, "ConfigNameInput")
-
-sections.settingsLeft:Button({
-	Name = "Save Config",
-	Callback = function()
-		if configNameInput == "" then
-			Window:Notify({
-				Title = "Config",
-				Description = "Please enter a config name!",
-				Lifetime = 3
-			})
-			return
-		end
-		if saveConfig(configNameInput) then
-			Window:Notify({
-				Title = "Config",
-				Description = "Saved config: " .. configNameInput,
-				Lifetime = 3
-			})
-		else
-			Window:Notify({
-				Title = "Config",
-				Description = "Failed to save config!",
-				Lifetime = 3
-			})
-		end
-	end,
+uiElements.ConfigNameInput = SettingsTab:CreateInput({
+    Name = "Config Name",
+    PlaceholderText = "Enter config name...",
+    RemoveTextAfterFocusLost = false,
+    CurrentValue = configNameInput,
+    Flag = "ConfigNameInput",
+    Callback = function(Text)
+        configNameInput = Text
+    end,
 })
 
-sections.settingsLeft:Button({
-	Name = "Load Config",
-	Callback = function()
-		if configNameInput == "" then
-			Window:Notify({
-				Title = "Config",
-				Description = "Please enter a config name!",
-				Lifetime = 3
-			})
-			return
-		end
-		if loadConfig(configNameInput) then
-			refreshUI()
-			Window:Notify({
-				Title = "Config",
-				Description = "Loaded config: " .. configNameInput,
-				Lifetime = 3
-			})
-		else
-			Window:Notify({
-				Title = "Config",
-				Description = "Config not found: " .. configNameInput,
-				Lifetime = 3
-			})
-		end
-	end,
+SettingsTab:CreateButton({
+    Name = "Save Config",
+    Callback = function()
+        if configNameInput == "" then
+            Rayfield:Notify({
+                Title = "Config",
+                Content = "Please enter a config name!",
+                Duration = 3
+            })
+            return
+        end
+
+        if saveConfig(configNameInput) then
+            Rayfield:Notify({
+                Title = "Config",
+                Content = "Saved config: " .. configNameInput,
+                Duration = 3
+            })
+        else
+            Rayfield:Notify({
+                Title = "Config",
+                Content = "Failed to save config!",
+                Duration = 3
+            })
+        end
+    end,
 })
 
-sections.settingsLeft:Button({
-	Name = "Delete Config",
-	Callback = function()
-		if configNameInput == "" then
-			Window:Notify({
-				Title = "Config",
-				Description = "Please enter a config name!",
-				Lifetime = 3
-			})
-			return
-		end
-		if deleteConfig(configNameInput) then
-			Window:Notify({
-				Title = "Config",
-				Description = "Deleted config: " .. configNameInput,
-				Lifetime = 3
-			})
-		else
-			Window:Notify({
-				Title = "Config",
-				Description = "Config not found: " .. configNameInput,
-				Lifetime = 3
-			})
-		end
-	end,
-})
 
-sections.settingsLeft:Button({
-	Name = "List Configs",
-	Callback = function()
-		local configs = getConfigList()
-		if #configs == 0 then
-			Window:Notify({
-				Title = "Configs",
-				Description = "No configs found!",
-				Lifetime = 5
-			})
-		else
-			Window:Notify({
-				Title = "Configs",
-				Description = table.concat(configs, ", "),
-				Lifetime = 10
-			})
-		end
-	end,
-})
-
-sections.settingsRight:Button({
-	Name = "Set Auto Load",
-	Callback = function()
-		if configNameInput == "" then
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Enter a config name first.",
-				Lifetime = 3
-			})
-			return
-		end
-		if not isfile or not isfile(configFolder .. "/" .. configNameInput .. ".json") then
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Config not found: " .. configNameInput,
-				Lifetime = 3
-			})
-			return
-		end
-		if setAutoLoadConfigName(configNameInput) then
-			currentAutoLoadConfigName = configNameInput
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Will auto load: " .. configNameInput,
-				Lifetime = 4
-			})
-		else
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Failed to save auto load config.",
-				Lifetime = 3
-			})
-		end
-	end,
-})
-
-sections.settingsRight:Button({
-	Name = "Load Auto Config Now",
-	Callback = function()
-		local autoName = getAutoLoadConfigName()
-		if autoName == "" then
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "No auto load config set.",
-				Lifetime = 3
-			})
-			return
-		end
-		if loadConfig(autoName) then
-			currentAutoLoadConfigName = autoName
-			configNameInput = autoName
-			refreshUI()
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Loaded auto config: " .. autoName,
-				Lifetime = 4
-			})
-		else
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Config not found: " .. autoName,
-				Lifetime = 3
-			})
-		end
-	end,
-})
-
-sections.settingsRight:Button({
-	Name = "Clear Auto Load",
-	Callback = function()
-		if clearAutoLoadConfigName() then
-			currentAutoLoadConfigName = ""
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Cleared auto load config.",
-				Lifetime = 3
-			})
-		else
-			Window:Notify({
-				Title = "Auto Load",
-				Description = "Failed to clear auto load config.",
-				Lifetime = 3
-			})
-		end
-	end,
-})
-
-sections.settingsRight:Button({
-	Name = "Reset to Defaults",
-	Callback = function()
-		for key, value in pairs(defaultCfg) do
-			cfg[key] = deepCopyTable(value)
-		end
-		syncDistanceHitchanceAimMaxDistanceFromConfig()
-		resetAimState()
-		refreshUI()
-		Window:Notify({
-			Title = "Config",
-			Description = "Reset to defaults!",
-			Lifetime = 3
-		})
-	end,
 })
 
 refreshUI()
