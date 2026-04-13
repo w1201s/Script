@@ -21,7 +21,7 @@ local inmatesTeam = Teams:FindFirstChild("Inmates")
 local criminalsTeam = Teams:FindFirstChild("Criminals")
 
 local cfg = {
-    enabled = true, -- toggle the whole script on/off
+    enabled = false, -- toggle the whole script on/off
     teamcheck = true, -- dont shoot people on your team
     wallcheck = true, -- dont shoot through walls
     deathcheck = true, -- skip dead players
@@ -53,7 +53,7 @@ local cfg = {
     distancehitchance4value = 100,
     distancehitchance5dist = 800, -- at/after this distance, use hitchance 5
     distancehitchance5value = 100,
-    autoshoot = true, -- automatically shoot when target is found
+    autoshoot = false, -- automatically shoot when target is found
     autoshootweapon = "Any", -- valid values: "Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"
     autoshootdelay = 0, -- delay between auto shots
     autoshootstartdelay = 0.2, -- delay before first shot when target acquired (reaction time)
@@ -1672,39 +1672,6 @@ if not setupHook() then
 else
     hooked = true
 end
-
-local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
-   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
-   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
-
-   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
-
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
-
-   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
-
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, -- Create a custom folder for your hub/game
-      FileName = "Big Hub"
-   },
-})
-
-local Tab = Window:CreateTab("Tab Example", "rewind")
-
-local Toggle = Tab:CreateToggle({
-   Name = "Silent aim",
-   CurrentValue = false,
-   Flag = "A", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   	enabled = value
-   end,
-})
 
 local Window = Rayfield:CreateWindow({
    Name = "Rayfield Example Window",
