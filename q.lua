@@ -47,12 +47,12 @@ local cfg = {
     distancehitchance4value = 100,
     distancehitchance5dist = 800, -- at/after this distance, use hitchance 5
     distancehitchance5value = 100,
-    autoshoot = false, -- automatically shoot when target is found
+    autoshoot = true, -- automatically shoot when target is found
     autoshootweapon = "Any", -- valid values: "Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"
-    autoshootdelay = 0.12, -- delay between auto shots
-    autoshootstartdelay = 0.2, -- delay before first shot when target acquired (reaction time)
-    aimmaxdist = 100, -- max studs a target can be from you (set to 0 for any distance)
-    missspread = 5, -- how far off to shoot when missing (makes it look legit)
+    autoshootdelay = 0, -- delay between auto shots
+    autoshootstartdelay = 0, -- delay before first shot when target acquired (reaction time)
+    aimmaxdist = 1000, -- max studs a target can be from you (set to 0 for any distance)
+    missspread = 0, -- how far off to shoot when missing (makes it look legit)
     shotgunnaturalspread = true, -- let shotgun bullets spread naturally instead of all hitting
     shotgungamehandled = false, -- aim at player but let game handle hitchance/spread
     prioritizeclosest = true, -- shoot whoever is closest to your cursor (false = random from fov)
