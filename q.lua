@@ -1695,6 +1695,8 @@ local Window = Rayfield:CreateWindow({
    },
 })
 
+local Tab = Window:CreateTab("Tab Example", "rewind")
+
 local Toggle = Tab:CreateToggle({
    Name = "Silent aim",
    CurrentValue = false,
