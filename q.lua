@@ -1852,17 +1852,6 @@ else
 	hooked = true
 end
 
-notify("Silent Aim + ESP", "Loaded! RShift = Aim, RCtrl = ESP", 5)
-
-local function replaceFirst(source, oldText, newText)
-	local startIndex = string.find(source, oldText, 1, true)
-	if not startIndex then
-		return source, false
-	end
-
-	local endIndex = startIndex + #oldText - 1
-	return string.sub(source, 1, startIndex - 1) .. newText .. string.sub(source, endIndex + 1), true
-end
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -1913,7 +1902,7 @@ local AutoshootTab = Window:CreateTab("Autoshoot", 4034483346)
 local SettingsTab = Window:CreateTab("Settings", 4034483347)
 
 -- Silent Aim
-uiElements.SilentAimToggle = AimbotTab:CreateToggle({
+SilentAimToggle = AimbotTab:CreateToggle({
     Name = "Silent Aim",
     CurrentValue = cfg.enabled,
     Flag = "SilentAimToggle",
@@ -1922,7 +1911,7 @@ uiElements.SilentAimToggle = AimbotTab:CreateToggle({
     end,
 })
 
-uiElements.TeamCheckToggle = AimbotTab:CreateToggle({
+TeamCheckToggle = AimbotTab:CreateToggle({
     Name = "Team Check",
     CurrentValue = cfg.teamcheck,
     Flag = "TeamCheckToggle",
@@ -1931,7 +1920,7 @@ uiElements.TeamCheckToggle = AimbotTab:CreateToggle({
     end,
 })
 
-uiElements.WallCheckToggle = AimbotTab:CreateToggle({
+WallCheckToggle = AimbotTab:CreateToggle({
     Name = "Wall Check",
     CurrentValue = cfg.wallcheck,
     Flag = "WallCheckToggle",
@@ -1940,7 +1929,7 @@ uiElements.WallCheckToggle = AimbotTab:CreateToggle({
     end,
 })
 
-uiElements.DeathCheckToggle = AimbotTab:CreateToggle({
+DeathCheckToggle = AimbotTab:CreateToggle({
     Name = "Death Check",
     CurrentValue = cfg.deathcheck,
     Flag = "DeathCheckToggle",
@@ -1949,7 +1938,7 @@ uiElements.DeathCheckToggle = AimbotTab:CreateToggle({
     end,
 })
 
-uiElements.HitChanceSlider = AimbotTab:CreateSlider({
+HitChanceSlider = AimbotTab:CreateSlider({
     Name = "Hit Chance",
     Range = {0, 100},
     Increment = 1,
@@ -1961,7 +1950,7 @@ uiElements.HitChanceSlider = AimbotTab:CreateSlider({
     end,
 })
 
-uiElements.FovSlider = AimbotTab:CreateSlider({
+FovSlider = AimbotTab:CreateSlider({
     Name = "FOV",
     Range = {10, 500},
     Increment = 1,
@@ -1972,7 +1961,7 @@ uiElements.FovSlider = AimbotTab:CreateSlider({
     end,
 })
 
-uiElements.AimPartDropdown = AimbotTab:CreateDropdown({
+AimPartDropdown = AimbotTab:CreateDropdown({
     Name = "Aim Part",
     Options = cfg.partslist,
     CurrentOption = {cfg.aimpart},
@@ -1982,7 +1971,7 @@ uiElements.AimPartDropdown = AimbotTab:CreateDropdown({
     end,
 })
 
-uiElements.DistanceBasedHitChanceToggle = DistanceHitchanceTab:CreateToggle({
+DistanceBasedHitChanceToggle = DistanceHitchanceTab:CreateToggle({
     Name = "Distance Based Hitchance",
     CurrentValue = cfg.distancebasedhitchance,
     Flag = "DistanceBasedHitChanceToggle",
@@ -1994,7 +1983,7 @@ uiElements.DistanceBasedHitChanceToggle = DistanceHitchanceTab:CreateToggle({
     end,
 })
 
-uiElements.DistanceHitchancePointDropdown = DistanceHitchanceTab:CreateDropdown({
+DistanceHitchancePointDropdown = DistanceHitchanceTab:CreateDropdown({
     Name = "Selected Point",
     Options = {"1. 200 studs -> 30%"},
     CurrentOption = {"1. 200 studs -> 30%"},
@@ -2033,7 +2022,7 @@ DistanceHitchanceTab:CreateButton({
     end,
 })
 
-uiElements.EspColorPicker = ESPTab:CreateColorPicker({
+EspColorPicker = ESPTab:CreateColorPicker({
     Name = "ESP Color",
     Color = cfg.espcolor,
     Flag = "EspColorPicker",
@@ -2043,7 +2032,7 @@ uiElements.EspColorPicker = ESPTab:CreateColorPicker({
     end,
 })
 
-uiElements.AutoshootToggle = AutoshootTab:CreateToggle({
+AutoshootToggle = AutoshootTab:CreateToggle({
     Name = "Autoshoot",
     CurrentValue = cfg.autoshoot,
     Flag = "AutoshootToggle",
@@ -2052,7 +2041,7 @@ uiElements.AutoshootToggle = AutoshootTab:CreateToggle({
     end,
 })
 
-uiElements.AutoshootWeaponDropdown = AutoshootTab:CreateDropdown({
+AutoshootWeaponDropdown = AutoshootTab:CreateDropdown({
     Name = "Autoshoot Weapon",
     Options = {"Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"},
     CurrentOption = {cfg.autoshootweapon},
@@ -2062,9 +2051,7 @@ uiElements.AutoshootWeaponDropdown = AutoshootTab:CreateDropdown({
     end,
 })
 
-local configNameInput = currentAutoLoadConfigName ~= "" and currentAutoLoadConfigName or ""
-
-uiElements.ConfigNameInput = SettingsTab:CreateInput({
+ConfigNameInput = SettingsTab:CreateInput({
     Name = "Config Name",
     PlaceholderText = "Enter config name...",
     RemoveTextAfterFocusLost = false,
