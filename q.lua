@@ -1,7 +1,3 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
--- Missspread its just for legit stuff like for example lets say your hitchance is 50 itll miss 50% of the time but if you want people to believe your actually shooting missspread makes it so it LOOKS like your missing because your missing next to them but not actually hitting them its crazy >~<
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -1671,4 +1667,4 @@ else
     hooked = true
 end
 
-notify("Silent Aim + ESP", "Loaded! RShift = Aim, RCtrl = ESP", 5)
+notify("Venus X silent aim for prison life Loaded", 5)
