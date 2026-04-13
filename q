@@ -1853,239 +1853,296 @@ else
 end
 
 
+--// Load Rayfield Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-	local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
-   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
-   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
-
-   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
-
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
-
-   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
-
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, -- Create a custom folder for your hub/game
-      FileName = "Big Hub"
-   },
-
-   Discord = {
-      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
-      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
-      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
-   },
-
-   KeySystem = false, -- Set this to true to use our key system
-   KeySettings = {
-      Title = "Untitled",
-      Subtitle = "Key System",
-      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
-      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
-      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
-   }
+--// Create Window
+local Window = Rayfield:CreateWindow({
+    Name = "Aimbot Control Panel",
+    LoadingTitle = "Aimbot UI",
+    LoadingSubtitle = "Rayfield Interface",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
 })
 
-
+--// Create Tabs
 local AimbotTab = Window:CreateTab("Aimbot", 4034483344)
 local DistanceHitchanceTab = Window:CreateTab("Distance Hitchance", 4034483344)
 local ESPTab = Window:CreateTab("ESP", 4034483345)
 local AutoshootTab = Window:CreateTab("Autoshoot", 4034483346)
 local SettingsTab = Window:CreateTab("Settings", 4034483347)
 
--- Silent Aim
-SilentAimToggle = AimbotTab:CreateToggle({
-    Name = "Silent Aim",
-    CurrentValue = cfg.enabled,
-    Flag = "SilentAimToggle",
-    Callback = function(Value)
-        cfg.enabled = Value
-    end,
+--====================================================
+-- Aimbot Tab
+--====================================================
+AimbotTab:CreateSection("Main")
+
+AimbotTab:CreateToggle({Name="Silent Aim", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Team Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Wall Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Death Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Vehicle Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Hostile Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Trespass Check", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Criminals Skip Inmates", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Inmates Skip Criminals", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="ForceField Check", CurrentValue=false, Callback=function() end})
+
+AimbotTab:CreateSection("Shield & Taser")
+
+AimbotTab:CreateToggle({Name="Shield Breaker", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Shield Front Angle",
+    Range={-1,1},
+    Increment=0.1,
+    CurrentValue=0,
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Shield Random Head", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Shield Head Chance",
+    Range={0,100},
+    Increment=1,
+    CurrentValue=50,
+    Suffix="%",
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Taser Bypass Hostile", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Taser Bypass Trespass", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Taser Always Hit", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Hit If Player Still", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Still Threshold",
+    Range={0,5},
+    Increment=0.1,
+    CurrentValue=1,
+    Callback=function() end
 })
 
-TeamCheckToggle = AimbotTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = cfg.teamcheck,
-    Flag = "TeamCheckToggle",
-    Callback = function(Value)
-        cfg.teamcheck = Value
-    end,
+AimbotTab:CreateSection("Accuracy")
+
+AimbotTab:CreateSlider({
+    Name="Hit Chance",
+    Range={0,100},
+    Increment=1,
+    CurrentValue=100,
+    Suffix="%",
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Hit Chance Auto Only", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Aim Max Distance (0 = Any)",
+    Range={0,5000},
+    Increment=10,
+    CurrentValue=0,
+    Callback=function() end
+})
+AimbotTab:CreateSlider({
+    Name="Miss Spread",
+    Range={0,20},
+    Increment=0.1,
+    CurrentValue=0,
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Shotgun Natural Spread", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Shotgun Game Handled", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Prioritize Closest", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Prioritize Criminals", CurrentValue=false, Callback=function() end})
+
+AimbotTab:CreateSection("Stickiness & FOV")
+
+AimbotTab:CreateToggle({Name="Target Stickiness", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Stickiness Duration",
+    Range={0.1,2},
+    Increment=0.1,
+    CurrentValue=0.5,
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Target Stickiness Random", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateSlider({
+    Name="Target Stickiness Min",
+    Range={0.1,1},
+    Increment=0.1,
+    CurrentValue=0.2,
+    Callback=function() end
+})
+AimbotTab:CreateSlider({
+    Name="Target Stickiness Max",
+    Range={0.1,1},
+    Increment=0.1,
+    CurrentValue=0.8,
+    Callback=function() end
+})
+AimbotTab:CreateSlider({
+    Name="FOV",
+    Range={10,500},
+    Increment=1,
+    CurrentValue=120,
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Show FOV", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Static FOV", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateToggle({Name="Show Target Line", CurrentValue=false, Callback=function() end})
+AimbotTab:CreateDropdown({
+    Name="Aim Part",
+    Options={"Head", "HumanoidRootPart", "Torso"},
+    CurrentOption={"Head"},
+    Callback=function() end
+})
+AimbotTab:CreateToggle({Name="Random Parts", CurrentValue=false, Callback=function() end})
+
+--====================================================
+-- Distance Hitchance Tab
+--====================================================
+DistanceHitchanceTab:CreateSection("Distance Hitchance")
+
+DistanceHitchanceTab:CreateToggle({
+    Name="Distance Based Hitchance",
+    CurrentValue=false,
+    Callback=function() end
+})
+DistanceHitchanceTab:CreateDropdown({
+    Name="Selected Point",
+    Options={"1. 200 studs -> 30%"},
+    CurrentOption={"1. 200 studs -> 30%"},
+    Callback=function() end
+})
+DistanceHitchanceTab:CreateButton({Name="Add Point", Callback=function() end})
+DistanceHitchanceTab:CreateButton({Name="Remove Selected", Callback=function() end})
+DistanceHitchanceTab:CreateButton({Name="Load Legit Preset", Callback=function() end})
+DistanceHitchanceTab:CreateButton({Name="Load Blatant Preset", Callback=function() end})
+DistanceHitchanceTab:CreateButton({Name="Reset to Default", Callback=function() end})
+
+DistanceHitchanceTab:CreateSlider({
+    Name="Selected Distance",
+    Range={0,5000},
+    Increment=10,
+    CurrentValue=200,
+    Callback=function() end
+})
+DistanceHitchanceTab:CreateSlider({
+    Name="Selected Hitchance",
+    Range={0,100},
+    Increment=1,
+    CurrentValue=30,
+    Callback=function() end
 })
 
-WallCheckToggle = AimbotTab:CreateToggle({
-    Name = "Wall Check",
-    CurrentValue = cfg.wallcheck,
-    Flag = "WallCheckToggle",
-    Callback = function(Value)
-        cfg.wallcheck = Value
-    end,
+--====================================================
+-- ESP Tab
+--====================================================
+ESPTab:CreateSection("Player ESP")
+
+ESPTab:CreateToggle({Name="ESP", CurrentValue=false, Callback=function() end})
+ESPTab:CreateToggle({Name="ESP Team Check", CurrentValue=false, Callback=function() end})
+ESPTab:CreateToggle({Name="Show Team", CurrentValue=false, Callback=function() end})
+ESPTab:CreateSlider({
+    Name="ESP Max Distance (0 = Any)",
+    Range={0,5000},
+    Increment=10,
+    CurrentValue=0,
+    Callback=function() end
+})
+ESPTab:CreateToggle({Name="Show Distance", CurrentValue=false, Callback=function() end})
+ESPTab:CreateToggle({Name="Use Team Colors", CurrentValue=false, Callback=function() end})
+
+ESPTab:CreateColorPicker({Name="ESP Color", Color=Color3.fromRGB(255,0,0), Callback=function() end})
+ESPTab:CreateColorPicker({Name="Guards Color", Color=Color3.fromRGB(0,0,255), Callback=function() end})
+ESPTab:CreateColorPicker({Name="Inmates Color", Color=Color3.fromRGB(255,165,0), Callback=function() end})
+ESPTab:CreateColorPicker({Name="Criminals Color", Color=Color3.fromRGB(255,0,0), Callback=function() end})
+ESPTab:CreateColorPicker({Name="Team Color", Color=Color3.fromRGB(0,255,0), Callback=function() end})
+
+ESPTab:CreateSection("C4 ESP")
+
+ESPTab:CreateToggle({Name="C4 ESP", CurrentValue=false, Callback=function() end})
+ESPTab:CreateSlider({
+    Name="C4 ESP Max Distance (0 = Any)",
+    Range={0,5000},
+    Increment=10,
+    CurrentValue=0,
+    Callback=function() end
+})
+ESPTab:CreateToggle({Name="C4 Show Distance", CurrentValue=false, Callback=function() end})
+ESPTab:CreateColorPicker({Name="C4 ESP Color", Color=Color3.fromRGB(255,255,0), Callback=function() end})
+
+--====================================================
+-- Autoshoot Tab
+--====================================================
+AutoshootTab:CreateSection("Autoshoot")
+
+AutoshootTab:CreateToggle({Name="Autoshoot", CurrentValue=false, Callback=function() end})
+AutoshootTab:CreateDropdown({
+    Name="Autoshoot Weapon",
+    Options={"Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"},
+    CurrentOption={"Any"},
+    Callback=function() end
+})
+AutoshootTab:CreateSlider({
+    Name="Autoshoot Delay",
+    Range={0.05,0.5},
+    Increment=0.05,
+    CurrentValue=0.1,
+    Callback=function() end
+})
+AutoshootTab:CreateSlider({
+    Name="Autoshoot Start Delay",
+    Range={0,1},
+    Increment=0.1,
+    CurrentValue=0,
+    Callback=function() end
 })
 
-DeathCheckToggle = AimbotTab:CreateToggle({
-    Name = "Death Check",
-    CurrentValue = cfg.deathcheck,
-    Flag = "DeathCheckToggle",
-    Callback = function(Value)
-        cfg.deathcheck = Value
-    end,
-})
+AutoshootTab:CreateSection("Auto Grab")
 
-HitChanceSlider = AimbotTab:CreateSlider({
-    Name = "Hit Chance",
-    Range = {0, 100},
-    Increment = 1,
-    Suffix = "%",
-    CurrentValue = cfg.hitchance,
-    Flag = "HitChanceSlider",
-    Callback = function(Value)
-        cfg.hitchance = Value
-    end,
+AutoshootTab:CreateToggle({Name="Auto Grab", CurrentValue=false, Callback=function() end})
+AutoshootTab:CreateSlider({
+    Name="Auto Grab Distance",
+    Range={0,12},
+    Increment=0.5,
+    CurrentValue=5,
+    Callback=function() end
 })
+AutoshootTab:CreateSlider({
+    Name="Auto Grab Delay",
+    Range={0,3},
+    Increment=0.1,
+    CurrentValue=0,
+    Callback=function() end
+})
+AutoshootTab:CreateToggle({Name="Grab Keycards", CurrentValue=false, Callback=function() end})
+AutoshootTab:CreateToggle({Name="Grab M9", CurrentValue=false, Callback=function() end})
 
-FovSlider = AimbotTab:CreateSlider({
-    Name = "FOV",
-    Range = {10, 500},
-    Increment = 1,
-    CurrentValue = cfg.fov,
-    Flag = "FovSlider",
-    Callback = function(Value)
-        cfg.fov = Value
-    end,
-})
+--====================================================
+-- Settings Tab
+--====================================================
+SettingsTab:CreateSection("Configuration")
 
-AimPartDropdown = AimbotTab:CreateDropdown({
-    Name = "Aim Part",
-    Options = cfg.partslist,
-    CurrentOption = {cfg.aimpart},
-    Flag = "AimPartDropdown",
-    Callback = function(Option)
-        cfg.aimpart = Option[1]
-    end,
+SettingsTab:CreateInput({
+    Name="Config Name",
+    PlaceholderText="Enter config name...",
+    RemoveTextAfterFocusLost=false,
+    Callback=function() end
 })
+SettingsTab:CreateButton({Name="Save Config", Callback=function() end})
+SettingsTab:CreateButton({Name="Load Config", Callback=function() end})
+SettingsTab:CreateButton({Name="Delete Config", Callback=function() end})
+SettingsTab:CreateButton({Name="List Configs", Callback=function() end})
 
-DistanceBasedHitChanceToggle = DistanceHitchanceTab:CreateToggle({
-    Name = "Distance Based Hitchance",
-    CurrentValue = cfg.distancebasedhitchance,
-    Flag = "DistanceBasedHitChanceToggle",
-    Callback = function(Value)
-        setDistanceHitchanceEnabledState(Value)
-        if uiElements.AimMaxDistSlider then
-            uiElements.AimMaxDistSlider:Set(0)
-        end
-    end,
-})
+SettingsTab:CreateSection("Auto Load")
 
-DistanceHitchancePointDropdown = DistanceHitchanceTab:CreateDropdown({
-    Name = "Selected Point",
-    Options = {"1. 200 studs -> 30%"},
-    CurrentOption = {"1. 200 studs -> 30%"},
-    Flag = "DistanceHitchancePointDropdown",
-    Callback = function(Option)
-        local value = Option[1]
-        if syncingDistanceHitchanceEditor then return end
-        local selectedIndex = tonumber(tostring(value):match("^(%d+)%."))
-        if selectedIndex then
-            selectedDistanceHitchancePoint = selectedIndex
-            syncDistanceHitchanceEditor()
-        end
-    end,
-})
+SettingsTab:CreateButton({Name="Set Auto Load", Callback=function() end})
+SettingsTab:CreateButton({Name="Load Auto Config Now", Callback=function() end})
+SettingsTab:CreateButton({Name="Clear Auto Load", Callback=function() end})
 
-DistanceHitchanceTab:CreateButton({
-    Name = "Add Point",
-    Callback = function()
-        -- Your existing logic remains unchanged
-        local points = ensureEditableDistanceHitchancePoints()
-        local lastPoint = points[#points]
-        local newPoint = {
-            distance = lastPoint and (lastPoint.distance + 100) or 200,
-            chance = lastPoint and math.max(lastPoint.chance - 8, 0) or 30
-        }
-        points[#points + 1] = newPoint
-        table.sort(points, function(a, b)
-            return a.distance < b.distance
-        end)
-        refreshUI()
-        Rayfield:Notify({
-            Title = "Distance Hitchance",
-            Content = "Added a new distance point.",
-            Duration = 4
-        })
-    end,
-})
-
-EspColorPicker = ESPTab:CreateColorPicker({
-    Name = "ESP Color",
-    Color = cfg.espcolor,
-    Flag = "EspColorPicker",
-    Callback = function(Color)
-        cfg.espcolor = Color
-        updateEsp()
-    end,
-})
-
-AutoshootToggle = AutoshootTab:CreateToggle({
-    Name = "Autoshoot",
-    CurrentValue = cfg.autoshoot,
-    Flag = "AutoshootToggle",
-    Callback = function(Value)
-        cfg.autoshoot = Value
-    end,
-})
-
-AutoshootWeaponDropdown = AutoshootTab:CreateDropdown({
-    Name = "Autoshoot Weapon",
-    Options = {"Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"},
-    CurrentOption = {cfg.autoshootweapon},
-    Flag = "AutoshootWeaponDropdown",
-    Callback = function(Option)
-        cfg.autoshootweapon = Option[1]
-    end,
-})
-
-ConfigNameInput = SettingsTab:CreateInput({
-    Name = "Config Name",
-    PlaceholderText = "Enter config name...",
-    RemoveTextAfterFocusLost = false,
-    CurrentValue = configNameInput,
-    Flag = "ConfigNameInput",
-    Callback = function(Text)
-        configNameInput = Text
-    end,
-})
+SettingsTab:CreateSection("Reset")
 
 SettingsTab:CreateButton({
-    Name = "Save Config",
-    Callback = function()
-        if configNameInput == "" then
-            Rayfield:Notify({
-                Title = "Config",
-                Content = "Please enter a config name!",
-                Duration = 3
-            })
-            return
-        end
-
-        if saveConfig(configNameInput) then
-            Rayfield:Notify({
-                Title = "Config",
-                Content = "Saved config: " .. configNameInput,
-                Duration = 3
-            })
-        else
-            Rayfield:Notify({
-                Title = "Config",
-                Content = "Failed to save config!",
-                Duration = 3
-            })
-        end
-    end,
+    Name="Reset to Defaults",
+    Callback=function() end
 })
