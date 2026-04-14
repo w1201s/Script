@@ -2,36 +2,37 @@
 	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
 
--- โหลด Orion UI Library
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+-- โหลด Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- สร้างหน้าต่าง
-local Window = OrionLib:MakeWindow({
+local Window = Rayfield:CreateWindow({
     Name = "Silent Aim + Fling",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "SilentAimFlingConfig",
-    IntroEnabled = true,
-    IntroText = "Silent Aim & Fling",
-    IntroIcon = "rbxassetid://4483345998"
+    LoadingTitle = "Silent Aim & Fling Script",
+    LoadingSubtitle = "by You",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "SilentAimFlingConfig"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = true
+    },
+    KeySystem = false,
 })
 
 -- ==================== SILENT AIM CONFIG ====================
-local SilentAimTab = Window:MakeTab({
-    Name = "Silent Aim",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+local SilentAimTab = Window:CreateTab("Silent Aim", 4483362458)
 
--- สร้างส่วน Section สำหรับ Silent Aim
-SilentAimTab:AddSection({
-    Name = "Silent Aim Settings"
-})
+-- Section สำหรับ Silent Aim Settings
+local SilentAimSection = SilentAimTab:CreateSection("Silent Aim Settings")
 
 local SilentAimConfig = {
     Enabled = true,
     Distance = 28,
-    TargetMode = "cursor",
+    TargetMode = "cursor", -- "cursor" = closest target to cursor or "center" = closest target to center of your screen
 }
 
 local Players = game:GetService("Players")
@@ -43,52 +44,48 @@ local camera = Workspace.CurrentCamera
 local targetPosition = nil
 
 -- Toggle สำหรับเปิด/ปิด Silent Aim
-SilentAimTab:AddToggle({
+SilentAimTab:CreateToggle({
     Name = "Enable Silent Aim",
-    Default = SilentAimConfig.Enabled,
+    CurrentValue = SilentAimConfig.Enabled,
+    Flag = "SilentAimEnabled",
     Callback = function(Value)
         SilentAimConfig.Enabled = Value
         if not Value then
             targetPosition = nil
         end
-    end
+    end,
 })
 
 -- Slider สำหรับปรับระยะ Distance
-SilentAimTab:AddSlider({
+SilentAimTab:CreateSlider({
     Name = "Aim Distance",
-    Min = 10,
-    Max = 100,
-    Default = SilentAimConfig.Distance,
-    Color = Color3.fromRGB(255, 255, 255),
+    Range = {10, 100},
     Increment = 1,
-    ValueName = "studs",
+    Suffix = "studs",
+    CurrentValue = SilentAimConfig.Distance,
+    Flag = "AimDistance",
     Callback = function(Value)
         SilentAimConfig.Distance = Value
-    end
+    end,
 })
 
 -- Dropdown สำหรับเลือก Target Mode
-SilentAimTab:AddDropdown({
+SilentAimTab:CreateDropdown({
     Name = "Target Mode",
-    Default = SilentAimConfig.TargetMode,
     Options = {"cursor", "center"},
-    Callback = function(Value)
-        SilentAimConfig.TargetMode = Value
-    end
+    CurrentOption = {SilentAimConfig.TargetMode},
+    MultipleOptions = false,
+    Flag = "TargetMode",
+    Callback = function(Options)
+        SilentAimConfig.TargetMode = Options[1]
+    end,
 })
 
 -- ==================== FLING CONFIG ====================
-local FlingTab = Window:MakeTab({
-    Name = "Fling",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+local FlingTab = Window:CreateTab("Fling", 4483362458)
 
--- สร้างส่วน Section สำหรับ Fling
-FlingTab:AddSection({
-    Name = "Fling Settings"
-})
+-- Section สำหรับ Fling Settings
+local FlingSection = FlingTab:CreateSection("Fling Settings")
 
 local FlingConfig = {
     Enabled = true,
@@ -98,26 +95,26 @@ local FlingConfig = {
 local Debris = game:GetService("Debris")
 
 -- Toggle สำหรับเปิด/ปิด Fling
-FlingTab:AddToggle({
+FlingTab:CreateToggle({
     Name = "Enable Fling",
-    Default = FlingConfig.Enabled,
+    CurrentValue = FlingConfig.Enabled,
+    Flag = "FlingEnabled",
     Callback = function(Value)
         FlingConfig.Enabled = Value
-    end
+    end,
 })
 
 -- Slider สำหรับปรับ Fling Strength
-FlingTab:AddSlider({
+FlingTab:CreateSlider({
     Name = "Fling Strength",
-    Min = 100,
-    Max = 2000,
-    Default = FlingConfig.Strength,
-    Color = Color3.fromRGB(255, 255, 255),
+    Range = {100, 2000},
     Increment = 50,
-    ValueName = "power",
+    Suffix = "power",
+    CurrentValue = FlingConfig.Strength,
+    Flag = "FlingStrength",
     Callback = function(Value)
         FlingConfig.Strength = Value
-    end
+    end,
 })
 
 -- ==================== SILENT AIM LOGIC ====================
@@ -212,12 +209,8 @@ Workspace.ChildAdded:Connect(function(model)
 end)
 
 -- แจ้งเตือนเมื่อโหลดเสร็จ
-OrionLib:MakeNotification({
-    Name = "Script Loaded",
+Rayfield:Notify({
+    Title = "Script Loaded",
     Content = "Silent Aim & Fling loaded successfully!",
-    Image = "rbxassetid://4483345998",
-    Time = 3
+    Duration = 3,
 })
-
--- เริ่มต้น Orion UI
-OrionLib:Init()
