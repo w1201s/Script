@@ -6,7 +6,7 @@ local Games = {
         loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/Muscle%20legends.lua"))()
     end,
     [81210336803875] = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/save%20brainrot%20smth%20lol.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/w1201s/Script/refs/heads/main/fling%20things%20and%20people.lua"))()
     end,
 }
 
