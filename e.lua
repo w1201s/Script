@@ -1,8 +1,4 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
 
--- โหลด Rayfield UI Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Services
@@ -18,9 +14,9 @@ local camera = Workspace.CurrentCamera
 
 -- สร้างหน้าต่าง
 local Window = Rayfield:CreateWindow({
-    Name = "Silent Aim + Fling + Utilities",
-    LoadingTitle = "Multi-Feature Script",
-    LoadingSubtitle = "by You",
+    Name = "Ftap by venus",
+    LoadingTitle = "Tuff venus",
+    LoadingSubtitle = "by w1201s",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
