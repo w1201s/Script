@@ -1,8 +1,4 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
 
--- โหลด Rayfield UI Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Services
@@ -20,9 +16,9 @@ local DEFAULT_JUMPPOWER = 50
 
 -- สร้างหน้าต่าง
 local Window = Rayfield:CreateWindow({
-    Name = "Silent Aim + Fling + Freeze",
-    LoadingTitle = "Multi-Feature Script",
-    LoadingSubtitle = "by You",
+    Name = "fling thing and people by venus",
+    LoadingTitle = "Venus loading",
+    LoadingSubtitle = "by w1201s",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -37,8 +33,8 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- ==================== SILENT AIM CONFIG ====================
-local SilentAimTab = Window:CreateTab("Silent Aim", 4483362458)
-local SilentAimSection = SilentAimTab:CreateSection("Silent Aim Settings")
+local SilentAimTab = Window:CreateTab("main", 4483362458)
+local SilentAimSection = SilentAimTab:CreateSection("Silent Aim and settings")
 
 local SilentAimConfig = {
     Enabled = true,
@@ -51,7 +47,7 @@ local SilentAimConfig = {
 local targetPosition = nil
 
 SilentAimTab:CreateToggle({
-    Name = "Enable Silent Aim",
+    Name = "Silent Aim(OP)",
     CurrentValue = SilentAimConfig.Enabled,
     Flag = "SilentAimEnabled",
     Callback = function(Value)
@@ -63,7 +59,7 @@ SilentAimTab:CreateToggle({
 })
 
 SilentAimTab:CreateSlider({
-    Name = "Aim Distance",
+    Name = "Aim Distance(30 cuz can't go more)",
     Range = {10, 100},
     Increment = 1,
     Suffix = "studs",
@@ -75,7 +71,7 @@ SilentAimTab:CreateSlider({
 })
 
 SilentAimTab:CreateDropdown({
-    Name = "Target Mode",
+    Name = "Mode curser = closest / center = Fov circle",
     Options = {"cursor", "center"},
     CurrentOption = {SilentAimConfig.TargetMode},
     MultipleOptions = false,
@@ -86,7 +82,7 @@ SilentAimTab:CreateDropdown({
 })
 
 SilentAimTab:CreateSlider({
-    Name = "FOV Radius",
+    Name = "FOV size",
     Range = {50, 500},
     Increment = 10,
     Suffix = "px",
@@ -108,7 +104,7 @@ SilentAimTab:CreateToggle({
 
 -- ==================== FLING CONFIG ====================
 local FlingTab = Window:CreateTab("Fling", 4483362458)
-local FlingSection = FlingTab:CreateSection("Fling Settings")
+local FlingSection = FlingTab:CreateSection("Fling and setting")
 
 local FlingConfig = {
     Enabled = true,
@@ -118,7 +114,7 @@ local FlingConfig = {
 local Debris = game:GetService("Debris")
 
 FlingTab:CreateToggle({
-    Name = "Enable Fling",
+    Name = "Fling",
     CurrentValue = FlingConfig.Enabled,
     Flag = "FlingEnabled",
     Callback = function(Value)
@@ -127,7 +123,7 @@ FlingTab:CreateToggle({
 })
 
 FlingTab:CreateSlider({
-    Name = "Fling Strength",
+    Name = "Fling power",
     Range = {100, 2000},
     Increment = 50,
     Suffix = "power",
@@ -139,8 +135,8 @@ FlingTab:CreateSlider({
 })
 
 -- ==================== INVISIBLE / FAKE SELF CONFIG ====================
-local InvisibleTab = Window:CreateTab("Invisible", 4483362458)
-local InvisibleSection = InvisibleTab:CreateSection("Invisible / Fake Self Settings")
+local InvisibleTab = Window:CreateTab("Invisible(not working😭)", 4483362458)
+local InvisibleSection = InvisibleTab:CreateSection("Invisible")
 
 local InvisibleConfig = {
     Enabled = false,
@@ -153,7 +149,7 @@ local fakeHumanoid = nil
 local isInvisible = false
 
 InvisibleTab:CreateToggle({
-    Name = "Enable Invisible",
+    Name = "Invisible(not working 😭)",
     CurrentValue = InvisibleConfig.Enabled,
     Flag = "InvisibleEnabled",
     Callback = function(Value)
@@ -167,10 +163,10 @@ InvisibleTab:CreateToggle({
 })
 
 InvisibleTab:CreateSlider({
-    Name = "Fake Self Transparency",
+    Name = "Transparency(not working😭)",
     Range = {0, 0.9},
     Increment = 0.1,
-    Suffix = "alpha",
+    Suffix = "Y",
     CurrentValue = InvisibleConfig.FakeSelfTransparency,
     Flag = "FakeTransparency",
     Callback = function(Value)
@@ -277,7 +273,7 @@ local WalkSpeedConfig = {
 
 -- Toggle WalkSpeed
 MovementTab:CreateToggle({
-    Name = "Enable Custom WalkSpeed",
+    Name = "WalkSpeed",
     CurrentValue = WalkSpeedConfig.Enabled,
     Flag = "WalkSpeedEnabled",
     Callback = function(Value)
@@ -326,7 +322,7 @@ local JumpPowerConfig = {
 
 -- Toggle JumpPower
 MovementTab:CreateToggle({
-    Name = "Enable Custom JumpPower",
+    Name = "JumpPower",
     CurrentValue = JumpPowerConfig.Enabled,
     Flag = "JumpPowerEnabled",
     Callback = function(Value)
@@ -407,7 +403,7 @@ local freezeConnection = nil
 local anchorPart = nil
 
 FreezeTab:CreateToggle({
-    Name = "Enable Freeze System",
+    Name = "Freeze (button gui)",
     CurrentValue = FreezeConfig.Enabled,
     Flag = "FreezeSystemEnabled",
     Callback = function(Value)
@@ -421,7 +417,7 @@ FreezeTab:CreateToggle({
 })
 
 FreezeTab:CreateKeybind({
-    Name = "Freeze Keybind",
+    Name = "Freeze Keybind(for pc)",
     CurrentKeybind = "F",
     HoldToInteract = false,
     Flag = "FreezeKeybind",
