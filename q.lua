@@ -1,3 +1,7 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+-- Missspread its just for legit stuff like for example lets say your hitchance is 50 itll miss 50% of the time but if you want people to believe your actually shooting missspread makes it so it LOOKS like your missing because your missing next to them but not actually hitting them its crazy >~<
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -15,66 +19,66 @@ local inmatesTeam = Teams:FindFirstChild("Inmates")
 local criminalsTeam = Teams:FindFirstChild("Criminals")
 
 local cfg = {
-    enabled = true,
-    teamcheck = true,
-    wallcheck = true,
-    deathcheck = true,
-    ffcheck = true,
-    hostilecheck = true,
-    trespasscheck = false,
-    vehiclecheck = true,
-    criminalsnoinnmates = true,
-    inmatesnocriminals = true,
-    shieldbreaker = true,
-    shieldfrontangle = 0.3,
-    shieldrandomhead = true,
-    shieldheadchance = 30,
-    taserbypasshostile = false,
-    taserbypasstrespass = false,
-    taseralwayshit = true,
-    ifplayerstill = false,
-    stillthreshold = 0.5,
-    hitchance = 100,
-    hitchanceAutoOnly = false,
-    distancebasedhitchance = false,
-    distancehitchance1dist = 200,
-    distancehitchance1value = 100,
-    distancehitchance2dist = 350,
-    distancehitchance2value = 100,
-    distancehitchance3dist = 500,
-    distancehitchance3value = 100,
-    distancehitchance4dist = 650,
-    distancehitchance4value = 100,
-    distancehitchance5dist = 800,
-    distancehitchance5value = 100,
-    autoshoot = true,
-    autoshootweapon = "Any",
-    autoshootdelay = 0,
-    autoshootstartdelay = 0,
-    aimmaxdist = 1000,
-    missspread = 0,
-    shotgunnaturalspread = true,
-    shotgungamehandled = false,
-    prioritizeclosest = true,
-    prioritizecriminals = true,
-    targetstickiness = false,
-    targetstickinessduration = 0.6,
-    targetstickinessrandom = false
-    targetstickinessmin = 0.3,
-    targetstickinessmax = 0.7,
-    fov = 150,
-    showfov = true,
-    staticfov = true,
-    showtargetline = false,
-    togglekey = Enum.KeyCode.RightShift,
-    aimpart = "Head",
-    randomparts = true,
-    partslist = {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart"},
+    enabled = true, -- toggle the whole script on/off
+    teamcheck = true, -- dont shoot people on your team
+    wallcheck = true, -- dont shoot through walls
+    deathcheck = true, -- skip dead players
+    ffcheck = true, -- skip players with forcefield
+    hostilecheck = true, -- only shoot hostile inmates 💢 (guards only)
+    trespasscheck = true, -- only shoot trespassing inmates 🔗 (guards only)
+    vehiclecheck = true, -- dont shoot people sitting in cars
+    criminalsnoinnmates = true, -- criminals wont shoot inmates
+    inmatesnocriminals = true, -- inmates wont shoot criminals
+    shieldbreaker = true, -- target shields to break them instead of being blocked
+    shieldfrontangle = 0.3, -- (DONT CHANGE) how wide the shield covers (-1 to 1, lower = wider, 0.3 = ~70 degrees)
+    shieldrandomhead = true, -- randomly hit head instead of shield sometimes (more legit)
+    shieldheadchance = 30, -- percent chance to hit head instead of shield (0-100)
+    taserbypasshostile = false, -- taser ignores hostile check
+    taserbypasstrespass = false, -- taser ignores trespass check
+    taseralwayshit = true, -- taser never misses
+    ifplayerstill = false, -- always hit if player isnt moving
+    stillthreshold = 0.5, -- how slow they gotta be to count as still
+    hitchance = 65, -- percent chance to actually hit (0-100)
+    hitchanceAutoOnly = false, -- only apply hitchance to automatic weapons (shotguns always hit)
+    distancebasedhitchance = false, -- use distance breakpoints to change hitchance
+    distancehitchance1dist = 200, -- at/after this distance, use hitchance 1
+    distancehitchance1value = 30,
+    distancehitchance2dist = 350, -- at/after this distance, use hitchance 2
+    distancehitchance2value = 20,
+    distancehitchance3dist = 500, -- at/after this distance, use hitchance 3
+    distancehitchance3value = 10,
+    distancehitchance4dist = 650, -- at/after this distance, use hitchance 4
+    distancehitchance4value = 5,
+    distancehitchance5dist = 800, -- at/after this distance, use hitchance 5
+    distancehitchance5value = 1,
+    autoshoot = false, -- automatically shoot when target is found
+    autoshootweapon = "Any", -- valid values: "Any", "Taser", "M9", "AK-47", "M4A1", "Remington 870", "Revolver", "Shotgun", "Sniper", "Automatic"
+    autoshootdelay = 0.12, -- delay between auto shots
+    autoshootstartdelay = 0.2, -- delay before first shot when target acquired (reaction time)
+    aimmaxdist = 100, -- max studs a target can be from you (set to 0 for any distance)
+    missspread = 5, -- how far off to shoot when missing (makes it look legit)
+    shotgunnaturalspread = true, -- let shotgun bullets spread naturally instead of all hitting
+    shotgungamehandled = false, -- aim at player but let game handle hitchance/spread
+    prioritizeclosest = true, -- shoot whoever is closest to your cursor (false = random from fov)
+    prioritizecriminals = true, -- if an inmate and criminal are both in fov, prefer the criminal
+    targetstickiness = false, -- enable/disable target stickiness
+    targetstickinessduration = 0.6, -- how long to keep target (seconds)
+    targetstickinessrandom = false, -- use random range instead of fixed value
+    targetstickinessmin = 0.3, -- min time if random is on
+    targetstickinessmax = 0.7, -- max time if random is on
+    fov = 150, -- how big the aim circle is
+    showfov = true, -- show the fov circle on screen
+    staticfov = true, -- keep the fov centered instead of following touch/mouse
+    showtargetline = false, -- draw a line to your target
+    togglekey = Enum.KeyCode.RightShift, -- key to toggle silent aim
+    aimpart = "Head", -- what body part to aim at
+    randomparts = true, -- randomly pick body parts instead
+    partslist = {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart"}, -- parts to pick from if random is on (can add more if wanted)
     esp = true,
     espteamcheck = true,
     espshowteam = false,
     esptargets = {guards = true, inmates = true, criminals = true},
-    espmaxdist = 500, 
+    espmaxdist = 500, -- set to 0 for any distance
     espshowdist = true,
     esptoggle = Enum.KeyCode.RightControl,
     espcolor = Color3.fromRGB(0, 170, 255),
@@ -86,11 +90,11 @@ local cfg = {
     c4esp = true,
     c4esptoggle = Enum.KeyCode.B,
     c4espcolor = Color3.fromRGB(80, 255, 80),
-    c4espmaxdist = 200, 
+    c4espmaxdist = 200, -- set to 0 for any distance
     c4espshowdist = true,
-    autograb = true, 
-    autograbdistance = 12, 
-    autograbdelay = 1, 
+    autograb = true, -- auto grab keycards / m9 when they sit near you
+    autograbdistance = 12, -- max pickup distance (12 studs max)
+    autograbdelay = 1, -- how long the item must stay nearby before grabbing
     autograbkeycard = true,
     autograbm9 = true,
 }
@@ -1667,4 +1671,4 @@ else
     hooked = true
 end
 
-notify("Venus X silent aim for prison life Loaded", 5)
+notify("Silent Aim + ESP", "Loaded! RShift = Aim, RCtrl = ESP", 5)
