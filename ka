@@ -1,0 +1,492 @@
+-- Modern Key System UI for Roblox
+-- Features: Modern design, cool X button, text box, Get Key button, Discord integration
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Configuration
+local CONFIG = {
+    Key = "Venus ftop",
+    DiscordLink = "https://discord.gg/4DzKBt62YB",
+    DiscordInvite = "4DzKBt62YB",
+    Title = "KEY SYSTEM",
+    Subtitle = "Enter your key to continue",
+    NoteText = "Key in discord here is key \"Venus ftop\"",
+    BackgroundColor = Color3.fromRGB(25, 25, 35),
+    AccentColor = Color3.fromRGB(147, 112, 219), -- Purple accent
+    SecondaryColor = Color3.fromRGB(35, 35, 50),
+    TextColor = Color3.fromRGB(255, 255, 255),
+    ErrorColor = Color3.fromRGB(255, 100, 100),
+    SuccessColor = Color3.fromRGB(100, 255, 150),
+    CornerRadius = UDim.new(0, 12),
+    AnimationDuration = 0.3
+}
+
+-- Create ScreenGui
+local KeySystem = Instance.new("ScreenGui")
+KeySystem.Name = "ModernKeySystem"
+KeySystem.ResetOnSpawn = false
+KeySystem.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+KeySystem.Parent = playerGui
+
+-- Main Frame with blur effect background
+local BlurBackground = Instance.new("Frame")
+BlurBackground.Name = "BlurBackground"
+BlurBackground.Size = UDim2.new(1, 0, 1, 0)
+BlurBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlurBackground.BackgroundTransparency = 0.4
+BlurBackground.BorderSizePixel = 0
+BlurBackground.Parent = KeySystem
+
+-- Main Container
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 420, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -160)
+MainFrame.BackgroundColor3 = CONFIG.BackgroundColor
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = KeySystem
+
+-- Corner radius for main frame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = CONFIG.CornerRadius
+MainCorner.Parent = MainFrame
+
+-- Top gradient bar
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 4)
+TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.BackgroundColor3 = CONFIG.AccentColor
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarGradient = Instance.new("UIGradient")
+TopBarGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, CONFIG.AccentColor),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 150, 255)),
+    ColorSequenceKeypoint.new(1, CONFIG.AccentColor)
+})
+TopBarGradient.Parent = TopBar
+
+-- Glow effect behind main frame
+local GlowFrame = Instance.new("Frame")
+GlowFrame.Name = "Glow"
+GlowFrame.Size = UDim2.new(1, 20, 1, 20)
+GlowFrame.Position = UDim2.new(0, -10, 0, -10)
+GlowFrame.BackgroundColor3 = CONFIG.AccentColor
+GlowFrame.BackgroundTransparency = 0.9
+GlowFrame.BorderSizePixel = 0
+GlowFrame.ZIndex = -1
+GlowFrame.Parent = MainFrame
+
+local GlowCorner = Instance.new("UICorner")
+GlowCorner.CornerRadius = UDim.new(0, 20)
+GlowCorner.Parent = GlowFrame
+
+-- Cool X Button (First)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 32, 0, 32)
+CloseButton.Position = UDim2.new(1, -42, 0, 15)
+CloseButton.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = CONFIG.TextColor
+CloseButton.TextSize = 16
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.BorderSizePixel = 0
+CloseButton.Parent = MainFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+-- Close button hover effects
+local CloseStroke = Instance.new("UIStroke")
+CloseStroke.Color = Color3.fromRGB(255, 100, 100)
+CloseStroke.Thickness = 0
+CloseStroke.Parent = CloseButton
+
+-- Title
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "Title"
+TitleLabel.Size = UDim2.new(1, -60, 0, 30)
+TitleLabel.Position = UDim2.new(0, 20, 0, 15)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = CONFIG.Title
+TitleLabel.TextColor3 = CONFIG.TextColor
+TitleLabel.TextSize = 24
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = MainFrame
+
+-- Subtitle
+local SubtitleLabel = Instance.new("TextLabel")
+SubtitleLabel.Name = "Subtitle"
+SubtitleLabel.Size = UDim2.new(1, -40, 0, 20)
+SubtitleLabel.Position = UDim2.new(0, 20, 0, 50)
+SubtitleLabel.BackgroundTransparency = 1
+SubtitleLabel.Text = CONFIG.Subtitle
+SubtitleLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+SubtitleLabel.TextSize = 14
+SubtitleLabel.Font = Enum.Font.Gotham
+SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+SubtitleLabel.Parent = MainFrame
+
+-- Text Box Container (Second)
+local TextBoxContainer = Instance.new("Frame")
+TextBoxContainer.Name = "TextBoxContainer"
+TextBoxContainer.Size = UDim2.new(1, -40, 0, 50)
+TextBoxContainer.Position = UDim2.new(0, 20, 0, 85)
+TextBoxContainer.BackgroundColor3 = CONFIG.SecondaryColor
+TextBoxContainer.BorderSizePixel = 0
+TextBoxContainer.Parent = MainFrame
+
+local TextBoxCorner = Instance.new("UICorner")
+TextBoxCorner.CornerRadius = UDim.new(0, 10)
+TextBoxCorner.Parent = TextBoxContainer
+
+local TextBoxStroke = Instance.new("UIStroke")
+TextBoxStroke.Color = CONFIG.AccentColor
+TextBoxStroke.Thickness = 1
+TextBoxStroke.Transparency = 0.5
+TextBoxStroke.Parent = TextBoxContainer
+
+-- Text Box
+local KeyInput = Instance.new("TextBox")
+KeyInput.Name = "KeyInput"
+KeyInput.Size = UDim2.new(1, -20, 1, -10)
+KeyInput.Position = UDim2.new(0, 10, 0, 5)
+KeyInput.BackgroundTransparency = 1
+KeyInput.Text = ""
+KeyInput.PlaceholderText = "Enter key here..."
+KeyInput.TextColor3 = CONFIG.TextColor
+KeyInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+KeyInput.TextSize = 16
+KeyInput.Font = Enum.Font.Gotham
+KeyInput.ClearTextOnFocus = false
+KeyInput.Parent = TextBoxContainer
+
+-- Submit Button
+local SubmitButton = Instance.new("TextButton")
+SubmitButton.Name = "SubmitButton"
+SubmitButton.Size = UDim2.new(1, -40, 0, 45)
+SubmitButton.Position = UDim2.new(0, 20, 0, 150)
+SubmitButton.BackgroundColor3 = CONFIG.AccentColor
+SubmitButton.Text = "SUBMIT KEY"
+SubmitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SubmitButton.TextSize = 16
+SubmitButton.Font = Enum.Font.GothamBold
+SubmitButton.BorderSizePixel = 0
+SubmitButton.Parent = MainFrame
+
+local SubmitCorner = Instance.new("UICorner")
+SubmitCorner.CornerRadius = UDim.new(0, 10)
+SubmitCorner.Parent = SubmitButton
+
+local SubmitGradient = Instance.new("UIGradient")
+SubmitGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, CONFIG.AccentColor),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 80, 200))
+})
+SubmitGradient.Parent = SubmitButton
+
+-- Get Key Button (Third) - Discord
+local GetKeyButton = Instance.new("TextButton")
+GetKeyButton.Name = "GetKeyButton"
+GetKeyButton.Size = UDim2.new(1, -40, 0, 40)
+GetKeyButton.Position = UDim2.new(0, 20, 0, 205)
+GetKeyButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242) -- Discord blurple
+GetKeyButton.Text = "📋 GET KEY (Discord)"
+GetKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+GetKeyButton.TextSize = 15
+GetKeyButton.Font = Enum.Font.GothamBold
+GetKeyButton.BorderSizePixel = 0
+GetKeyButton.Parent = MainFrame
+
+local GetKeyCorner = Instance.new("UICorner")
+GetKeyCorner.CornerRadius = UDim.new(0, 10)
+GetKeyCorner.Parent = GetKeyButton
+
+-- Note Label (Last)
+local NoteContainer = Instance.new("Frame")
+NoteContainer.Name = "NoteContainer"
+NoteContainer.Size = UDim2.new(1, -40, 0, 55)
+NoteContainer.Position = UDim2.new(0, 20, 0, 255)
+NoteContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+NoteContainer.BorderSizePixel = 0
+NoteContainer.Parent = MainFrame
+
+local NoteCorner = Instance.new("UICorner")
+NoteCorner.CornerRadius = UDim.new(0, 8)
+NoteCorner.Parent = NoteContainer
+
+local NoteIcon = Instance.new("TextLabel")
+NoteIcon.Name = "NoteIcon"
+NoteIcon.Size = UDim2.new(0, 25, 0, 25)
+NoteIcon.Position = UDim2.new(0, 10, 0, 5)
+NoteIcon.BackgroundTransparency = 1
+NoteIcon.Text = "💡"
+NoteIcon.TextSize = 18
+NoteIcon.Parent = NoteContainer
+
+local NoteLabel = Instance.new("TextLabel")
+NoteLabel.Name = "NoteLabel"
+NoteLabel.Size = UDim2.new(1, -45, 1, -10)
+NoteLabel.Position = UDim2.new(0, 35, 0, 5)
+NoteLabel.BackgroundTransparency = 1
+NoteLabel.Text = CONFIG.NoteText
+NoteLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+NoteLabel.TextSize = 13
+NoteLabel.Font = Enum.Font.Gotham
+NoteLabel.TextWrapped = true
+NoteLabel.TextXAlignment = Enum.TextXAlignment.Left
+NoteLabel.TextYAlignment = Enum.TextYAlignment.Center
+NoteLabel.Parent = NoteContainer
+
+-- Status Label (for feedback)
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Size = UDim2.new(1, -40, 0, 20)
+StatusLabel.Position = UDim2.new(0, 20, 0, 130)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = ""
+StatusLabel.TextColor3 = CONFIG.ErrorColor
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Visible = false
+StatusLabel.Parent = MainFrame
+
+-- Animation Functions
+local function tween(object, properties, duration, easingStyle, easingDirection)
+    local tweenInfo = TweenInfo.new(
+        duration or CONFIG.AnimationDuration,
+        easingStyle or Enum.EasingStyle.Quad,
+        easingDirection or Enum.EasingDirection.Out
+    )
+    local tween = TweenService:Create(object, tweenInfo, properties)
+    tween:Play()
+    return tween
+end
+
+-- Entrance Animation
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.BackgroundTransparency = 1
+
+wait(0.1)
+tween(MainFrame, {
+    Size = UDim2.new(0, 420, 0, 320),
+    Position = UDim2.new(0.5, -210, 0.5, -160),
+    BackgroundTransparency = 0
+}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+-- Close Button Hover Effects
+CloseButton.MouseEnter:Connect(function()
+    tween(CloseButton, {BackgroundColor3 = Color3.fromRGB(255, 80, 80)}, 0.2)
+    tween(CloseStroke, {Thickness = 2}, 0.2)
+end)
+
+CloseButton.MouseLeave:Connect(function()
+    tween(CloseButton, {BackgroundColor3 = Color3.fromRGB(45, 45, 60)}, 0.2)
+    tween(CloseStroke, {Thickness = 0}, 0.2)
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    tween(MainFrame, {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In).Completed:Connect(function()
+        KeySystem:Destroy()
+    end)
+end)
+
+-- Text Box Focus Effects
+KeyInput.Focused:Connect(function()
+    tween(TextBoxStroke, {Transparency = 0, Thickness = 2}, 0.2)
+    tween(TextBoxContainer, {BackgroundColor3 = Color3.fromRGB(45, 45, 65)}, 0.2)
+end)
+
+KeyInput.FocusLost:Connect(function()
+    tween(TextBoxStroke, {Transparency = 0.5, Thickness = 1}, 0.2)
+    tween(TextBoxContainer, {BackgroundColor3 = CONFIG.SecondaryColor}, 0.2)
+end)
+
+-- Submit Button Hover
+SubmitButton.MouseEnter:Connect(function()
+    tween(SubmitButton, {Size = UDim2.new(1, -36, 0, 49), Position = UDim2.new(0, 18, 0, 148)}, 0.15)
+end)
+
+SubmitButton.MouseLeave:Connect(function()
+    tween(SubmitButton, {Size = UDim2.new(1, -40, 0, 45), Position = UDim2.new(0, 20, 0, 150)}, 0.15)
+end)
+
+-- Get Key Button Hover
+GetKeyButton.MouseEnter:Connect(function()
+    tween(GetKeyButton, {BackgroundColor3 = Color3.fromRGB(110, 120, 255)}, 0.2)
+end)
+
+GetKeyButton.MouseLeave:Connect(function()
+    tween(GetKeyButton, {BackgroundColor3 = Color3.fromRGB(88, 101, 242)}, 0.2)
+end)
+
+-- Discord Link Function
+local function openDiscord()
+    local success = pcall(function()
+        -- Try to copy to clipboard
+        if setclipboard then
+            setclipboard(CONFIG.DiscordLink)
+        end
+    end)
+    
+    -- Open Discord invite
+    pcall(function()
+        local http = game:GetService("HttpService")
+        -- Try multiple methods to open Discord
+        if request then
+            request({
+                Url = "http://127.0.0.1:6463/rpc?v=1",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Origin"] = "https://discord.com"
+                },
+                Body = HttpService:JSONEncode({
+                    cmd = "INVITE_BROWSER",
+                    nonce = HttpService:GenerateGUID(false),
+                    args = {code = CONFIG.DiscordInvite}
+                })
+            })
+        end
+    end)
+    
+    -- Show feedback
+    StatusLabel.Text = "🔗 Discord link copied to clipboard!"
+    StatusLabel.TextColor3 = CONFIG.SuccessColor
+    StatusLabel.Visible = true
+    
+    tween(StatusLabel, {TextTransparency = 0}, 0.3)
+    
+    wait(3)
+    tween(StatusLabel, {TextTransparency = 1}, 0.3).Completed:Connect(function()
+        StatusLabel.Visible = false
+    end)
+end
+
+GetKeyButton.MouseButton1Click:Connect(openDiscord)
+
+-- Key Validation
+local function validateKey()
+    local enteredKey = KeyInput.Text:gsub("%s+", "") -- Remove whitespace
+    
+    if enteredKey == "" then
+        StatusLabel.Text = "⚠️ Please enter a key"
+        StatusLabel.TextColor3 = CONFIG.ErrorColor
+        StatusLabel.Visible = true
+        
+        -- Shake animation
+        local originalPos = TextBoxContainer.Position
+        tween(TextBoxContainer, {Position = UDim2.new(0, 25, 0, 85)}, 0.05).Completed:Connect(function()
+            tween(TextBoxContainer, {Position = UDim2.new(0, 15, 0, 85)}, 0.05).Completed:Connect(function()
+                tween(TextBoxContainer, {Position = originalPos}, 0.05)
+            end)
+        end)
+        
+        tween(TextBoxStroke, {Color = CONFIG.ErrorColor}, 0.2)
+        wait(0.5)
+        tween(TextBoxStroke, {Color = CONFIG.AccentColor}, 0.3)
+        return
+    end
+    
+    if enteredKey == CONFIG.Key then
+        -- Success!
+        StatusLabel.Text = "✅ Key accepted! Loading..."
+        StatusLabel.TextColor3 = CONFIG.SuccessColor
+        StatusLabel.Visible = true
+        
+        tween(SubmitButton, {BackgroundColor3 = CONFIG.SuccessColor}, 0.3)
+        tween(TextBoxStroke, {Color = CONFIG.SuccessColor}, 0.3)
+        
+        wait(1)
+        
+        -- Success animation and close
+        tween(MainFrame, {
+            Size = UDim2.new(0, 450, 0, 350),
+            BackgroundTransparency = 0.5
+        }, 0.2)
+        
+        wait(0.2)
+        
+        tween(MainFrame, {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            BackgroundTransparency = 1
+        }, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In).Completed:Connect(function()
+            KeySystem:Destroy()
+            print("Key system passed! Load your script here.")
+            -- ADD YOUR MAIN SCRIPT HERE
+        end)
+    else
+        -- Wrong key
+        StatusLabel.Text = "❌ Invalid key! Check Discord for the correct key."
+        StatusLabel.TextColor3 = CONFIG.ErrorColor
+        StatusLabel.Visible = true
+        
+        -- Shake animation
+        local originalPos = TextBoxContainer.Position
+        for i = 1, 3 do
+            tween(TextBoxContainer, {Position = UDim2.new(0, 25, 0, 85)}, 0.05).Completed:Wait()
+            tween(TextBoxContainer, {Position = UDim2.new(0, 15, 0, 85)}, 0.05).Completed:Wait()
+        end
+        tween(TextBoxContainer, {Position = originalPos}, 0.05)
+        
+        tween(TextBoxStroke, {Color = CONFIG.ErrorColor}, 0.2)
+        KeyInput.Text = ""
+        wait(0.5)
+        tween(TextBoxStroke, {Color = CONFIG.AccentColor}, 0.3)
+    end
+end
+
+SubmitButton.MouseButton1Click:Connect(validateKey)
+
+-- Enter key support
+KeyInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        validateKey()
+    end
+end)
+
+-- Make draggable
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+print("Modern Key System loaded successfully!")
