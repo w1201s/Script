@@ -235,7 +235,7 @@ noteLabel.Name = "Note"
 noteLabel.Size = UDim2.new(1, 0, 0, 40)
 noteLabel.Position = UDim2.new(0, 0, 1, -40)
 noteLabel.BackgroundTransparency = 1
-noteLabel.Text = "Key in discord: Venusf"
+noteLabel.Text = "Key in discord and go to #key"
 noteLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 noteLabel.TextSize = 12
 noteLabel.Font = Enum.Font.Gotham
@@ -311,5 +311,3 @@ TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.Ea
     Size = UDim2.new(0, 400, 0, 300),
     Position = UDim2.new(0.5, -200, 0.5, -150)
 }):Play()
-
-print("Modern Key System UI Loaded!")
