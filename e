@@ -1,4 +1,8 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
 
+-- โหลด Rayfield UI Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Services
@@ -7,16 +11,15 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
-local ContextActionService = game:GetService("ContextActionService")
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 
 -- สร้างหน้าต่าง
 local Window = Rayfield:CreateWindow({
-    Name = "Ftap by venus",
-    LoadingTitle = "Tuff venus",
-    LoadingSubtitle = "by w1201s",
+    Name = "Silent Aim + Fling + Freeze",
+    LoadingTitle = "Multi-Feature Script",
+    LoadingSubtitle = "by You",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -38,13 +41,12 @@ local SilentAimConfig = {
     Enabled = true,
     Distance = 28,
     TargetMode = "cursor",
-    FOV = 100, -- FOV สำหรับ Center Mode
+    FOV = 100,
     ShowFOVCircle = true,
 }
 
 local targetPosition = nil
 
--- Toggle Silent Aim
 SilentAimTab:CreateToggle({
     Name = "Enable Silent Aim",
     CurrentValue = SilentAimConfig.Enabled,
@@ -57,7 +59,6 @@ SilentAimTab:CreateToggle({
     end,
 })
 
--- Slider Distance
 SilentAimTab:CreateSlider({
     Name = "Aim Distance",
     Range = {10, 100},
@@ -70,7 +71,6 @@ SilentAimTab:CreateSlider({
     end,
 })
 
--- Dropdown Target Mode
 SilentAimTab:CreateDropdown({
     Name = "Target Mode",
     Options = {"cursor", "center"},
@@ -82,7 +82,6 @@ SilentAimTab:CreateDropdown({
     end,
 })
 
--- Slider FOV (สำหรับ Center Mode)
 SilentAimTab:CreateSlider({
     Name = "FOV Radius",
     Range = {50, 500},
@@ -95,7 +94,6 @@ SilentAimTab:CreateSlider({
     end,
 })
 
--- Toggle Show FOV Circle
 SilentAimTab:CreateToggle({
     Name = "Show FOV Circle",
     CurrentValue = SilentAimConfig.ShowFOVCircle,
@@ -184,7 +182,6 @@ InvisibleTab:CreateSlider({
     end,
 })
 
--- ฟังก์ชัน Invisible
 function enableInvisible()
     if isInvisible then return end
     isInvisible = true
@@ -196,11 +193,9 @@ function enableInvisible()
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not humanoid then return end
     
-    -- สร้าง Fake Character
     fakeCharacter = Instance.new("Model")
     fakeCharacter.Name = localPlayer.Name .. "_Fake"
     
-    -- คัดลอกทุกส่วนของตัวละคร
     for _, part in pairs(char:GetDescendants()) do
         if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
             local clone = part:Clone()
@@ -208,7 +203,6 @@ function enableInvisible()
             clone.Transparency = InvisibleConfig.FakeSelfTransparency
             clone.Parent = fakeCharacter
             
-            -- Weld กับ HumanoidRootPart ของ fake
             if clone.Name ~= "HumanoidRootPart" then
                 local weld = Instance.new("Weld")
                 weld.Part0 = clone
@@ -219,22 +213,18 @@ function enableInvisible()
         end
     end
     
-    -- สร้าง Humanoid ปลอม
     fakeHumanoid = Instance.new("Humanoid")
     fakeHumanoid.Parent = fakeCharacter
     
-    -- ตั้งตำแหน่ง Fake Character
     local hrp = char:WaitForChild("HumanoidRootPart")
     local fakeHrp = fakeCharacter:WaitForChild("HumanoidRootPart")
     fakeHrp.CFrame = hrp.CFrame
     
     fakeCharacter.Parent = Workspace
     
-    -- ย้ายตัวจริงลงใต้ดิน
     local offset = Vector3.new(0, -500, 0)
     hrp.CFrame = hrp.CFrame + offset
     
-    -- ซิงค์การเคลื่อนไหว
     RunService:BindToRenderStep("SyncFakeCharacter", 1, function()
         if not isInvisible or not fakeCharacter or not realCharacter then return end
         
@@ -254,7 +244,6 @@ function disableInvisible()
     
     RunService:UnbindFromRenderStep("SyncFakeCharacter")
     
-    -- ย้ายตัวจริงกลับขึ้นมา
     if realCharacter and fakeCharacter then
         local realHrp = realCharacter:FindFirstChild("HumanoidRootPart")
         local fakeHrp = fakeCharacter:FindFirstChild("HumanoidRootPart")
@@ -264,7 +253,6 @@ function disableInvisible()
         end
     end
     
-    -- ลบ Fake Character
     if fakeCharacter then
         fakeCharacter:Destroy()
         fakeCharacter = nil
@@ -273,7 +261,7 @@ function disableInvisible()
     realCharacter = nil
 end
 
--- ==================== MOVEMENT CONFIG ====================
+-- ==================== MOVEMENT CONFIG (ไม่มี Fly) ====================
 local MovementTab = Window:CreateTab("Movement", 4483362458)
 local MovementSection = MovementTab:CreateSection("Movement Settings")
 
@@ -281,12 +269,9 @@ local MovementConfig = {
     WalkSpeed = 16,
     JumpPower = 50,
     InfiniteJump = false,
-    Fly = false,
-    FlySpeed = 50,
     NoClip = false,
 }
 
--- WalkSpeed
 MovementTab:CreateSlider({
     Name = "Walk Speed",
     Range = {16, 200},
@@ -306,7 +291,6 @@ MovementTab:CreateSlider({
     end,
 })
 
--- JumpPower
 MovementTab:CreateSlider({
     Name = "Jump Power",
     Range = {50, 200},
@@ -326,7 +310,6 @@ MovementTab:CreateSlider({
     end,
 })
 
--- Infinite Jump
 MovementTab:CreateToggle({
     Name = "Infinite Jump",
     CurrentValue = MovementConfig.InfiniteJump,
@@ -336,35 +319,6 @@ MovementTab:CreateToggle({
     end,
 })
 
--- Fly
-MovementTab:CreateToggle({
-    Name = "Fly",
-    CurrentValue = MovementConfig.Fly,
-    Flag = "FlyEnabled",
-    Callback = function(Value)
-        MovementConfig.Fly = Value
-        if Value then
-            enableFly()
-        else
-            disableFly()
-        end
-    end,
-})
-
--- Fly Speed
-MovementTab:CreateSlider({
-    Name = "Fly Speed",
-    Range = {10, 200},
-    Increment = 5,
-    Suffix = "speed",
-    CurrentValue = MovementConfig.FlySpeed,
-    Flag = "FlySpeed",
-    Callback = function(Value)
-        MovementConfig.FlySpeed = Value
-    end,
-})
-
--- NoClip
 MovementTab:CreateToggle({
     Name = "No Clip",
     CurrentValue = MovementConfig.NoClip,
@@ -374,158 +328,201 @@ MovementTab:CreateToggle({
     end,
 })
 
--- ==================== FLY SYSTEM ====================
-local flyBodyVelocity = nil
-local flyBodyGyro = nil
-local flyConnection = nil
+-- ==================== FREEZE SYSTEM ====================
+local FreezeTab = Window:CreateTab("Freeze", 4483362458)
+local FreezeSection = FreezeTab:CreateSection("Freeze Settings")
 
-function enableFly()
+local FreezeConfig = {
+    Enabled = false,
+    Keybind = Enum.KeyCode.F,
+    IsFrozen = false,
+}
+
+local freezeUI = nil
+local freezeButton = nil
+local freezeConnection = nil
+local dragConnection = nil
+local anchorPart = nil
+
+-- Toggle เปิด/ปิด Freeze System
+FreezeTab:CreateToggle({
+    Name = "Enable Freeze System",
+    CurrentValue = FreezeConfig.Enabled,
+    Flag = "FreezeSystemEnabled",
+    Callback = function(Value)
+        FreezeConfig.Enabled = Value
+        if Value then
+            createFreezeUI()
+        else
+            destroyFreezeUI()
+        end
+    end,
+})
+
+-- Keybind สำหรับ Freeze
+FreezeTab:CreateKeybind({
+    Name = "Freeze Keybind",
+    CurrentKeybind = "F",
+    HoldToInteract = false,
+    Flag = "FreezeKeybind",
+    Callback = function(Keybind)
+        FreezeConfig.Keybind = Keybind
+    end,
+})
+
+FreezeTab:CreateLabel("Press keybind to toggle freeze state")
+
+function createFreezeUI()
+    if freezeUI then return end
+    
+    local playerGui = localPlayer:WaitForChild("PlayerGui")
+    
+    -- สร้าง ScreenGui
+    freezeUI = Instance.new("ScreenGui")
+    freezeUI.Name = "FreezeUI"
+    freezeUI.Parent = playerGui
+    freezeUI.ResetOnSpawn = false
+    
+    -- สร้างปุ่มหลัก (Frame)
+    local buttonFrame = Instance.new("Frame")
+    buttonFrame.Name = "FreezeButtonFrame"
+    buttonFrame.Size = UDim2.new(0, 120, 0, 50)
+    buttonFrame.Position = UDim2.new(0.5, -60, 0.8, 0)
+    buttonFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    buttonFrame.BorderSizePixel = 0
+    buttonFrame.Active = true
+    buttonFrame.Draggable = true -- ลากได้!
+    buttonFrame.Parent = freezeUI
+    
+    -- มุมโค้ง
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = buttonFrame
+    
+    -- Stroke
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(100, 100, 100)
+    stroke.Thickness = 2
+    stroke.Parent = buttonFrame
+    
+    -- ปุ่มกด
+    freezeButton = Instance.new("TextButton")
+    freezeButton.Name = "FreezeToggleButton"
+    freezeButton.Size = UDim2.new(1, 0, 1, 0)
+    freezeButton.BackgroundTransparency = 1
+    freezeButton.Text = "Freeze: OFF"
+    freezeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    freezeButton.TextSize = 16
+    freezeButton.Font = Enum.Font.GothamBold
+    freezeButton.Parent = buttonFrame
+    
+    -- สถานะการ Freeze
+    FreezeConfig.IsFrozen = false
+    
+    -- คลิกปุ่ม
+    freezeButton.MouseButton1Click:Connect(function()
+        toggleFreeze()
+    end)
+    
+    -- Keybind Handler
+    freezeConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == FreezeConfig.Keybind then
+            toggleFreeze()
+        end
+    end)
+end
+
+function destroyFreezeUI()
+    if freezeUI then
+        freezeUI:Destroy()
+        freezeUI = nil
+        freezeButton = nil
+    end
+    
+    if freezeConnection then
+        freezeConnection:Disconnect()
+        freezeConnection = nil
+    end
+    
+    -- ปิด Freeze ถ้ากำลัง Freeze อยู่
+    if FreezeConfig.IsFrozen then
+        unfreezeCharacter()
+    end
+end
+
+function toggleFreeze()
+    FreezeConfig.IsFrozen = not FreezeConfig.IsFrozen
+    
+    if FreezeConfig.IsFrozen then
+        freezeCharacter()
+    else
+        unfreezeCharacter()
+    end
+    
+    -- อัปเดต UI
+    if freezeButton then
+        if FreezeConfig.IsFrozen then
+            freezeButton.Text = "Freeze: ON"
+            freezeButton.Parent.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        else
+            freezeButton.Text = "Freeze: OFF"
+            freezeButton.Parent.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        end
+    end
+end
+
+function freezeCharacter()
     local char = localPlayer.Character
     if not char then return end
     
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    flyBodyVelocity = Instance.new("BodyVelocity")
-    flyBodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    flyBodyVelocity.Velocity = Vector3.zero
-    flyBodyVelocity.Parent = hrp
+    -- สร้าง Anchor Part ที่ตำแหน่งปัจจุบัน
+    anchorPart = Instance.new("Part")
+    anchorPart.Name = "FreezeAnchor"
+    anchorPart.Size = Vector3.new(1, 1, 1)
+    anchorPart.Position = hrp.Position
+    anchorPart.Anchored = true
+    anchorPart.Transparency = 1
+    anchorPart.CanCollide = false
+    anchorPart.Parent = Workspace
     
-    flyBodyGyro = Instance.new("BodyGyro")
-    flyBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-    flyBodyGyro.P = 1e4
-    flyBodyGyro.CFrame = hrp.CFrame
-    flyBodyGyro.Parent = hrp
+    -- Weld ตัวละครกับ Anchor
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = hrp
+    weld.Part1 = anchorPart
+    weld.Parent = hrp
     
-    flyConnection = RunService.RenderStepped:Connect(function()
-        if not MovementConfig.Fly then return end
-        
-        local direction = Vector3.zero
-        
-        -- PC Controls (WASD/Space/Q)
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            direction = direction + camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            direction = direction - camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            direction = direction - camera.CFrame.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            direction = direction + camera.CFrame.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            direction = direction + Vector3.new(0, 1, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Q) then
-            direction = direction - Vector3.new(0, 1, 0)
-        end
-        
-        -- Mobile Controls (Touch)
-        local touch = UserInputService:GetTouchEnabled()
-        if touch then
-            -- สร้าง Mobile Fly UI ถ้ายังไม่มี
-            createMobileFlyUI()
-        end
-        
-        if direction.Magnitude > 0 then
-            direction = direction.Unit * MovementConfig.FlySpeed
-        end
-        
-        if flyBodyVelocity then
-            flyBodyVelocity.Velocity = direction
-        end
-        if flyBodyGyro then
-            flyBodyGyro.CFrame = camera.CFrame
-        end
-    end)
+    -- หยุดความเร็ว
+    hrp.Velocity = Vector3.zero
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
+    
+    -- ปิดการเคลื่อนไหวของ Humanoid
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+    end
 end
 
-function disableFly()
-    if flyConnection then
-        flyConnection:Disconnect()
-        flyConnection = nil
+function unfreezeCharacter()
+    if anchorPart then
+        anchorPart:Destroy()
+        anchorPart = nil
     end
-    if flyBodyVelocity then
-        flyBodyVelocity:Destroy()
-        flyBodyVelocity = nil
+    
+    local char = localPlayer.Character
+    if not char then return end
+    
+    -- คืนค่าการเคลื่อนไหว
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = MovementConfig.WalkSpeed
+        humanoid.JumpPower = MovementConfig.JumpPower
     end
-    if flyBodyGyro then
-        flyBodyGyro:Destroy()
-        flyBodyGyro = nil
-    end
-    removeMobileFlyUI()
-end
-
--- Mobile Fly UI
-local mobileFlyFrame = nil
-
-function createMobileFlyUI()
-    if mobileFlyFrame then return end
-    
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FlyMobileUI"
-    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
-    
-    mobileFlyFrame = Instance.new("Frame")
-    mobileFlyFrame.Size = UDim2.new(0, 200, 0, 200)
-    mobileFlyFrame.Position = UDim2.new(1, -220, 1, -220)
-    mobileFlyFrame.BackgroundTransparency = 0.5
-    mobileFlyFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    mobileFlyFrame.Parent = screenGui
-    
-    local upButton = Instance.new("TextButton")
-    upButton.Size = UDim2.new(0.3, 0, 0.3, 0)
-    upButton.Position = UDim2.new(0.35, 0, 0, 0)
-    upButton.Text = "↑"
-    upButton.Parent = mobileFlyFrame
-    
-    local downButton = Instance.new("TextButton")
-    downButton.Size = UDim2.new(0.3, 0, 0.3, 0)
-    downButton.Position = UDim2.new(0.35, 0, 0.7, 0)
-    downButton.Text = "↓"
-    downButton.Parent = mobileFlyFrame
-    
-    local leftButton = Instance.new("TextButton")
-    leftButton.Size = UDim2.new(0.3, 0, 0.3, 0)
-    leftButton.Position = UDim2.new(0, 0, 0.35, 0)
-    leftButton.Text = "←"
-    leftButton.Parent = mobileFlyFrame
-    
-    local rightButton = Instance.new("TextButton")
-    rightButton.Size = UDim2.new(0.3, 0, 0.3, 0)
-    rightButton.Position = UDim2.new(0.7, 0, 0.35, 0)
-    rightButton.Text = "→"
-    rightButton.Parent = mobileFlyFrame
-    
-    -- Touch handlers
-    local flyDirection = Vector3.zero
-    
-    upButton.InputBegan:Connect(function()
-        flyDirection = Vector3.new(0, 1, 0) * MovementConfig.FlySpeed
-    end)
-    upButton.InputEnded:Connect(function()
-        flyDirection = Vector3.zero
-    end)
-    
-    downButton.InputBegan:Connect(function()
-        flyDirection = Vector3.new(0, -1, 0) * MovementConfig.FlySpeed
-    end)
-    downButton.InputEnded:Connect(function()
-        flyDirection = Vector3.zero
-    end)
-end
-
-function removeMobileFlyUI()
-    local playerGui = localPlayer:FindFirstChild("PlayerGui")
-    if playerGui then
-        local flyUI = playerGui:FindFirstChild("FlyMobileUI")
-        if flyUI then
-            flyUI:Destroy()
-        end
-    end
-    mobileFlyFrame = nil
 end
 
 -- ==================== NOCLIP ====================
@@ -589,7 +586,7 @@ local function updateTarget()
         maxDist = math.huge
     else
         referencePos = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-        maxDist = SilentAimConfig.FOV -- ใช้ FOV เป็นระยะจำกัด
+        maxDist = SilentAimConfig.FOV
     end
     
     if not referencePos then return end
@@ -612,7 +609,6 @@ local function updateTarget()
                                 local screenVec = Vector2.new(screenPos.X, screenPos.Y)
                                 local screenDist = (screenVec - referencePos).Magnitude
                                 
-                                -- เช็คว่าอยู่ใน FOV หรือไม่ (สำหรับ Center Mode)
                                 if SilentAimConfig.TargetMode == "center" and screenDist > SilentAimConfig.FOV then
                                     continue
                                 end
@@ -683,6 +679,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดเสร็จ
 Rayfield:Notify({
     Title = "Script Loaded",
-    Content = "All features loaded successfully!",
+    Content = "Silent Aim + Fling + Freeze loaded!",
     Duration = 3,
 })
