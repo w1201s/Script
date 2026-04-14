@@ -10,10 +10,13 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
+
+-- ค่าเริ่มต้นปกติ
+local DEFAULT_WALKSPEED = 16
+local DEFAULT_JUMPPOWER = 50
 
 -- สร้างหน้าต่าง
 local Window = Rayfield:CreateWindow({
@@ -261,54 +264,114 @@ function disableInvisible()
     realCharacter = nil
 end
 
--- ==================== MOVEMENT CONFIG (ไม่มี Fly) ====================
+-- ==================== MOVEMENT CONFIG ====================
 local MovementTab = Window:CreateTab("Movement", 4483362458)
-local MovementSection = MovementTab:CreateSection("Movement Settings")
 
-local MovementConfig = {
-    WalkSpeed = 16,
-    JumpPower = 50,
-    InfiniteJump = false,
-    NoClip = false,
+-- ==================== WALKSPEED SECTION ====================
+local WalkSpeedSection = MovementTab:CreateSection("WalkSpeed Settings")
+
+local WalkSpeedConfig = {
+    Enabled = false,
+    Value = 50,
 }
 
+-- Toggle WalkSpeed
+MovementTab:CreateToggle({
+    Name = "Enable Custom WalkSpeed",
+    CurrentValue = WalkSpeedConfig.Enabled,
+    Flag = "WalkSpeedEnabled",
+    Callback = function(Value)
+        WalkSpeedConfig.Enabled = Value
+        updateWalkSpeed()
+    end,
+})
+
+-- Slider WalkSpeed
 MovementTab:CreateSlider({
-    Name = "Walk Speed",
+    Name = "WalkSpeed Value",
     Range = {16, 200},
     Increment = 1,
     Suffix = "speed",
-    CurrentValue = MovementConfig.WalkSpeed,
-    Flag = "WalkSpeed",
+    CurrentValue = WalkSpeedConfig.Value,
+    Flag = "WalkSpeedValue",
     Callback = function(Value)
-        MovementConfig.WalkSpeed = Value
-        local char = localPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.WalkSpeed = Value
-            end
+        WalkSpeedConfig.Value = Value
+        if WalkSpeedConfig.Enabled then
+            updateWalkSpeed()
         end
     end,
 })
 
+function updateWalkSpeed()
+    local char = localPlayer.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    if WalkSpeedConfig.Enabled then
+        humanoid.WalkSpeed = WalkSpeedConfig.Value
+    else
+        humanoid.WalkSpeed = DEFAULT_WALKSPEED
+    end
+end
+
+-- ==================== JUMPPOWER SECTION ====================
+local JumpPowerSection = MovementTab:CreateSection("JumpPower Settings")
+
+local JumpPowerConfig = {
+    Enabled = false,
+    Value = 100,
+}
+
+-- Toggle JumpPower
+MovementTab:CreateToggle({
+    Name = "Enable Custom JumpPower",
+    CurrentValue = JumpPowerConfig.Enabled,
+    Flag = "JumpPowerEnabled",
+    Callback = function(Value)
+        JumpPowerConfig.Enabled = Value
+        updateJumpPower()
+    end,
+})
+
+-- Slider JumpPower
 MovementTab:CreateSlider({
-    Name = "Jump Power",
+    Name = "JumpPower Value",
     Range = {50, 200},
     Increment = 1,
     Suffix = "power",
-    CurrentValue = MovementConfig.JumpPower,
-    Flag = "JumpPower",
+    CurrentValue = JumpPowerConfig.Value,
+    Flag = "JumpPowerValue",
     Callback = function(Value)
-        MovementConfig.JumpPower = Value
-        local char = localPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.JumpPower = Value
-            end
+        JumpPowerConfig.Value = Value
+        if JumpPowerConfig.Enabled then
+            updateJumpPower()
         end
     end,
 })
+
+function updateJumpPower()
+    local char = localPlayer.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    if JumpPowerConfig.Enabled then
+        humanoid.JumpPower = JumpPowerConfig.Value
+    else
+        humanoid.JumpPower = DEFAULT_JUMPPOWER
+    end
+end
+
+-- ==================== OTHER MOVEMENT ====================
+local OtherSection = MovementTab:CreateSection("Other Movement")
+
+local MovementConfig = {
+    InfiniteJump = false,
+    NoClip = false,
+}
 
 MovementTab:CreateToggle({
     Name = "Infinite Jump",
@@ -341,10 +404,8 @@ local FreezeConfig = {
 local freezeUI = nil
 local freezeButton = nil
 local freezeConnection = nil
-local dragConnection = nil
 local anchorPart = nil
 
--- Toggle เปิด/ปิด Freeze System
 FreezeTab:CreateToggle({
     Name = "Enable Freeze System",
     CurrentValue = FreezeConfig.Enabled,
@@ -359,7 +420,6 @@ FreezeTab:CreateToggle({
     end,
 })
 
--- Keybind สำหรับ Freeze
 FreezeTab:CreateKeybind({
     Name = "Freeze Keybind",
     CurrentKeybind = "F",
@@ -377,13 +437,11 @@ function createFreezeUI()
     
     local playerGui = localPlayer:WaitForChild("PlayerGui")
     
-    -- สร้าง ScreenGui
     freezeUI = Instance.new("ScreenGui")
     freezeUI.Name = "FreezeUI"
     freezeUI.Parent = playerGui
     freezeUI.ResetOnSpawn = false
     
-    -- สร้างปุ่มหลัก (Frame)
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "FreezeButtonFrame"
     buttonFrame.Size = UDim2.new(0, 120, 0, 50)
@@ -391,21 +449,18 @@ function createFreezeUI()
     buttonFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     buttonFrame.BorderSizePixel = 0
     buttonFrame.Active = true
-    buttonFrame.Draggable = true -- ลากได้!
+    buttonFrame.Draggable = true
     buttonFrame.Parent = freezeUI
     
-    -- มุมโค้ง
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = buttonFrame
     
-    -- Stroke
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(100, 100, 100)
     stroke.Thickness = 2
     stroke.Parent = buttonFrame
     
-    -- ปุ่มกด
     freezeButton = Instance.new("TextButton")
     freezeButton.Name = "FreezeToggleButton"
     freezeButton.Size = UDim2.new(1, 0, 1, 0)
@@ -416,15 +471,12 @@ function createFreezeUI()
     freezeButton.Font = Enum.Font.GothamBold
     freezeButton.Parent = buttonFrame
     
-    -- สถานะการ Freeze
     FreezeConfig.IsFrozen = false
     
-    -- คลิกปุ่ม
     freezeButton.MouseButton1Click:Connect(function()
         toggleFreeze()
     end)
     
-    -- Keybind Handler
     freezeConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == FreezeConfig.Keybind then
@@ -445,7 +497,6 @@ function destroyFreezeUI()
         freezeConnection = nil
     end
     
-    -- ปิด Freeze ถ้ากำลัง Freeze อยู่
     if FreezeConfig.IsFrozen then
         unfreezeCharacter()
     end
@@ -460,7 +511,6 @@ function toggleFreeze()
         unfreezeCharacter()
     end
     
-    -- อัปเดต UI
     if freezeButton then
         if FreezeConfig.IsFrozen then
             freezeButton.Text = "Freeze: ON"
@@ -479,7 +529,6 @@ function freezeCharacter()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    -- สร้าง Anchor Part ที่ตำแหน่งปัจจุบัน
     anchorPart = Instance.new("Part")
     anchorPart.Name = "FreezeAnchor"
     anchorPart.Size = Vector3.new(1, 1, 1)
@@ -489,18 +538,15 @@ function freezeCharacter()
     anchorPart.CanCollide = false
     anchorPart.Parent = Workspace
     
-    -- Weld ตัวละครกับ Anchor
     local weld = Instance.new("WeldConstraint")
     weld.Part0 = hrp
     weld.Part1 = anchorPart
     weld.Parent = hrp
     
-    -- หยุดความเร็ว
     hrp.Velocity = Vector3.zero
     hrp.AssemblyLinearVelocity = Vector3.zero
     hrp.AssemblyAngularVelocity = Vector3.zero
     
-    -- ปิดการเคลื่อนไหวของ Humanoid
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid.WalkSpeed = 0
@@ -517,13 +563,40 @@ function unfreezeCharacter()
     local char = localPlayer.Character
     if not char then return end
     
-    -- คืนค่าการเคลื่อนไหว
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if humanoid then
-        humanoid.WalkSpeed = MovementConfig.WalkSpeed
-        humanoid.JumpPower = MovementConfig.JumpPower
+        if WalkSpeedConfig.Enabled then
+            humanoid.WalkSpeed = WalkSpeedConfig.Value
+        else
+            humanoid.WalkSpeed = DEFAULT_WALKSPEED
+        end
+        
+        if JumpPowerConfig.Enabled then
+            humanoid.JumpPower = JumpPowerConfig.Value
+        else
+            humanoid.JumpPower = DEFAULT_JUMPPOWER
+        end
     end
 end
+
+-- ==================== CHARACTER SPAWN HANDLER ====================
+localPlayer.CharacterAdded:Connect(function(char)
+    -- รอ Humanoid โหลด
+    local humanoid = char:WaitForChild("Humanoid")
+    
+    -- อัปเดตค่าตาม Toggle ที่เปิดอยู่
+    if WalkSpeedConfig.Enabled then
+        humanoid.WalkSpeed = WalkSpeedConfig.Value
+    else
+        humanoid.WalkSpeed = DEFAULT_WALKSPEED
+    end
+    
+    if JumpPowerConfig.Enabled then
+        humanoid.JumpPower = JumpPowerConfig.Value
+    else
+        humanoid.JumpPower = DEFAULT_JUMPPOWER
+    end
+end)
 
 -- ==================== NOCLIP ====================
 RunService.Stepped:Connect(function()
@@ -679,6 +752,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดเสร็จ
 Rayfield:Notify({
     Title = "Script Loaded",
-    Content = "Silent Aim + Fling + Freeze loaded!",
+    Content = "All features loaded successfully!",
     Duration = 3,
 })
